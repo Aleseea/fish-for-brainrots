@@ -1,0 +1,145 @@
+/* Page shell for the standalone calculators. The calculators themselves are
+   styled by calc.css (generated from the wiki's Common.css). */
+
+:root {
+	--bg: #1b1320;
+	--panel: #251a2b;
+	--text: #f1eaf3;
+	--muted: #b9aebd;
+	--line: rgba(255, 255, 255, 0.14);
+	--accent: #e3a83f;
+	--bad: #ec7a72;
+	color-scheme: dark;
+}
+
+:root.theme-fandom-light {
+	--bg: #f7f4f8;
+	--panel: #ffffff;
+	--text: #1f1623;
+	--muted: #5d5262;
+	--line: rgba(0, 0, 0, 0.14);
+	--accent: #a86b00;
+	--bad: #b3342b;
+	color-scheme: light;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a {
+	color: var(--accent);
+}
+
+.site-head,
+main,
+.site-foot {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 0 16px;
+}
+
+.site-head {
+	padding-top: 20px;
+}
+
+.site-head h1 {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.25;
+}
+
+.site-sub {
+	margin: 6px 0 14px;
+	color: var(--muted);
+	font-size: 14px;
+}
+
+.site-tabs {
+	display: flex;
+	gap: 6px;
+	border-bottom: 1px solid var(--line);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.site-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.site-tabs a {
+	padding: 10px 14px;
+	color: var(--muted);
+	text-decoration: none;
+	font-weight: 600;
+	white-space: nowrap;
+	border-bottom: 3px solid transparent;
+	margin-bottom: -1px;
+}
+
+.site-tabs a[aria-selected="true"] {
+	color: var(--accent);
+	border-bottom-color: var(--accent);
+}
+
+main {
+	padding-top: 16px;
+	padding-bottom: 24px;
+}
+
+.site-panel h2 {
+	margin: 0 0 6px;
+	font-size: 19px;
+}
+
+.site-intro,
+.site-more {
+	color: var(--muted);
+	font-size: 14px;
+}
+
+.site-status {
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel);
+}
+
+.site-status-error {
+	border-color: var(--bad);
+}
+
+.site-pick-label {
+	display: block;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--muted);
+	margin-bottom: 4px;
+}
+
+.site-pick {
+	width: 100%;
+	max-width: 420px;
+	padding: 10px;
+	font: inherit;
+	color: var(--text);
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+
+.site-foot {
+	padding-bottom: 32px;
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+	font-size: 13px;
+}

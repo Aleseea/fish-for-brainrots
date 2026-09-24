@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fish for Brainrots Calculators</title>
+<meta name="description" content="Trade calculator, value calculator and collection tracker for Fish for Brainrots (Fortnite). Figures come live from the Fortnite Creator Islands Wiki.">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="calc.css">
+</head>
+<body>
+<header class="site-head">
+	<h1>Fish for Brainrots Calculators</h1>
+	<p class="site-sub">For phones and anywhere the wiki's calculators don't load. Every figure comes live from the
+		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>.</p>
+	<nav class="site-tabs" role="tablist" aria-label="Calculators">
+		<a role="tab" href="#trade" id="tab-trade">Trade</a>
+		<a role="tab" href="#value" id="tab-value">Value</a>
+		<a role="tab" href="#collection" id="tab-collection">My collection</a>
+	</nav>
+</header>
+
+<main>
+	<p class="site-status" id="status">Loading the latest figures from the wiki…</p>
+
+	<section class="site-panel" id="panel-trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
+		<h2>Trade calculator</h2>
+		<p class="site-intro">Is a trade fair? Put up to 6 brainrots on each side, exactly as they are (level, evolution, mutation and traits), to see what each side earns and is worth today, what each could grow into once fully upgraded, and a verdict.</p>
+		<div class="site-slot" id="slot-trade"></div>
+		<p class="site-more">Trading rules and safety tips: <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Trading">Trading on the wiki</a>.</p>
+	</section>
+
+	<section class="site-panel" id="panel-value" role="tabpanel" aria-labelledby="tab-value" hidden>
+		<h2>Value calculator</h2>
+		<p class="site-intro">Pick a brainrot, then its mutation, traits, evolution and level, to see exactly what it earns and is worth.</p>
+		<label class="site-pick-label" for="pick">Brainrot</label>
+		<select class="site-pick" id="pick"></select>
+		<div class="site-slot" id="slot-value"></div>
+		<p class="site-more" id="value-more"></p>
+	</section>
+
+	<section class="site-panel" id="panel-collection" role="tabpanel" aria-labelledby="tab-collection" hidden>
+		<h2>My collection</h2>
+		<p class="site-intro">List the brainrots you own to see each one's income, value and ceiling, with totals. Your list is kept in this browser on this device only; nothing is sent anywhere.</p>
+		<div class="site-slot" id="slot-collection"></div>
+	</section>
+</main>
+
+<footer class="site-foot">
+	<p>Unofficial fan tool. Figures, formulas and brainrot pages:
+		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fish for Brainrots on the Fortnite Creator Islands Wiki</a>.
+		Fish for Brainrots is a Fortnite island by <a href="https://fortnite-creator-islands.fandom.com/wiki/Pandvil">Pandvil</a>.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
