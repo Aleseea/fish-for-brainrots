@@ -677,7 +677,9 @@
 			var b = cat.brainrots[ o.value ];
 			var byName = q === '' || squash( o.value ).indexOf( q ) !== -1 ||
 				rarities.indexOf( b.rarity ) !== -1;
-			var look = byName ? null : lookMatch( cat, o.value, q );
+			// a query that names a rarity ("god", "admin") is a rarity search,
+			// not a look ("god" is not "godzilla")
+			var look = byName || rarities.length ? null : lookMatch( cat, o.value, q );
 			if ( !byName && look === null ) {
 				return;
 			}
