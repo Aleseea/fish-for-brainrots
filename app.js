@@ -87,7 +87,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js';
+		s.src = 'calc.js?v=3f64d5f548';
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
 		};
