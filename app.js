@@ -31,6 +31,23 @@
 		document.documentElement.className += ' theme-fandom-light';
 	}
 
+	// Anonymous visit counting (GoatCounter: no cookies, nothing personal).
+	// The page view counts itself; each tab opened afterwards counts as an
+	// event, so the dashboard shows which calculators get used. Offline, or
+	// with the counter blocked, this quietly does nothing.
+	var countedTab = null;
+	function countTab( name ) {
+		if ( countedTab === name ) {
+			return;
+		}
+		countedTab = name;
+		try {
+			if ( window.goatcounter && typeof window.goatcounter.count === 'function' ) {
+				window.goatcounter.count( { path: 'tab-' + name, title: 'Tab: ' + name, event: true } );
+			}
+		} catch ( e ) {}
+	}
+
 	function show( name ) {
 		if ( TABS.indexOf( name ) === -1 ) {
 			name = 'trade';
@@ -40,6 +57,7 @@
 			var tab = document.getElementById( 'tab-' + t );
 			tab.setAttribute( 'aria-selected', t === name ? 'true' : 'false' );
 		} );
+		countTab( name );
 	}
 	window.addEventListener( 'hashchange', function () {
 		show( location.hash.slice( 1 ) );
