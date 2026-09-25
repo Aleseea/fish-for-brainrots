@@ -1386,6 +1386,9 @@
 	// real name is 23: anything far past these is not a list, and could
 	// only slow the reader's own page down or fill their storage.
 	var MAX_PASTE_CHARS = 200000;
+	// traits renamed after lists and links were saved with the old name:
+	// Snow Flake became Snow on 2026-09-25 (the name the game uses)
+	var RENAMED_TRAITS = { 'Snow Flake': 'Snow' };
 	var MAX_NAME_CHARS = 60;
 	var OPTION_KEY = 'userjs-ffb-collection';
 	var BROWSER_KEY = 'ffb-collection';
@@ -1443,6 +1446,10 @@
 		traits = Array.isArray( item[ 2 ] ) ? item[ 2 ] : [];
 		for ( i = 0; i < traits.length; i++ ) {
 			t = traits[ i ];
+			// a list or link saved before a trait was renamed still loads
+			if ( typeof t === 'string' && has( RENAMED_TRAITS, t ) ) {
+				t = RENAMED_TRAITS[ t ];
+			}
 			if ( typeof t !== 'string' || t === '' || t.length > MAX_NAME_CHARS || row.traits.indexOf( t ) !== -1 ) {
 				continue;
 			}

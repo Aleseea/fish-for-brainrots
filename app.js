@@ -111,7 +111,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=66b54480d0';
+		s.src = 'calc.js?v=951b981008';
 		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
