@@ -462,6 +462,7 @@
 			}
 		} );
 		cat.traitEmoji = data.traitEmoji && typeof data.traitEmoji === 'object' ? data.traitEmoji : {};
+		cat.lookWords = data.lookWords && typeof data.lookWords === 'object' ? data.lookWords : {};
 		cat.mutationColor = {};
 		Object.keys( data.mutationColors || {} ).forEach( function ( m ) {
 			var c = safeColor( data.mutationColors[ m ] );
@@ -650,21 +651,49 @@
 		} );
 	}
 
+	/**
+	 * The first of a brainrot's look words (what it looks like: "shark",
+	 * "three heads") that starts with a query of 3+ letters, or null.
+	 */
+	function lookMatch( cat, name, q ) {
+		var words = cat.lookWords && has( cat.lookWords, name ) ? cat.lookWords[ name ] : null;
+		var i;
+		if ( q.length < 3 || !words || !words.length ) {
+			return null;
+		}
+		for ( i = 0; i < words.length; i++ ) {
+			if ( squash( words[ i ] ).indexOf( q ) === 0 ) {
+				return String( words[ i ] );
+			}
+		}
+		return null;
+	}
+
 	function searchBrainrots( cat, query ) {
 		var q = squash( query || '' );
 		var rarities = raritiesFor( cat, q );
-		return brainrotOptions( cat ).filter( function ( o ) {
-			return q === '' || squash( o.value ).indexOf( q ) !== -1 ||
-				rarities.indexOf( cat.brainrots[ o.value ].rarity ) !== -1;
-		} ).map( function ( o ) {
+		var out = [];
+		brainrotOptions( cat ).forEach( function ( o ) {
 			var b = cat.brainrots[ o.value ];
-			return {
+			var byName = q === '' || squash( o.value ).indexOf( q ) !== -1 ||
+				rarities.indexOf( b.rarity ) !== -1;
+			var look = byName ? null : lookMatch( cat, o.value, q );
+			if ( !byName && look === null ) {
+				return;
+			}
+			var m = {
 				value: o.value,
 				rarity: b.rarity,
 				color: cat.rarityColor ? cat.rarityColor[ b.rarity ] || null : null,
 				base: b.base === null || b.base === undefined ? null : money( b.base ) + '/s'
 			};
+			if ( look !== null ) {
+				// found by what it looks like, not its name: say why it's listed
+				m.look = look;
+			}
+			out.push( m );
 		} );
+		return out;
 	}
 
 	/** Mutations matching a query, best first: { value, right }. */
@@ -2224,7 +2253,7 @@
 			noun: 'brainrot',
 			search: function ( q ) {
 				return searchBrainrots( cat, q ).map( function ( m ) {
-					return { value: m.value, meta: m.rarity, color: m.color, right: m.base || 'no base yet' };
+					return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity, color: m.color, right: m.base || 'no base yet' };
 				} );
 			},
 			exact: function ( text ) {
