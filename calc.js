@@ -2093,7 +2093,7 @@
 		img.setAttribute( 'width', '18' );
 		img.setAttribute( 'height', '18' );
 		img.setAttribute( 'style', 'width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 6px; flex-shrink: 0;' );
-		img.onerror = function () {
+		function fallBack() {
 			if ( img.parentNode ) {
 				if ( color ) {
 					img.parentNode.replaceChild( swatch( color ), img );
@@ -2101,7 +2101,18 @@
 					img.parentNode.removeChild( img );
 				}
 			}
+		}
+		img.onerror = fallBack;
+		// Fandom swaps pictures embedded on other sites (the phone site) for
+		// a 300x171 "image" placeholder unless no referrer is sent; if that
+		// placeholder turns up anyway, show the square instead
+		img.onload = function () {
+			if ( img.naturalWidth > 64 ) {
+				fallBack();
+			}
 		};
+		img.referrerPolicy = 'no-referrer';
+		img.setAttribute( 'referrerpolicy', 'no-referrer' );
 		img.src = icon;
 		return img;
 	}
