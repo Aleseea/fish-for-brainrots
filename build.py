@@ -52,4 +52,12 @@ for name, pat, rep in (
         raise SystemExit('could not stamp the version into ' + name)
     open(path, 'w').write(new_text)
 
+# app.js (now carrying calc.js's version) gets its own stamp in index.html
+app_ver = hashlib.sha256(open(os.path.join(HERE, 'app.js'), 'rb').read()).hexdigest()[:10]
+path = os.path.join(HERE, 'index.html')
+text, n = re.subn(r'src="app\.js(\?v=[0-9a-f]+)?"', 'src="app.js?v=%s"' % app_ver, open(path).read())
+if n != 1:
+    raise SystemExit('could not stamp the version into index.html (app.js)')
+open(path, 'w').write(text)
+
 print('wrote calc.css (%d sections) and calc.js (%d bytes), version %s' % (len(kept), len(js), ver))
