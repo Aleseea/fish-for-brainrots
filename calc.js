@@ -1090,6 +1090,11 @@
 
 	var COLLECTION_VERSION = 1;
 	var COLLECTION_MAX = 600;
+	// A full 600-brainrot list is about 60,000 characters and the longest
+	// real name is 23: anything far past these is not a list, and could
+	// only slow the reader's own page down or fill their storage.
+	var MAX_PASTE_CHARS = 200000;
+	var MAX_NAME_CHARS = 60;
 	var OPTION_KEY = 'userjs-ffb-collection';
 	var BROWSER_KEY = 'ffb-collection';
 	var OFFERED_KEY = 'ffb-collection-offered';
@@ -1127,12 +1132,14 @@
 	function parseSavedRow( item, cat ) {
 		var d = cat.data;
 		var row, traits, i, t;
-		if ( !Array.isArray( item ) || typeof item[ 0 ] !== 'string' || item[ 0 ].trim() === '' ) {
+		if ( !Array.isArray( item ) || typeof item[ 0 ] !== 'string' || item[ 0 ].trim() === '' ||
+			item[ 0 ].trim().length > MAX_NAME_CHARS ) {
 			return null;
 		}
 		row = {
 			name: item[ 0 ].trim(),
-			mutation: typeof item[ 1 ] === 'string' && item[ 1 ] !== '' ? item[ 1 ] : cat.defaultMutation,
+			mutation: typeof item[ 1 ] === 'string' && item[ 1 ] !== '' && item[ 1 ].length <= MAX_NAME_CHARS ?
+				item[ 1 ] : cat.defaultMutation,
 			traits: [],
 			evolution: 0,
 			level: 1,
@@ -1144,7 +1151,7 @@
 		traits = Array.isArray( item[ 2 ] ) ? item[ 2 ] : [];
 		for ( i = 0; i < traits.length; i++ ) {
 			t = traits[ i ];
-			if ( typeof t !== 'string' || t === '' || row.traits.indexOf( t ) !== -1 ) {
+			if ( typeof t !== 'string' || t === '' || t.length > MAX_NAME_CHARS || row.traits.indexOf( t ) !== -1 ) {
 				continue;
 			}
 			if ( i >= d.maxTraits ) {
@@ -2614,8 +2621,12 @@
 			}
 		} );
 		pasteButton.addEventListener( 'click', function () {
-			var parsed = parseCollection( pasteBox.value, cat );
-			var left, msg;
+			var parsed, left, msg;
+			if ( pasteBox.value.length > MAX_PASTE_CHARS ) {
+				transferOut.textContent = 'That’s far too long to be a saved list, so nothing was added.';
+				return;
+			}
+			parsed = parseCollection( pasteBox.value, cat );
 			if ( parsed.error === 'newer' ) {
 				transferOut.textContent = 'That list was saved by a newer version of this page.';
 				return;
@@ -2634,7 +2645,7 @@
 				msg += ' ' + left + ' didn’t fit: ' + COLLECTION_MAX + ' is the most a collection can hold.';
 			}
 			if ( parsed.skipped ) {
-				msg += ' ' + plural( parsed.skipped, 'entry', 'entries' ) + ' had no brainrot name and were left out.';
+				msg += ' ' + plural( parsed.skipped, 'entry', 'entries' ) + ' had no usable brainrot name and were left out.';
 			}
 			transferOut.textContent = msg;
 			pasteBox.value = '';
@@ -2750,6 +2761,8 @@
 			band: band,
 			compareTrade: compareTrade,
 			COLLECTION_MAX: COLLECTION_MAX,
+			MAX_PASTE_CHARS: MAX_PASTE_CHARS,
+			MAX_NAME_CHARS: MAX_NAME_CHARS,
 			serializeCollection: serializeCollection,
 			parseCollection: parseCollection,
 			addToCollection: addToCollection,
