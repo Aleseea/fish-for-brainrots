@@ -269,7 +269,7 @@
 				return mutOrder.filter( function ( i ) {
 					return sq === '' || squash( data.mutations[ i ].n ).indexOf( sq ) !== -1;
 				} ).map( function ( i ) {
-					return { value: String( i ), color: safeColor( data.mutations[ i ].c ), right: '+' + data.mutations[ i ].m.toFixed( 2 ) };
+					return { value: String( i ), color: safeColor( data.mutations[ i ].c ), icon: safeIconUrl( data.mutations[ i ].i ), right: '+' + data.mutations[ i ].m.toFixed( 2 ) };
 				} );
 			},
 			exact: function ( text ) {
@@ -463,6 +463,13 @@
 		} );
 		cat.traitEmoji = data.traitEmoji && typeof data.traitEmoji === 'object' ? data.traitEmoji : {};
 		cat.lookWords = data.lookWords && typeof data.lookWords === 'object' ? data.lookWords : {};
+		cat.mutationIcon = {};
+		Object.keys( data.mutationIcons || {} ).forEach( function ( m ) {
+			var u = safeIconUrl( data.mutationIcons[ m ] );
+			if ( u ) {
+				cat.mutationIcon[ m ] = u;
+			}
+		} );
 		cat.mutationColor = {};
 		Object.keys( data.mutationColors || {} ).forEach( function ( m ) {
 			var c = safeColor( data.mutationColors[ m ] );
@@ -704,7 +711,7 @@
 		return mutationOptions( cat ).filter( function ( o ) {
 			return q === '' || squash( o.value ).indexOf( q ) !== -1;
 		} ).map( function ( o ) {
-			return { value: o.value, color: cat.mutationColor[ o.value ] || null, right: plus( cat.mutations[ o.value ] ) };
+			return { value: o.value, color: cat.mutationColor[ o.value ] || null, icon: cat.mutationIcon[ o.value ] || null, right: plus( cat.mutations[ o.value ] ) };
 		} );
 	}
 
@@ -2061,6 +2068,44 @@
 		return typeof c === 'string' && ( /^#[0-9a-f]{6}$/i.test( c ) || has( BLENDS, c ) ) ? c : null;
 	}
 
+	/**
+	 * A picture on this wiki from where it sits under images/ ("e/e9/Name.png",
+	 * see generate_modules.py), 40px wide; null for anything else.
+	 */
+	function safeIconUrl( path ) {
+		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'-]+\.png$/.test( path ) ?
+			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40' : null;
+	}
+
+	/**
+	 * A mutation's mark: its game icon when there is one, else the colour
+	 * square. When the icon can't load (offline, say) the square takes its
+	 * place.
+	 */
+	function mark( color, icon ) {
+		var img;
+		if ( !icon ) {
+			return color ? swatch( color ) : null;
+		}
+		img = el( 'img', 'ffb-icon' );
+		img.setAttribute( 'alt', '' );
+		img.setAttribute( 'aria-hidden', 'true' );
+		img.setAttribute( 'width', '18' );
+		img.setAttribute( 'height', '18' );
+		img.setAttribute( 'style', 'width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 6px; flex-shrink: 0;' );
+		img.onerror = function () {
+			if ( img.parentNode ) {
+				if ( color ) {
+					img.parentNode.replaceChild( swatch( color ), img );
+				} else {
+					img.parentNode.removeChild( img );
+				}
+			}
+		};
+		img.src = icon;
+		return img;
+	}
+
 	/** A small square in a rarity's or mutation's colour (see safeColor). */
 	function swatch( color ) {
 		var sq = el( 'span', 'ffb-swatch' );
@@ -2154,8 +2199,9 @@
 				li.id = listId + '-' + k;
 				li.setAttribute( 'role', 'option' );
 				var nameCell = el( 'span', 'ffb-pick-name' );
-				if ( m.color ) {
-					nameCell.appendChild( swatch( m.color ) );
+				var mk = mark( m.color, m.icon );
+				if ( mk ) {
+					nameCell.appendChild( mk );
 				}
 				nameCell.appendChild( el( 'span', null, m.name || label( m.value ) ) );
 				li.appendChild( nameCell );
@@ -2569,8 +2615,8 @@
 					dup.setAttribute( 'aria-label', 'Duplicate ' + view.name );
 				}
 				mutOut.textContent = view.mutPart;
-				if ( cat.mutationColor[ row.mutation ] ) {
-					mutOut.insertBefore( swatch( cat.mutationColor[ row.mutation ] ), mutOut.firstChild );
+				if ( cat.mutationColor[ row.mutation ] || cat.mutationIcon[ row.mutation ] ) {
+					mutOut.insertBefore( mark( cat.mutationColor[ row.mutation ] || null, cat.mutationIcon[ row.mutation ] || null ), mutOut.firstChild );
 				}
 				traitOut.textContent = view.traitPart;
 				bothOut.textContent = view.bothPart;
