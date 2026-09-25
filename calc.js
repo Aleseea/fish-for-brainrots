@@ -197,6 +197,11 @@
 		return name ? emojiName( ( cat.traitEmoji || {} )[ name ], name ) : name;
 	}
 
+	/** A trait's name for a picker, whose icon stands in for the emoji. */
+	function traitPickLabel( cat, name ) {
+		return name && cat.traitIcon && cat.traitIcon[ name ] ? name : traitLabel( cat, name );
+	}
+
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
 		if ( className ) {
@@ -232,6 +237,10 @@
 		for ( var e = 0; e <= data.evolutions.length; e++ ) {
 			( function ( stage ) {
 				var b = el( 'button', 'ffb-calc-chip', stage === 0 ? 'None' : 'E' + stage );
+				var badge = stage > 0 && Array.isArray( data.evoIcons ) ? mark( null, safeIconUrl( data.evoIcons[ stage - 1 ] ) ) : null;
+				if ( badge ) {
+					b.insertBefore( badge, b.firstChild );
+				}
 				b.type = 'button';
 				b.setAttribute( 'aria-pressed', stage === 0 ? 'true' : 'false' );
 				b.addEventListener( 'click', function () {
@@ -263,6 +272,12 @@
 			noun: 'mutation',
 			label: function ( v ) {
 				return data.mutations[ Number( v ) ].n;
+			},
+			lead: function ( v ) {
+				var m = data.mutations[ Number( v ) ];
+				var icon = m && safeIconUrl( m.i );
+				var color = m && safeColor( m.c );
+				return icon || color ? { icon: icon, color: color } : null;
 			},
 			search: function ( q ) {
 				var sq = squash( q || '' );
@@ -319,7 +334,11 @@
 		var trChips = el( 'div', 'ffb-calc-chips ffb-calc-chips-traits' );
 		var trNodes = [];
 		data.traits.forEach( function ( t, i ) {
-			var b = el( 'button', 'ffb-calc-chip', emojiName( t.e, t.n ) + ' +' + t.m.toFixed( 2 ) );
+			var tIcon = safeIconUrl( t.i );
+			var b = el( 'button', 'ffb-calc-chip', ( tIcon ? t.n : emojiName( t.e, t.n ) ) + ' +' + t.m.toFixed( 2 ) );
+			if ( tIcon ) {
+				b.insertBefore( mark( null, tIcon ), b.firstChild );
+			}
 			b.type = 'button';
 			b.setAttribute( 'aria-pressed', 'false' );
 			b.addEventListener( 'click', function () {
@@ -463,6 +482,16 @@
 		} );
 		cat.traitEmoji = data.traitEmoji && typeof data.traitEmoji === 'object' ? data.traitEmoji : {};
 		cat.lookWords = data.lookWords && typeof data.lookWords === 'object' ? data.lookWords : {};
+		cat.traitIcon = {};
+		Object.keys( data.traitIcons || {} ).forEach( function ( t ) {
+			var u = safeIconUrl( data.traitIcons[ t ] );
+			if ( u ) {
+				cat.traitIcon[ t ] = u;
+			}
+		} );
+		// index = evolution stage (0, unevolved, has none)
+		cat.evolutionIcon = ( Array.isArray( data.evolutionIcons ) ? data.evolutionIcons : [] ).map( safeIconUrl );
+		cat.evolutionIcon.unshift( null );
 		cat.mutationIcon = {};
 		Object.keys( data.mutationIcons || {} ).forEach( function ( m ) {
 			var u = safeIconUrl( data.mutationIcons[ m ] );
@@ -727,7 +756,8 @@
 		} ).map( function ( o ) {
 			return {
 				value: o.value,
-				name: o.value === '' ? 'No trait' : traitLabel( cat, o.value ),
+				name: o.value === '' ? 'No trait' : traitPickLabel( cat, o.value ),
+				icon: o.value === '' ? null : cat.traitIcon[ o.value ] || null,
 				right: o.value === '' ? '' : plus( cat.traits[ o.value ] )
 			};
 		} );
@@ -799,7 +829,8 @@
 		for ( i = 0; i <= cat.data.maxEvolution; i++ ) {
 			out.push( {
 				value: String( i ),
-				label: i === 0 ? 'Unevolved' : 'Evo ' + i + ' ' + times( cat.data.evolutions[ i ] )
+				label: i === 0 ? 'Unevolved' : 'Evo ' + i + ' ' + times( cat.data.evolutions[ i ] ),
+				icon: cat.evolutionIcon && cat.evolutionIcon[ i ] || null
 			} );
 		}
 		return out;
@@ -2183,6 +2214,32 @@
 		list.hidden = true;
 		wrap.appendChild( input );
 		wrap.appendChild( list );
+		// the chosen value's icon (or colour square) inside the box, when the
+		// picker has one (cfg.lead returns { color, icon } or null)
+		var lead = null;
+		function showLead() {
+			var want = cfg.lead ? cfg.lead( chosen ) : null;
+			var mk = want ? mark( want.color || null, want.icon || null ) : null;
+			if ( lead && lead.parentNode ) {
+				lead.parentNode.removeChild( lead );
+			}
+			lead = null;
+			if ( mk ) {
+				lead = el( 'span', 'ffb-pick-lead' );
+				lead.setAttribute( 'style', 'position: absolute; left: 8px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; pointer-events: none;' );
+				lead.appendChild( mk );
+				if ( wrap.style ) {
+					wrap.style.position = 'relative';
+				}
+				wrap.insertBefore( lead, wrap.firstChild );
+				if ( input.style ) {
+					input.style.paddingLeft = '32px';
+				}
+			} else if ( input.style ) {
+				input.style.paddingLeft = '';
+			}
+		}
+		showLead();
 
 		function setActive( i ) {
 			active = i;
@@ -2251,6 +2308,7 @@
 		function pick( value ) {
 			chosen = value;
 			input.value = label( value );
+			showLead();
 			close();
 			cfg.onPick( value );
 		}
@@ -2307,6 +2365,7 @@
 			set: function ( value ) {
 				chosen = value;
 				input.value = label( value );
+				showLead();
 			}
 		};
 	}
@@ -2355,8 +2414,17 @@
 			label: labelOf,
 			search: function () {
 				return options.map( function ( o ) {
-					return { value: o.value, name: o.label };
+					return { value: o.value, name: o.label, icon: o.icon || null };
 				} );
+			},
+			lead: function ( v ) {
+				var i;
+				for ( i = 0; i < options.length; i++ ) {
+					if ( options[ i ].value === v && options[ i ].icon ) {
+						return { icon: options[ i ].icon };
+					}
+				}
+				return null;
 			},
 			exact: function ( text ) {
 				var t = String( text || '' ).trim().toLowerCase();
@@ -2437,6 +2505,10 @@
 			search: function ( q ) {
 				return searchMutations( cat, q );
 			},
+			lead: function ( v ) {
+				return cat.mutationIcon[ v ] || cat.mutationColor[ v ] ?
+					{ icon: cat.mutationIcon[ v ] || null, color: cat.mutationColor[ v ] || null } : null;
+			},
 			exact: function ( text ) {
 				return exactName( cat.mutations, text );
 			},
@@ -2501,7 +2573,10 @@
 				placeholder: 'No trait',
 				noun: 'trait',
 				label: function ( v ) {
-					return traitLabel( cat, v );
+					return traitPickLabel( cat, v );
+				},
+				lead: function ( v ) {
+					return v && cat.traitIcon[ v ] ? { icon: cat.traitIcon[ v ] } : null;
 				},
 				search: function ( q ) {
 					return searchTraits( cat, row, slot, q );
