@@ -973,6 +973,103 @@
 		return top;
 	}
 
+	/**
+	 * The traits worth fusing for: every trait holding one of the three
+	 * highest values (Golden Dice, Evil, and Bat and Purple Star tied at
+	 * 4.00), best first.
+	 */
+	function topTraits( cat ) {
+		var values = [];
+		Object.keys( cat.traits ).forEach( function ( n ) {
+			if ( values.indexOf( cat.traits[ n ] ) === -1 ) {
+				values.push( cat.traits[ n ] );
+			}
+		} );
+		values.sort( function ( a, b ) {
+			return b - a;
+		} );
+		values = values.slice( 0, 3 );
+		return Object.keys( cat.traits ).filter( function ( n ) {
+			return values.indexOf( cat.traits[ n ] ) !== -1;
+		} ).sort( function ( a, b ) {
+			return cat.traits[ b ] - cat.traits[ a ] || ( a < b ? -1 : 1 );
+		} );
+	}
+
+	/**
+	 * Reasons a trade can be worth it (or not) for the machines, which the
+	 * income figures can't show (user, 2026-09-24): a brainrot carrying top
+	 * traits is a good Fuse Machine input (Brainrot God or higher only), and
+	 * a better mutation of a brainrot the reader already owns can be paired
+	 * in the Mutation Machine. owned: the reader's saved collection, or [].
+	 * Returns { take: [], pass: [] }. Figures from the wiki's Machines page.
+	 */
+	function machineReasons( cat, giveRows, getRows, owned ) {
+		var out = { take: [], pass: [] };
+		var top = topTraits( cat );
+		var labels = cat.groups.map( function ( g ) {
+			return g.label;
+		} );
+		// groups run strongest first: God and everything above it can fuse
+		var godAt = labels.indexOf( 'Brainrot God' );
+		var fusable = function ( r ) {
+			var b = cat.brainrots[ r.name ];
+			return !!b && godAt !== -1 && labels.indexOf( b.rarity ) !== -1 && labels.indexOf( b.rarity ) <= godAt;
+		};
+		var topsOf = function ( r ) {
+			return chosenTraits( cat, r ).filter( function ( t ) {
+				return top.indexOf( t ) !== -1;
+			} ).sort( function ( a, b ) {
+				return cat.traits[ b ] - cat.traits[ a ];
+			} );
+		};
+		var named = function ( ts ) {
+			return joinNames( ts.map( function ( t ) {
+				return traitLabel( cat, t );
+			} ) );
+		};
+		getRows.forEach( function ( r ) {
+			var ts = fusable( r ) ? topsOf( r ) : [];
+			if ( ts.length > 1 ) {
+				out.take.push( 'Great for fusing: ' + r.name + ' carries ' + named( ts ) + ', ' +
+					( ts.length === 2 ? 'two' : 'three' ) + ' of the best traits. A fuse passes on about 1.8 traits ' +
+					'on average, so it could carry them into a stronger brainrot.' );
+			} else if ( ts.length === 1 ) {
+				out.take.push( 'Good for fusing: ' + r.name + ' carries ' + named( ts ) + ', one of the best traits. ' +
+					'A fuse passes a trait on about half the time (51% from a single input), so it could carry it into a stronger brainrot.' );
+			}
+		} );
+		giveRows.forEach( function ( r ) {
+			var ts = fusable( r ) ? topsOf( r ) : [];
+			if ( ts.length ) {
+				out.pass.push( 'You’d give up ' + r.name + '’s ' + named( ts ) + ', ' +
+					( ts.length > 1 ? ( ts.length === 2 ? 'two' : 'three' ) + ' of the best traits' : 'one of the best traits' ) + ' for fusing.' );
+			}
+		} );
+		// the Mutation Machine: two of the same brainrot, never worse than the stronger
+		var rank = function ( m ) {
+			var i;
+			for ( i = 0; i < cat.data.mutations.length; i++ ) {
+				if ( cat.data.mutations[ i ][ 0 ] === m ) {
+					return i;
+				}
+			}
+			return -1;
+		};
+		getRows.forEach( function ( r ) {
+			var mine = ( owned || [] ).filter( function ( o ) {
+				return o.name === r.name;
+			} ).sort( function ( a, b ) {
+				return rank( b.mutation ) - rank( a.mutation );
+			} )[ 0 ];
+			if ( mine && rank( r.mutation ) > rank( mine.mutation ) ) {
+				out.take.push( 'For the Mutation Machine: you already own a ' + r.name + ' (' + mine.mutation + '). ' +
+					'Paired with this ' + r.mutation + ' one, the result can only come out ' + r.mutation + ' or better.' );
+			}
+		} );
+		return out;
+	}
+
 	function describeBest( cat, b ) {
 		var list = chosenTraits( cat, b.r );
 		var bits = [];
@@ -1168,6 +1265,16 @@
 					pass.push( 'Better mutation and traits on your side: ' + describeBest( cat, bg ) +
 						' beats anything you get (best ' + times( bt.f ) + '). They can’t be changed later, so you’d give that up for good.' );
 				}
+			}
+			var machines = machineReasons( cat, giveRows, getRows, trade.owned || [] );
+			machines.take.forEach( function ( t ) {
+				take.push( t );
+			} );
+			machines.pass.forEach( function ( t ) {
+				pass.push( t );
+			} );
+			if ( machines.take.length || machines.pass.length ) {
+				notes.push( 'The verdict counts income only. What these brainrots could pass on in the Fuse or Mutation Machine isn’t priced in.' );
 			}
 		}
 
@@ -2853,7 +2960,8 @@
 					} )
 				},
 				myIncome: state.myIncome,
-				collectionIncome: savedIncome
+				collectionIncome: savedIncome,
+				owned: saved
 			} );
 
 			result.sides.forEach( function ( side ) {
@@ -3599,6 +3707,8 @@
 			roughRatio: roughRatio,
 			band: band,
 			compareTrade: compareTrade,
+			topTraits: topTraits,
+			machineReasons: machineReasons,
 			COLLECTION_MAX: COLLECTION_MAX,
 			MAX_PASTE_CHARS: MAX_PASTE_CHARS,
 			MAX_NAME_CHARS: MAX_NAME_CHARS,
