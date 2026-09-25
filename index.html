@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FfB Calc">
-<link rel="stylesheet" href="site.css?v=73e12a4ed5">
+<link rel="stylesheet" href="site.css?v=f764c63e31">
 <link rel="stylesheet" href="calc.css?v=1dec687a31">
 </head>
 <body>
@@ -19,10 +19,12 @@
 	<h1>Fish for Brainrots Calculators</h1>
 	<p class="site-sub">For phones and anywhere the wiki's calculators don't load. Every figure comes live from the
 		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>.</p>
+	<div class="site-upcoming" id="upcoming" hidden></div>
 	<nav class="site-tabs" role="tablist" aria-label="Calculators">
 		<a role="tab" href="#trade" id="tab-trade">Trade</a>
 		<a role="tab" href="#value" id="tab-value">Value</a>
 		<a role="tab" href="#collection" id="tab-collection">My collection</a>
+		<a role="tab" href="#codes" id="tab-codes">Codes</a>
 	</nav>
 </header>
 
@@ -46,6 +48,15 @@
 		<p class="site-more" id="value-more"></p>
 	</section>
 
+	<section class="site-panel" id="panel-codes" role="tabpanel" aria-labelledby="tab-codes" hidden>
+		<h2>Codes</h2>
+		<p class="site-intro" id="codes-intro">Every working code, straight from the wiki's list. Tap Copy, then type it into the keypad in front of your base.</p>
+		<div class="site-codes" id="codes-list"><p class="site-status">Loading the codes from the wiki…</p></div>
+		<h3 class="site-codes-how-title">How to redeem a code</h3>
+		<div id="codes-how"></div>
+		<p class="site-more">The full list, with expired codes: <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Codes">Codes on the wiki</a>.</p>
+	</section>
+
 	<section class="site-panel" id="panel-collection" role="tabpanel" aria-labelledby="tab-collection" hidden>
 		<h2>My collection</h2>
 		<p class="site-intro">List the brainrots you own to see each one's income, value and ceiling, with totals. Your list is kept in this browser on this device only; nothing is sent anywhere.</p>
@@ -60,6 +71,6 @@
 	<p class="site-report">Numbers look wrong, or have an in-game reading to share? <a href="https://fortnite-creator-islands.fandom.com/wiki/Message_Wall:Aleseea">Tell us on the wiki</a>. A brainrot's income, mutation, traits, level and evolution are all we need.</p>
 </footer>
 
-<script src="app.js?v=260a929f9d"></script>
+<script src="app.js?v=f538d8eb9e"></script>
 </body>
 </html>
