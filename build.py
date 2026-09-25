@@ -60,4 +60,21 @@ if n != 1:
     raise SystemExit('could not stamp the version into index.html (app.js)')
 open(path, 'w').write(text)
 
-print('wrote calc.css (%d sections) and calc.js (%d bytes), version %s' % (len(kept), len(js), ver))
+# site.css gets a stamp too
+css_ver = hashlib.sha256(open(os.path.join(HERE, 'site.css'), 'rb').read()).hexdigest()[:10]
+path = os.path.join(HERE, 'index.html')
+text, n = re.subn(r'href="site\.css(\?v=[0-9a-f]+)?"', 'href="site.css?v=%s"' % css_ver, open(path).read())
+if n != 1:
+    raise SystemExit('could not stamp the version into index.html (site.css)')
+open(path, 'w').write(text)
+
+# the service worker caches exactly the versioned files index.html names;
+# a new version of any of them is a new cache, and the old one is dropped
+import json
+shell = ['./', 'index.html', 'app.js?v=%s' % app_ver, 'calc.js?v=%s' % ver, 'calc.css?v=%s' % ver,
+         'site.css?v=%s' % css_ver, 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png']
+sw_ver = hashlib.sha256(' '.join(shell).encode()).hexdigest()[:10]
+tpl = open(os.path.join(HERE, 'sw.template.js')).read()
+open(os.path.join(HERE, 'sw.js'), 'w').write(tpl.replace('@@VERSION@@', sw_ver).replace('@@SHELL@@', json.dumps(shell)))
+
+print('wrote calc.css (%d sections) and calc.js (%d bytes), version %s; sw.js cache %s' % (len(kept), len(js), ver, sw_ver))

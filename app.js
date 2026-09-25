@@ -14,6 +14,13 @@
 	var HUB = 'Fish for Brainrots';
 	var TABS = [ 'trade', 'value', 'collection' ];
 
+	// tells calc.js it runs on this page, so it hands over its brainrot picker
+	// noPrefill: here ?brainrot= picks the Value tab's brainrot; it must not
+	// also start a new trade (which would stop the last trade coming back)
+	window.ffbStandalone = { noPrefill: true };
+	var SAVED_KEY = 'ffb-site-figures';
+	var catalog = null;
+
 	var params = new URLSearchParams( location.search );
 	var chosen = params.get( 'brainrot' ) || 'Tim Cheese';
 
@@ -77,6 +84,22 @@
 		more.appendChild( document.createTextNode( '.' ) );
 	}
 
+	// the same searchable picker as the calculator's cards, in place of the
+	// plain dropdown (which stays as the fallback if calc.js fails)
+	function usePicker() {
+		var make = window.ffbStandalone && window.ffbStandalone.namePicker;
+		var select = document.getElementById( 'pick' );
+		if ( !make || !catalog || !select ) {
+			return;
+		}
+		var picker = make( catalog, 'pick', chosen, function ( name ) {
+			location.href = '?brainrot=' + encodeURIComponent( name ) + '#value';
+		} );
+		picker.input.id = 'pick';
+		picker.node.className += ' site-pick-search';
+		select.parentNode.replaceChild( picker.node, select );
+	}
+
 	function move( holder, selector, slotId ) {
 		var el = holder.querySelector( selector );
 		if ( el ) {
@@ -87,7 +110,8 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=3f64d5f548';
+		s.src = 'calc.js?v=3a45095b39';
+		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
 		};
@@ -100,28 +124,65 @@
 	var url = WIKI + '/api.php?action=parse&format=json&formatversion=2&origin=*' +
 		'&prop=text&disablelimitreport=1&contentmodel=wikitext&text=' + encodeURIComponent( text );
 
-	fetch( url ).then( function ( r ) {
-		if ( !r.ok ) {
-			throw new Error( 'HTTP ' + r.status );
-		}
-		return r.json();
-	} ).then( function ( res ) {
+	function useFigures( html, offlineAt ) {
 		var holder = document.createElement( 'div' );
-		holder.innerHTML = res.parse.text;
+		holder.innerHTML = html;
 		var catalogEl = holder.querySelector( '.ffb-trade-data' );
 		if ( !catalogEl ) {
-			throw new Error( 'no calculator data in the reply' );
+			throw new Error( 'no calculator data' );
 		}
-		buildPicker( JSON.parse( catalogEl.textContent ) );
+		catalog = JSON.parse( catalogEl.textContent );
+		buildPicker( catalog );
 		move( holder, '.ffb-trade', 'slot-trade' );
 		move( holder, '.ffb-collection', 'slot-collection' );
 		if ( !move( holder, '.brainrot-calculator', 'slot-value' ) ) {
 			document.getElementById( 'slot-value' ).textContent =
 				chosen + ' has no measured base yet, so it can\'t be calculated.';
 		}
-		status( '' );
+		status( offlineAt ? 'Offline · figures from ' + new Date( offlineAt ).toLocaleString( [], {
+			month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+		} ) : '' );
 		loadScript();
+	}
+
+	function savedFigures() {
+		try {
+			var saved = JSON.parse( localStorage.getItem( SAVED_KEY ) || 'null' );
+			return saved && typeof saved.html === 'string' ? saved : null;
+		} catch ( err ) {
+			return null;
+		}
+	}
+
+	fetch( url ).then( function ( r ) {
+		if ( !r.ok ) {
+			throw new Error( 'HTTP ' + r.status );
+		}
+		return r.json();
+	} ).then( function ( res ) {
+		var html = res.parse.text;
+		try {
+			localStorage.setItem( SAVED_KEY, JSON.stringify( { at: Date.now(), chosen: chosen, html: html } ) );
+		} catch ( err ) {}
+		useFigures( html, 0 );
 	} ).catch( function () {
+		// no signal (or the wiki is down): the last figures this phone got
+		var saved = savedFigures();
+		if ( saved ) {
+			try {
+				// the saved figures carry the Value tab's brainrot they were for
+				chosen = saved.chosen || chosen;
+				useFigures( saved.html, saved.at );
+				return;
+			} catch ( err ) {}
+		}
 		status( 'Couldn\'t reach the wiki for the latest figures. Check your connection and reload, or use the calculators on the wiki from a computer.', true );
 	} );
+
+	// installable, and the page itself opens without a signal
+	if ( 'serviceWorker' in navigator ) {
+		window.addEventListener( 'load', function () {
+			navigator.serviceWorker.register( 'sw.js' ).catch( function () {} );
+		} );
+	}
 }() );

@@ -183,6 +183,20 @@
 		return roundHalfEven( rate ) * valueMult;
 	}
 
+	/**
+	 * "🎲 Golden Dice": a trait's name with its emoji in front, as the game
+	 * shows traits. Only a short string with no markup characters counts as
+	 * an emoji (it comes from the data, and is only ever set as text anyway).
+	 */
+	function emojiName( emoji, name ) {
+		return typeof emoji === 'string' && emoji.length > 0 && emoji.length <= 8 && !/[<>&"]/.test( emoji ) ?
+			emoji + ' ' + name : name;
+	}
+
+	function traitLabel( cat, name ) {
+		return name ? emojiName( ( cat.traitEmoji || {} )[ name ], name ) : name;
+	}
+
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
 		if ( className ) {
@@ -235,26 +249,48 @@
 		var mutRow = el( 'div', 'ffb-calc-row' );
 		var mutLabel = el( 'label', 'ffb-calc-label', 'Mutation' );
 		mutLabel.htmlFor = 'ffb-calc-mutation';
-		var mutSelect = el( 'select', 'ffb-calc-select' );
-		mutSelect.id = 'ffb-calc-mutation';
-		// best first, like the trait lists; values stay catalog indexes
-		data.mutations.map( function ( m, i ) {
+		// searchable like the trade calculator's; values stay catalog indexes
+		var mutOrder = data.mutations.map( function ( m, i ) {
 			return i;
 		} ).sort( function ( a, b ) {
 			return data.mutations[ b ].m - data.mutations[ a ].m || a - b;
-		} ).forEach( function ( i ) {
-			var m = data.mutations[ i ];
-			var o = el( 'option', null, m.n + '  —  +' + m.m.toFixed( 2 ) );
-			o.value = String( i );
-			mutSelect.appendChild( o );
 		} );
-		mutSelect.value = String( state.mutation );
-		mutSelect.addEventListener( 'change', function () {
-			state.mutation = parseInt( mutSelect.value, 10 );
-			refresh();
+		var mutPicker = buildSearchPicker( {
+			id: 'ffb-calc-mutation',
+			current: String( state.mutation ),
+			inputClass: 'ffb-calc-select',
+			placeholder: 'Type a mutation',
+			noun: 'mutation',
+			label: function ( v ) {
+				return data.mutations[ Number( v ) ].n;
+			},
+			search: function ( q ) {
+				var sq = squash( q || '' );
+				return mutOrder.filter( function ( i ) {
+					return sq === '' || squash( data.mutations[ i ].n ).indexOf( sq ) !== -1;
+				} ).map( function ( i ) {
+					return { value: String( i ), color: safeColor( data.mutations[ i ].c ), right: '+' + data.mutations[ i ].m.toFixed( 2 ) };
+				} );
+			},
+			exact: function ( text ) {
+				var t = squash( text );
+				var i;
+				for ( i = 0; i < data.mutations.length; i++ ) {
+					if ( squash( data.mutations[ i ].n ) === t && t !== '' ) {
+						return String( i );
+					}
+				}
+				return null;
+			},
+			onPick: function ( v ) {
+				state.mutation = Number( v );
+				refresh();
+			}
 		} );
+		var mutSelect = mutPicker.input;
+		mutSelect.id = 'ffb-calc-mutation';
 		mutRow.appendChild( mutLabel );
-		mutRow.appendChild( mutSelect );
+		mutRow.appendChild( mutPicker.node );
 		controls.appendChild( mutRow );
 
 		// ---- level ---------------------------------------------------------
@@ -283,7 +319,7 @@
 		var trChips = el( 'div', 'ffb-calc-chips ffb-calc-chips-traits' );
 		var trNodes = [];
 		data.traits.forEach( function ( t, i ) {
-			var b = el( 'button', 'ffb-calc-chip', t.n + ' +' + t.m.toFixed( 2 ) );
+			var b = el( 'button', 'ffb-calc-chip', emojiName( t.e, t.n ) + ' +' + t.m.toFixed( 2 ) );
 			b.type = 'button';
 			b.setAttribute( 'aria-pressed', 'false' );
 			b.addEventListener( 'click', function () {
@@ -305,7 +341,7 @@
 		reset.type = 'button';
 		reset.addEventListener( 'click', function () {
 			state = { mutation: 0, traits: [], evolution: 0, level: data.maxLevel };
-			mutSelect.value = '0';
+			mutPicker.set( '0' );
 			lvlInput.value = String( data.maxLevel );
 			refresh();
 		} );
@@ -319,6 +355,7 @@
 		result.appendChild( incomeOut );
 		result.appendChild( valueOut );
 		result.appendChild( working );
+		result.appendChild( suffixLegend() );
 
 		function refresh() {
 			var terms = [];
@@ -334,7 +371,7 @@
 				return a - b;
 			} ).forEach( function ( i ) {
 				parts.push( data.traits[ i ].m );
-				terms.push( data.traits[ i ].n + ' ' + data.traits[ i ].m.toFixed( 2 ) );
+				terms.push( emojiName( data.traits[ i ].e, data.traits[ i ].n ) + ' ' + data.traits[ i ].m.toFixed( 2 ) );
 			} );
 
 			var total = totalMultiplier( parts, evoFactor );
@@ -414,6 +451,23 @@
 		// payload without them leaves the item field free text
 		cat.items = ( data.items || [] ).map( function ( it ) {
 			return { name: it[ 0 ], kind: it[ 1 ] };
+		} );
+		// each rarity's colour for the pickers' squares; anything but a plain
+		// #rrggbb is ignored, since it ends up in a style attribute
+		cat.rarityColor = {};
+		Object.keys( data.rarityColors || {} ).forEach( function ( r ) {
+			var c = data.rarityColors[ r ];
+			if ( typeof c === 'string' && /^#[0-9a-f]{6}$/i.test( c ) ) {
+				cat.rarityColor[ r ] = c;
+			}
+		} );
+		cat.traitEmoji = data.traitEmoji && typeof data.traitEmoji === 'object' ? data.traitEmoji : {};
+		cat.mutationColor = {};
+		Object.keys( data.mutationColors || {} ).forEach( function ( m ) {
+			var c = safeColor( data.mutationColors[ m ] );
+			if ( c ) {
+				cat.mutationColor[ m ] = c;
+			}
 		} );
 		cat.defaultMutation = data.mutations[ 0 ][ 0 ];
 		data.mutations.forEach( function ( m ) {
@@ -565,6 +619,106 @@
 	}
 
 	/** Option lists for a row's selects: { value, label }. */
+	/**
+	 * The brainrot picker's matches for what the reader typed: any part of a
+	 * name, ignoring case, spaces and punctuation, in brainrotOptions' order
+	 * (most valuable first). An empty query lists everything.
+	 */
+	/** Text for matching: lower case, letters and digits only. */
+	function squash( t ) {
+		return String( t ).toLowerCase().replace( /[^a-z0-9]/g, '' );
+	}
+
+	/**
+	 * The rarities a query names: "admin" or "admin secret" is Admin Secret,
+	 * "secret" is Secret (a rarity whose whole name starts with the query
+	 * wins), and "god" reaches Brainrot God through its last word.
+	 */
+	function raritiesFor( cat, q ) {
+		var names = cat.groups.map( function ( g ) {
+			return g.label;
+		} );
+		var whole = names.filter( function ( r ) {
+			return squash( r ).indexOf( q ) === 0;
+		} );
+		if ( q === '' || whole.length ) {
+			return q === '' ? [] : whole;
+		}
+		return names.filter( function ( r ) {
+			var words = r.split( ' ' );
+			return words.length > 1 && q.length >= 3 && squash( words[ words.length - 1 ] ).indexOf( q ) === 0;
+		} );
+	}
+
+	function searchBrainrots( cat, query ) {
+		var q = squash( query || '' );
+		var rarities = raritiesFor( cat, q );
+		return brainrotOptions( cat ).filter( function ( o ) {
+			return q === '' || squash( o.value ).indexOf( q ) !== -1 ||
+				rarities.indexOf( cat.brainrots[ o.value ].rarity ) !== -1;
+		} ).map( function ( o ) {
+			var b = cat.brainrots[ o.value ];
+			return {
+				value: o.value,
+				rarity: b.rarity,
+				color: cat.rarityColor ? cat.rarityColor[ b.rarity ] || null : null,
+				base: b.base === null || b.base === undefined ? null : money( b.base ) + '/s'
+			};
+		} );
+	}
+
+	/** Mutations matching a query, best first: { value, right }. */
+	function searchMutations( cat, query ) {
+		var q = squash( query || '' );
+		return mutationOptions( cat ).filter( function ( o ) {
+			return q === '' || squash( o.value ).indexOf( q ) !== -1;
+		} ).map( function ( o ) {
+			return { value: o.value, color: cat.mutationColor[ o.value ] || null, right: plus( cat.mutations[ o.value ] ) };
+		} );
+	}
+
+	/**
+	 * Traits a slot can take that match a query, best first, with "No trait"
+	 * (value '') leading an empty query: { value, right }.
+	 */
+	function searchTraits( cat, row, slot, query ) {
+		var q = squash( query || '' );
+		return traitOptions( cat, row, slot ).filter( function ( o ) {
+			return o.value === '' ? q === '' || squash( 'no trait' ).indexOf( q ) === 0 :
+				q === '' || squash( o.value ).indexOf( q ) !== -1;
+		} ).map( function ( o ) {
+			return {
+				value: o.value,
+				name: o.value === '' ? 'No trait' : traitLabel( cat, o.value ),
+				right: o.value === '' ? '' : plus( cat.traits[ o.value ] )
+			};
+		} );
+	}
+
+	/** The catalog's spelling of a typed name in a { name: … } map, or null. */
+	function exactName( map, text ) {
+		var t = String( text || '' ).replace( /\s+/g, ' ' ).trim().toLowerCase();
+		var name;
+		for ( name in map ) {
+			if ( has( map, name ) && name.toLowerCase() === t ) {
+				return name;
+			}
+		}
+		return null;
+	}
+
+	/** The catalog's spelling of a typed brainrot name, or null. */
+	function exactBrainrot( cat, text ) {
+		var t = String( text || '' ).replace( /\s+/g, ' ' ).trim().toLowerCase();
+		var name;
+		for ( name in cat.brainrots ) {
+			if ( has( cat.brainrots, name ) && name.toLowerCase() === t ) {
+				return name;
+			}
+		}
+		return null;
+	}
+
 	function mutationOptions( cat ) {
 		// best first (ties keep the catalog order), like the trait lists
 		return cat.data.mutations.map( function ( m, i ) {
@@ -684,6 +838,11 @@
 	 * separators. 118091.7 -> "120,000", 26.3 -> "26", 10.4 -> "10".
 	 */
 	function roughRatio( r ) {
+		// from a million up, the game's own suffixes ("700Qi") read better
+		// than a run of zeros, and match the legend
+		if ( r >= 1e6 ) {
+			return money( r ).replace( /^\$/, '' );
+		}
 		var step = Math.pow( 10, Math.floor( Math.log( r ) / Math.LN10 ) - 1 );
 		var n = step >= 1 ? Math.round( r / step ) * step : Math.round( r );
 		return String( n ).replace( /\B(?=(\d{3})+(?!\d))/g, ',' );
@@ -752,7 +911,7 @@
 			rows: rows.map( function ( r, i ) {
 				return rowView( cat, r, stats[ i ] );
 			} ),
-			now: 0, value: 0, maxValue: 0, ceil: 0, evoLeft: 0, lvLeft: 0,
+			now: 0, value: 0, max: 0, maxValue: 0, ceil: 0, evoLeft: 0, lvLeft: 0,
 			evolved: rows.some( function ( r ) {
 				return r.evolution > 0;
 			} ),
@@ -766,6 +925,7 @@
 				side.measured++;
 				side.now += s.now;
 				side.value += s.value;
+				side.max += s.max;
 				side.maxValue += s.maxValue;
 				side.ceil += s.ceil;
 			} else if ( side.unmeasured.indexOf( rows[ i ].name ) === -1 ) {
@@ -820,7 +980,7 @@
 			bits.push( b.r.mutation );
 		}
 		if ( list.length ) {
-			bits.push( list.length === 1 ? list[ 0 ] : list.length + ' traits' );
+			bits.push( list.length === 1 ? traitLabel( cat, list[ 0 ] ) : list.length + ' traits' );
 		}
 		return b.r.name + ( bits.length ?
 			' (' + bits.join( ' + ' ) + ', ' + times( b.f ) + ')' :
@@ -878,17 +1038,13 @@
 				give: give.nowTotal, get: get.nowTotal,
 				d: judge ? diff( give.now, get.now ) : none
 			},
-			{
-				label: 'Value now', hint: 'income × ' + d.valueMult,
-				give: give.valueTotal, get: get.valueTotal,
-				d: judge ? diff( give.value, get.value ) : none
-			},
-			// only when nothing on either side is evolved: what each side is
-			// worth levelled to the cap without evolving (user, 2026-09-24)
+			// every row is $/s: players compare what brainrots earn, not
+			// what they sell for (user, 2026-09-24). This one only shows when
+			// nothing on either side is evolved: each side levelled to the cap.
 			give.evolved || get.evolved ? null : {
-				label: 'Value at level ' + d.maxLevel, hint: 'no evolutions',
-				give: sideMoney( give, give.maxValue, '' ), get: sideMoney( get, get.maxValue, '' ),
-				d: judge ? diff( give.maxValue, get.maxValue ) : none
+				label: 'Income at level ' + d.maxLevel, hint: 'no evolutions',
+				give: sideMoney( give, give.max, '/s' ), get: sideMoney( get, get.max, '/s' ),
+				d: judge ? diff( give.max, get.max ) : none
 			},
 			{
 				label: 'Fully upgraded', hint: 'level ' + d.maxLevel + ' and Evo ' + d.maxEvolution,
@@ -1215,6 +1371,120 @@
 		return result;
 	}
 
+	/* ================================================================
+	 * A trade as text: remembered in this browser, and in share links
+	 * ================================================================ */
+
+	var TRADE_KEY = 'ffb-trade';
+	var TRADE_VERSION = 1;
+	var CALC_SITE = 'https://aleseea.github.io/fish-for-brainrots/';
+
+	/** The trade on screen as compact JSON: the collection's row format per side. */
+	function serializeTrade( state ) {
+		var side = function ( rows ) {
+			return JSON.parse( serializeCollection( rows ) ).r;
+		};
+		var names = function ( items ) {
+			return items.map( function ( it ) {
+				return typeof it === 'string' ? it : it.text;
+			} ).filter( function ( t ) {
+				return t;
+			} );
+		};
+		return JSON.stringify( {
+			v: TRADE_VERSION,
+			g: side( state.give ),
+			t: side( state.get ),
+			ig: names( state.items.give ),
+			it: names( state.items.get ),
+			m: String( state.myIncome || '' ).slice( 0, 40 )
+		} );
+	}
+
+	/**
+	 * Text back into a trade, or null when it isn't one. Never throws. The
+	 * same limits as a pasted list apply: the size, each side's brainrot
+	 * count, name lengths, and items only from the catalog's list.
+	 */
+	function parseTrade( text, cat ) {
+		var t, max, side, items;
+		if ( typeof text !== 'string' || text.length === 0 || text.length > MAX_PASTE_CHARS ) {
+			return null;
+		}
+		try {
+			t = JSON.parse( text );
+		} catch ( err ) {
+			return null;
+		}
+		if ( !t || typeof t !== 'object' || t.v !== TRADE_VERSION ) {
+			return null;
+		}
+		max = cat.data.maxPerSide;
+		side = function ( list ) {
+			return ( Array.isArray( list ) ? list : [] ).slice( 0, max ).map( function ( item ) {
+				return parseSavedRow( item, cat );
+			} ).filter( function ( r ) {
+				return r;
+			} );
+		};
+		items = function ( list ) {
+			return ( Array.isArray( list ) ? list : [] ).slice( 0, max ).map( function ( x ) {
+				return typeof x === 'string' && x.length <= MAX_NAME_CHARS ? matchItem( cat, x ) : null;
+			} ).filter( function ( x ) {
+				return x;
+			} );
+		};
+		return {
+			give: side( t.g ),
+			get: side( t.t ),
+			items: { give: items( t.ig ), get: items( t.it ) },
+			myIncome: typeof t.m === 'string' ? t.m.slice( 0, 40 ) : ''
+		};
+	}
+
+	/** A trade for a link's #fragment: base64url of the JSON's UTF-8 bytes. */
+	function tradeToFragment( state ) {
+		var json = serializeTrade( state );
+		var bin = unescape( encodeURIComponent( json ) );
+		return 'trade=' + btoa( bin ).replace( /\+/g, '-' ).replace( /\//g, '_' ).replace( /=+$/, '' );
+	}
+
+	/** A #fragment (with or without the #) back into a trade, or null. */
+	function tradeFromFragment( fragment, cat ) {
+		var m = /(?:^#?|&)trade=([A-Za-z0-9_-]+)/.exec( String( fragment || '' ) );
+		var b64, json;
+		if ( !m || m[ 1 ].length > MAX_PASTE_CHARS ) {
+			return null;
+		}
+		b64 = m[ 1 ].replace( /-/g, '+' ).replace( /_/g, '/' );
+		while ( b64.length % 4 ) {
+			b64 += '=';
+		}
+		try {
+			json = decodeURIComponent( escape( atob( b64 ) ) );
+		} catch ( err ) {
+			return null;
+		}
+		return parseTrade( json, cat );
+	}
+
+	/** The share link for a trade: the calculator page, which works on phones too. */
+	function tradeLink( state ) {
+		return CALC_SITE + '#' + tradeToFragment( state );
+	}
+
+	/** The number suffixes, smallest first, with their names, for the legend. */
+	var SUFFIX_NAMES = {
+		K: 'thousand', M: 'million', B: 'billion', T: 'trillion', Qa: 'quadrillion',
+		Qi: 'quintillion', Sx: 'sextillion', Sp: 'septillion', Oc: 'octillion',
+		No: 'nonillion', Dc: 'decillion', Ud: 'undecillion'
+	};
+	function suffixRows() {
+		return SUFFIXES.slice().reverse().map( function ( u ) {
+			return { suffix: u[ 1 ], name: SUFFIX_NAMES[ u[ 1 ] ] || '', zeros: Math.round( Math.log( u[ 0 ] ) / Math.LN10 ) };
+		} );
+	}
+
 	/** Adds rows up to the cap. Returns how many did not fit. */
 	function addToCollection( rows, more ) {
 		var left = 0;
@@ -1275,7 +1545,9 @@
 			perm.push( row.mutation );
 		}
 		if ( traits.length ) {
-			perm.push( traits.join( ', ' ) );
+			perm.push( traits.map( function ( t ) {
+				return traitLabel( cat, t );
+			} ).join( ', ' ) );
 		}
 		if ( perm.length ) {
 			bits.push( perm.join( ' + ' ) );
@@ -1600,30 +1872,6 @@
 		return has( cat.brainrots, name ) ? name : null;
 	}
 
-	/**
-	 * Fills a select. A value that is not among the options (a saved
-	 * mutation or trait the catalog no longer has) is kept as an extra
-	 * option rather than silently replaced by the first one.
-	 */
-	function fillSelect( select, options, value ) {
-		var found = false;
-		clear( select );
-		options.forEach( function ( o ) {
-			var node = el( 'option', null, o.label );
-			node.value = o.value;
-			select.appendChild( node );
-			if ( o.value === value ) {
-				found = true;
-			}
-		} );
-		if ( !found && value !== '' ) {
-			var extra = el( 'option', null, value + ' (not in the catalog)' );
-			extra.value = value;
-			select.insertBefore( extra, select.firstChild );
-		}
-		select.value = value;
-	}
-
 	/** A label above its control, sharing an id. */
 	function field( id, labelText, control, className ) {
 		var wrap = el( 'div', 'ffb-trade-field' + ( className ? ' ' + className : '' ) );
@@ -1643,6 +1891,295 @@
 	}
 
 	/**
+	 * A searchable picker (an ARIA combobox) for the calculators' lists:
+	 * brainrots, mutations and traits. The reader types any part of a name
+	 * and taps a match. cfg:
+	 *   id, current: the field id and the value now chosen
+	 *   inputClass, placeholder: extra classes and the empty-box hint
+	 *   label( value ): what the box shows for a chosen value
+	 *   search( query ): [ { value, name?, meta?, right? } ] in display order
+	 *   exact( text ): the value typed text means, or null for none
+	 *   onPick( value ): runs when a value is chosen
+	 * Anything that isn't a match is put back when the box is left, so the
+	 * row always holds a real value. Returns { node, input, set( value ) }.
+	 */
+	// the colour blends a mutation may have instead of one colour; the Lua
+	// module (Module:Brainrot, BLENDS) draws the same ones
+	var BLENDS = {
+		rainbow: 'linear-gradient(135deg, #ef4444, #f59e0b, #eab308, #22c55e, #3b82f6, #a855f7)',
+		'fire-ice': 'linear-gradient(135deg, #ef4444 50%, #60a5fa 50%)',
+		party: 'linear-gradient(135deg, #ec4899, #f59e0b, #22c55e, #3b82f6)'
+	};
+
+	/** A colour the squares may use: #rrggbb or a blend's name, else null. */
+	function safeColor( c ) {
+		return typeof c === 'string' && ( /^#[0-9a-f]{6}$/i.test( c ) || has( BLENDS, c ) ) ? c : null;
+	}
+
+	/** A small square in a rarity's or mutation's colour (see safeColor). */
+	function swatch( color ) {
+		var sq = el( 'span', 'ffb-swatch' );
+		sq.setAttribute( 'style', has( BLENDS, color ) ?
+			'background-image: ' + BLENDS[ color ] + ';' : 'background-color: ' + color + ';' );
+		sq.setAttribute( 'aria-hidden', 'true' );
+		return sq;
+	}
+
+	/**
+	 * "What do K, M, B… mean?": a closed-by-default list of the number
+	 * suffixes, smallest first, since 5Sp vs 3Oc isn't obvious to everyone.
+	 */
+	function suffixLegend() {
+		var box = el( 'details', 'ffb-legend' );
+		box.appendChild( el( 'summary', 'ffb-legend-summary', 'What do K, M, B… mean?' ) );
+		var list = el( 'ul', 'ffb-legend-list' );
+		suffixRows().forEach( function ( r ) {
+			var li = el( 'li', 'ffb-legend-row' );
+			li.appendChild( el( 'strong', 'ffb-legend-suffix', r.suffix ) );
+			li.appendChild( el( 'span', 'ffb-legend-name', r.name ) );
+			li.appendChild( el( 'span', 'ffb-legend-zeros', '1 and ' + r.zeros + ' zeros' ) );
+			list.appendChild( li );
+		} );
+		box.appendChild( list );
+		box.appendChild( el( 'p', 'ffb-legend-note', 'Each step is 1,000 times the one before it, so 1Oc is 1,000Sp.' ) );
+		return box;
+	}
+
+	var PICK_SHOWN = 60;
+	var pickCount = 0;
+	function buildSearchPicker( cfg ) {
+		var listId = cfg.id + '-list-' + ( ++pickCount );
+		var wrap = el( 'div', 'ffb-pick' );
+		var input = el( 'input', 'ffb-pick-input' + ( cfg.inputClass ? ' ' + cfg.inputClass : '' ) );
+		var list = el( 'ul', 'ffb-pick-list' );
+		var label = cfg.label || function ( v ) {
+			return v;
+		};
+		var matches = [];
+		var active = -1;
+		var chosen = cfg.current;
+		// list-only (short fixed lists): tapping opens the list, and no
+		// keyboard pops up on a phone because the box can't be typed in
+		var searchable = cfg.searchable !== false;
+		if ( !searchable ) {
+			wrap.className += ' ffb-pick-listonly';
+			input.readOnly = true;
+		}
+		input.type = 'text';
+		input.value = label( chosen );
+		input.autocomplete = 'off';
+		input.setAttribute( 'role', 'combobox' );
+		input.setAttribute( 'aria-autocomplete', 'list' );
+		input.setAttribute( 'aria-expanded', 'false' );
+		input.setAttribute( 'aria-controls', listId );
+		input.setAttribute( 'spellcheck', 'false' );
+		input.setAttribute( 'autocapitalize', 'off' );
+		input.placeholder = searchable ? cfg.placeholder || 'Type to search' : '';
+		list.id = listId;
+		list.setAttribute( 'role', 'listbox' );
+		list.hidden = true;
+		wrap.appendChild( input );
+		wrap.appendChild( list );
+
+		function setActive( i ) {
+			active = i;
+			Array.prototype.forEach.call( list.childNodes, mark );
+			function mark( li, k ) {
+				if ( k >= matches.length ) {
+					return;
+				}
+				li.setAttribute( 'aria-selected', k === i ? 'true' : 'false' );
+				li.className = 'ffb-pick-option' + ( k === i ? ' ffb-pick-option-active' : '' );
+			}
+			if ( i >= 0 && list.childNodes[ i ] ) {
+				input.setAttribute( 'aria-activedescendant', list.childNodes[ i ].id );
+				if ( list.childNodes[ i ].scrollIntoView ) {
+					list.childNodes[ i ].scrollIntoView( { block: 'nearest' } );
+				}
+			} else {
+				input.setAttribute( 'aria-activedescendant', '' );
+			}
+		}
+		function open( query ) {
+			var all = cfg.search( query );
+			matches = all.slice( 0, PICK_SHOWN );
+			clear( list );
+			matches.forEach( function ( m, k ) {
+				var li = el( 'li', 'ffb-pick-option' );
+				li.id = listId + '-' + k;
+				li.setAttribute( 'role', 'option' );
+				var nameCell = el( 'span', 'ffb-pick-name' );
+				if ( m.color ) {
+					nameCell.appendChild( swatch( m.color ) );
+				}
+				nameCell.appendChild( el( 'span', null, m.name || label( m.value ) ) );
+				li.appendChild( nameCell );
+				if ( m.meta ) {
+					li.appendChild( el( 'span', 'ffb-pick-meta', m.meta ) );
+				}
+				if ( m.right ) {
+					li.appendChild( el( 'span', 'ffb-pick-base', m.right ) );
+				}
+				// mousedown, not click: it lands before the input loses focus
+				li.addEventListener( 'mousedown', function ( e ) {
+					if ( e && e.preventDefault ) {
+						e.preventDefault();
+					}
+					pick( m.value );
+				} );
+				list.appendChild( li );
+			} );
+			if ( !matches.length ) {
+				list.appendChild( el( 'li', 'ffb-pick-none', 'No ' + ( cfg.noun || 'match' ) + ' matches “' + query + '”.' ) );
+			} else if ( all.length > matches.length ) {
+				list.appendChild( el( 'li', 'ffb-pick-none', ( all.length - matches.length ) + ' more: keep typing to narrow it down.' ) );
+			}
+			list.hidden = false;
+			input.setAttribute( 'aria-expanded', 'true' );
+			setActive( matches.length ? 0 : -1 );
+		}
+		function close() {
+			list.hidden = true;
+			input.setAttribute( 'aria-expanded', 'false' );
+			input.setAttribute( 'aria-activedescendant', '' );
+			active = -1;
+		}
+		function pick( value ) {
+			chosen = value;
+			input.value = label( value );
+			close();
+			cfg.onPick( value );
+		}
+		function settle() {
+			var v = cfg.exact( input.value );
+			if ( v !== null && v !== chosen ) {
+				pick( v );
+			} else {
+				input.value = label( chosen );
+				close();
+			}
+		}
+
+		input.addEventListener( 'focus', function () {
+			if ( searchable && input.select ) {
+				input.select();
+			}
+			open( '' );
+		} );
+		// a second tap reopens the list after a pick (focus doesn't fire again)
+		input.addEventListener( 'click', function () {
+			if ( list.hidden ) {
+				open( '' );
+			}
+		} );
+		input.addEventListener( 'input', function () {
+			open( input.value );
+		} );
+		input.addEventListener( 'keydown', function ( e ) {
+			var key = e && e.key;
+			if ( key === 'ArrowDown' || key === 'ArrowUp' ) {
+				if ( list.hidden ) {
+					open( input.value === label( chosen ) ? '' : input.value );
+				} else if ( matches.length ) {
+					setActive( ( active + ( key === 'ArrowDown' ? 1 : matches.length - 1 ) ) % matches.length );
+				}
+				e.preventDefault();
+			} else if ( key === 'Enter' ) {
+				if ( !list.hidden && active >= 0 && matches[ active ] ) {
+					pick( matches[ active ].value );
+					e.preventDefault();
+				}
+			} else if ( key === 'Escape' ) {
+				input.value = label( chosen );
+				close();
+			}
+		} );
+		input.addEventListener( 'blur', settle );
+		input.addEventListener( 'change', settle );
+
+		return {
+			node: wrap,
+			input: input,
+			set: function ( value ) {
+				chosen = value;
+				input.value = label( value );
+			}
+		};
+	}
+
+	/** The brainrot picker: 161 names are too many to scroll on a phone. */
+	function buildNamePicker( cat, id, current, onPick ) {
+		return buildSearchPicker( {
+			id: id,
+			current: current,
+			inputClass: 'ffb-trade-input ffb-trade-select-name',
+			placeholder: 'Type a name',
+			noun: 'brainrot',
+			search: function ( q ) {
+				return searchBrainrots( cat, q ).map( function ( m ) {
+					return { value: m.value, meta: m.rarity, color: m.color, right: m.base || 'no base yet' };
+				} );
+			},
+			exact: function ( text ) {
+				return exactBrainrot( cat, text );
+			},
+			onPick: onPick
+		} );
+	}
+
+	/**
+	 * The picker for a short fixed list of { value, label } (evolution, sort
+	 * order, a saved brainrot): the same look, list-only. The box shows the
+	 * chosen label; a value or a label typed into it (by a test or an
+	 * assistive tool) picks that option.
+	 */
+	function buildListPicker( id, options, current, inputClass, onPick ) {
+		var labelOf = function ( v ) {
+			var i;
+			for ( i = 0; i < options.length; i++ ) {
+				if ( options[ i ].value === v ) {
+					return options[ i ].label;
+				}
+			}
+			return v;
+		};
+		return buildSearchPicker( {
+			id: id,
+			current: current,
+			searchable: false,
+			inputClass: inputClass,
+			label: labelOf,
+			search: function () {
+				return options.map( function ( o ) {
+					return { value: o.value, name: o.label };
+				} );
+			},
+			exact: function ( text ) {
+				var t = String( text || '' ).trim().toLowerCase();
+				var i;
+				for ( i = 0; i < options.length; i++ ) {
+					if ( options[ i ].value.toLowerCase() === t || options[ i ].label.toLowerCase() === t ) {
+						return options[ i ].value;
+					}
+				}
+				return null;
+			},
+			onPick: onPick
+		} );
+	}
+
+	/**
+	 * Puts a picker into a field made by field(): the label stays on the
+	 * input, which goes back into the picker ahead of its list.
+	 */
+	function pickerField( id, labelText, picker, className ) {
+		var f = field( id, labelText, picker.input, className );
+		picker.node.insertBefore( picker.input, picker.node.firstChild );
+		f.node.appendChild( picker.node );
+		return f;
+	}
+
+	/**
 	 * One brainrot's controls and figures: the card both the trade
 	 * calculator and the collection use. hooks.onChange runs after any
 	 * edit to row; hooks.onRemove when its remove button is pressed.
@@ -1654,32 +2191,56 @@
 		var i;
 
 		var top = el( 'div', 'ffb-trade-card-top' );
-		var nameSelect = el( 'select', 'ffb-trade-select ffb-trade-select-name' );
-		brainrotOptions( cat ).forEach( function ( opt ) {
-			var o = el( 'option', null, opt.label );
-			o.value = opt.value;
-			nameSelect.appendChild( o );
+		// searchable: 161 names are too many to scroll on a phone
+		var namePicker = buildNamePicker( cat, idp + 'b', row.name, function ( name ) {
+			row.name = name;
+			hooks.onChange();
 		} );
-		if ( !has( cat.brainrots, row.name ) ) {
-			var lost = el( 'option', null, row.name + ' (not in the catalog)' );
-			lost.value = row.name;
-			nameSelect.insertBefore( lost, nameSelect.firstChild );
-		}
-		nameSelect.value = row.name;
-		var nameField = field( idp + 'b', 'Brainrot', nameSelect, 'ffb-trade-field-name' );
+		var nameSelect = namePicker.input;
+		var nameField = pickerField( idp + 'b', 'Brainrot', namePicker, 'ffb-trade-field-name' );
 		var rarity = el( 'span', 'ffb-trade-rarity' );
 		nameField.label.appendChild( rarity );
 		var remove = removeButton( 'Remove ' + row.name );
 		top.appendChild( nameField.node );
+		// a copy of this card, for trades with several of the same brainrot
+		var dup = null;
+		if ( hooks.onDuplicate ) {
+			dup = el( 'button', 'ffb-trade-dup', '⧉' );
+			dup.type = 'button';
+			dup.setAttribute( 'aria-label', 'Duplicate ' + row.name );
+			dup.title = 'Duplicate';
+			dup.addEventListener( 'click', function () {
+				hooks.onDuplicate();
+			} );
+			top.appendChild( dup );
+		}
 		top.appendChild( remove );
 		card.appendChild( top );
 
 		// evolution, mutation, level: the wiki's order
 		var fields = el( 'div', 'ffb-trade-fields' );
-		var evoSelect = el( 'select', 'ffb-trade-select' );
-		fillSelect( evoSelect, evolutionOptions( cat ), String( row.evolution ) );
-		var mutSelect = el( 'select', 'ffb-trade-select' );
-		fillSelect( mutSelect, mutationOptions( cat ), row.mutation );
+		var evoPicker = buildListPicker( idp + 'e', evolutionOptions( cat ), String( row.evolution ),
+			'ffb-trade-input ffb-trade-select-evo', function ( v ) {
+				row.evolution = parseInt( v, 10 );
+				hooks.onChange();
+			} );
+		var mutPicker = buildSearchPicker( {
+			id: idp + 'm',
+			current: row.mutation,
+			inputClass: 'ffb-trade-input ffb-trade-select-mut',
+			placeholder: 'Type a mutation',
+			noun: 'mutation',
+			search: function ( q ) {
+				return searchMutations( cat, q );
+			},
+			exact: function ( text ) {
+				return exactName( cat.mutations, text );
+			},
+			onPick: function ( m ) {
+				row.mutation = m;
+				hooks.onChange();
+			}
+		} );
 		var lvlInput = el( 'input', 'ffb-trade-input ffb-trade-input-level' );
 		lvlInput.type = 'number';
 		lvlInput.min = '1';
@@ -1687,25 +2248,85 @@
 		lvlInput.step = '1';
 		lvlInput.setAttribute( 'inputmode', 'numeric' );
 		lvlInput.value = String( row.level );
-		fields.appendChild( field( idp + 'e', 'Evolution', evoSelect, 'ffb-trade-field-evo' ).node );
-		fields.appendChild( field( idp + 'm', 'Mutation', mutSelect, 'ffb-trade-field-mut' ).node );
+		fields.appendChild( pickerField( idp + 'e', 'Evolution', evoPicker, 'ffb-trade-field-evo' ).node );
+		fields.appendChild( pickerField( idp + 'm', 'Mutation', mutPicker, 'ffb-trade-field-mut' ).node );
 		fields.appendChild( field( idp + 'l', 'Level', lvlInput, 'ffb-trade-field-level' ).node );
 		card.appendChild( fields );
 
-		var traitGrid = el( 'div', 'ffb-trade-traits' );
-		var traitSelects = [];
-		for ( i = 0; i < data.maxTraits; i++ ) {
-			traitSelects.push( el( 'select', 'ffb-trade-select ffb-trade-select-trait' ) );
-			traitGrid.appendChild( field( idp + 't' + i, 'Trait ' + ( i + 1 ), traitSelects[ i ] ).node );
+		// the levels people actually check, and "Max" (level cap and the last
+		// evolution), without typing on a phone keyboard
+		var quick = el( 'div', 'ffb-trade-quick' );
+		quick.setAttribute( 'role', 'group' );
+		quick.setAttribute( 'aria-label', 'Quick level' );
+		function setLevel( level, evolution ) {
+			row.level = level;
+			lvlInput.value = String( level );
+			if ( evolution !== undefined ) {
+				row.evolution = evolution;
+				evoPicker.set( String( evolution ) );
+			}
+			hooks.onChange();
 		}
-		function fillTraits( except ) {
-			traitSelects.forEach( function ( s, slot ) {
-				if ( slot !== except ) {
-					fillSelect( s, traitOptions( cat, row, slot ), row.traits[ slot ] );
+		[ 1, 100, 175, data.maxLevel ].forEach( function ( lv ) {
+			var b = el( 'button', 'ffb-trade-quick-btn', 'Lv ' + lv );
+			b.type = 'button';
+			b.addEventListener( 'click', function () {
+				setLevel( lv );
+			} );
+			quick.appendChild( b );
+		} );
+		var maxBtn = el( 'button', 'ffb-trade-quick-btn ffb-trade-quick-max', 'Max' );
+		maxBtn.type = 'button';
+		maxBtn.title = 'Level ' + data.maxLevel + ', Evo ' + data.maxEvolution;
+		maxBtn.setAttribute( 'aria-label', 'Max: level ' + data.maxLevel + ' and Evo ' + data.maxEvolution );
+		maxBtn.addEventListener( 'click', function () {
+			setLevel( data.maxLevel, data.maxEvolution );
+		} );
+		quick.appendChild( maxBtn );
+		card.appendChild( quick );
+
+		var traitGrid = el( 'div', 'ffb-trade-traits' );
+		// one searchable picker per slot; each offers only traits no other
+		// slot holds, worked out when it opens
+		var traitPickers = [];
+		function traitPicker( slot ) {
+			return buildSearchPicker( {
+				id: idp + 't' + slot,
+				current: row.traits[ slot ],
+				inputClass: 'ffb-trade-input ffb-trade-select-trait',
+				placeholder: 'No trait',
+				noun: 'trait',
+				label: function ( v ) {
+					return traitLabel( cat, v );
+				},
+				search: function ( q ) {
+					return searchTraits( cat, row, slot, q );
+				},
+				exact: function ( text ) {
+					var t = String( text || '' ).trim();
+					if ( t === '' || squash( t ) === 'notrait' ) {
+						return '';
+					}
+					var name = null;
+					Object.keys( cat.traits ).forEach( function ( n ) {
+						if ( squash( n ) === squash( t ) ) {
+							name = n;
+						}
+					} );
+					return name && searchTraits( cat, row, slot, name ).some( function ( m ) {
+						return m.value === name;
+					} ) ? name : null;
+				},
+				onPick: function ( t ) {
+					setTrait( cat, row, slot, t );
+					hooks.onChange();
 				}
 			} );
 		}
-		fillTraits( -1 );
+		for ( i = 0; i < data.maxTraits; i++ ) {
+			traitPickers.push( traitPicker( i ) );
+			traitGrid.appendChild( pickerField( idp + 't' + i, 'Trait ' + ( i + 1 ), traitPickers[ i ] ).node );
+		}
 		card.appendChild( traitGrid );
 
 		// the permanent part, broken down
@@ -1721,6 +2342,17 @@
 		var mutOut = part( 'Mutation' );
 		var traitOut = part( 'Traits' );
 		var bothOut = part( 'Together', 'ffb-trade-part-both' );
+		// on phones the breakdown folds away behind this, so a full trade
+		// isn't a long scroll; wider screens always show it (CSS)
+		var detailsBtn = el( 'button', 'ffb-trade-details', 'Details' );
+		detailsBtn.type = 'button';
+		detailsBtn.setAttribute( 'aria-expanded', 'false' );
+		detailsBtn.addEventListener( 'click', function () {
+			var open = detailsBtn.getAttribute( 'aria-expanded' ) !== 'true';
+			detailsBtn.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+			card.className = card.className.replace( / ffb-trade-card-open/g, '' ) + ( open ? ' ffb-trade-card-open' : '' );
+		} );
+		card.appendChild( detailsBtn );
 		card.appendChild( parts );
 
 		var foot = el( 'div', 'ffb-trade-card-foot' );
@@ -1728,10 +2360,8 @@
 		var figures = el( 'span', 'ffb-trade-card-figures' );
 		var multOut = el( 'span', 'ffb-trade-card-mult' );
 		var nowOut = el( 'span', 'ffb-trade-card-now' );
-		var valueOut = el( 'span', 'ffb-trade-card-value' );
 		figures.appendChild( multOut );
 		figures.appendChild( nowOut );
-		figures.appendChild( valueOut );
 		var ceilOut = null;
 		if ( options && options.showCeiling ) {
 			ceilOut = el( 'span', 'ffb-trade-card-ceil' );
@@ -1741,19 +2371,24 @@
 		foot.appendChild( figures );
 		card.appendChild( foot );
 
+		var saveOut = null;
+		if ( hooks.onSave ) {
+			var tools = el( 'div', 'ffb-trade-card-tools' );
+			var saveBtn = el( 'button', 'ffb-trade-save', 'Save to my collection' );
+			saveBtn.type = 'button';
+			saveOut = el( 'span', 'ffb-trade-save-out' );
+			saveOut.setAttribute( 'aria-live', 'polite' );
+			saveBtn.addEventListener( 'click', function () {
+				hooks.onSave( function ( text ) {
+					saveOut.textContent = text;
+				} );
+			} );
+			tools.appendChild( saveBtn );
+			tools.appendChild( saveOut );
+			card.appendChild( tools );
+		}
+
 		// ---- events ---------------------------------------------------
-		nameSelect.addEventListener( 'change', function () {
-			row.name = nameSelect.value;
-			hooks.onChange();
-		} );
-		evoSelect.addEventListener( 'change', function () {
-			row.evolution = parseInt( evoSelect.value, 10 );
-			hooks.onChange();
-		} );
-		mutSelect.addEventListener( 'change', function () {
-			row.mutation = mutSelect.value;
-			hooks.onChange();
-		} );
 		lvlInput.addEventListener( 'input', function () {
 			var n = parseLevel( cat, lvlInput.value );
 			if ( n !== null ) {
@@ -1765,13 +2400,6 @@
 			// show the level actually in use once the reader leaves the box
 			lvlInput.value = String( row.level );
 		} );
-		traitSelects.forEach( function ( s, slot ) {
-			s.addEventListener( 'change', function () {
-				setTrait( cat, row, slot, s.value );
-				fillTraits( slot );
-				hooks.onChange();
-			} );
-		} );
 		remove.addEventListener( 'click', function () {
 			hooks.onRemove();
 		} );
@@ -1782,16 +2410,29 @@
 				nameSelect.focus();
 			},
 			update: function ( view ) {
-				rarity.textContent = view.rarity ? ' · ' + view.rarity : '';
+				// " · ■ Rarity": the square sits with the rarity it stands for
+				clear( rarity );
+				if ( view.rarity ) {
+					rarity.appendChild( el( 'span', null, ' · ' ) );
+					if ( cat.rarityColor[ view.rarity ] ) {
+						rarity.appendChild( swatch( cat.rarityColor[ view.rarity ] ) );
+					}
+					rarity.appendChild( el( 'span', null, view.rarity ) );
+				}
 				remove.setAttribute( 'aria-label', 'Remove ' + view.name );
+				if ( dup ) {
+					dup.setAttribute( 'aria-label', 'Duplicate ' + view.name );
+				}
 				mutOut.textContent = view.mutPart;
+				if ( cat.mutationColor[ row.mutation ] ) {
+					mutOut.insertBefore( swatch( cat.mutationColor[ row.mutation ] ), mutOut.firstChild );
+				}
 				traitOut.textContent = view.traitPart;
 				bothOut.textContent = view.bothPart;
 				badge.textContent = view.badge;
 				badge.className = 'ffb-trade-badge ffb-trade-badge-' + view.badgeTone;
 				multOut.textContent = view.mult;
 				nowOut.textContent = view.measured ? view.now : 'no measured income';
-				valueOut.textContent = view.measured ? view.value : '';
 				if ( ceilOut ) {
 					ceilOut.textContent = view.measured ? 'fully upgraded ' + view.ceil : '';
 				}
@@ -1810,7 +2451,9 @@
 		var nextId = 1;
 		var state = { give: [], get: [], items: { give: [], get: [] }, myIncome: '' };
 		var ui = {};
-		var first = prefillName( cat );
+		// the calculator page uses ?brainrot= for its own Value tab
+		var first = typeof window !== 'undefined' && window.ffbStandalone && window.ffbStandalone.noPrefill ?
+			null : prefillName( cat );
 
 		// rows carry an id so each control gets a unique id for its label
 		function withId( row ) {
@@ -1818,8 +2461,41 @@
 			return row;
 		}
 
-		if ( first ) {
+		// where the trade starts: a shared link wins, then a brainrot named in
+		// the address (a page's "compare" link), then the trade this browser
+		// remembers from last time
+		var storage = workingStorage( env.storage );
+		var loc = typeof window !== 'undefined' && window.location ? window.location : {};
+		var shared = tradeFromFragment( loc.hash, cat );
+		var remembered = !shared && !first && storage ? parseTrade( readStorage( storage, TRADE_KEY ), cat ) : null;
+		function load( t ) {
+			state.give = [];
+			state.get = [];
+			t.give.forEach( function ( r ) {
+				addRow( cat, state.give, withId( r ) );
+			} );
+			t.get.forEach( function ( r ) {
+				addRow( cat, state.get, withId( r ) );
+			} );
+			state.items = {
+				give: t.items.give.map( function ( x ) {
+					return { id: nextId++, text: x };
+				} ),
+				get: t.items.get.map( function ( x ) {
+					return { id: nextId++, text: x };
+				} )
+			};
+			state.myIncome = t.myIncome;
+		}
+		if ( shared || remembered ) {
+			load( shared || remembered );
+		} else if ( first ) {
 			addRow( cat, state.get, withId( newRow( cat, first ) ) );
+		}
+		function remember() {
+			if ( storage ) {
+				writeStorage( storage, TRADE_KEY, serializeTrade( state ) );
+			}
 		}
 
 		// ---- one brainrot card -------------------------------------------
@@ -1832,8 +2508,37 @@
 						state[ key ].splice( at, 1 );
 					}
 					renderSide( key );
+					showUndo( key, row, at );
 					refresh();
 					ui[ key ].addButton.focus();
+				},
+				onDuplicate: function () {
+					var copy = parseSavedRow( JSON.parse( serializeCollection( [ row ] ) ).r[ 0 ], cat );
+					var at = state[ key ].indexOf( row );
+					if ( copy && state[ key ].length < data.maxPerSide ) {
+						withId( copy );
+						state[ key ].splice( at + 1, 0, copy );
+						renderSide( key );
+						refresh();
+						ui[ key ].cards[ at + 1 ].focus();
+					}
+				},
+				onSave: function ( done ) {
+					var store = chooseStore( env );
+					var list;
+					if ( store.kind === 'none' ) {
+						done( 'This browser can’t keep a collection.' );
+						return;
+					}
+					list = parseCollection( store.load(), cat ).rows;
+					if ( list.length >= COLLECTION_MAX ) {
+						done( 'Your collection is full (' + COLLECTION_MAX + ').' );
+						return;
+					}
+					list.push( parseSavedRow( JSON.parse( serializeCollection( [ row ] ) ).r[ 0 ], cat ) );
+					store.save( serializeCollection( list ), function ( err ) {
+						done( err ? 'Couldn’t save: ' + err + '.' : 'Saved to My collection.' );
+					} );
 				}
 			} );
 		}
@@ -1918,18 +2623,18 @@
 
 			var totals = el( 'div', 'ffb-trade-side-totals' );
 			var nowTotal = el( 'strong', 'ffb-trade-total-now' );
-			var valueTotal = el( 'strong', 'ffb-trade-total-value' );
 			var nowWrap = el( 'span', null, 'Income now ' );
-			var valueWrap = el( 'span', null, 'Value ' );
 			nowWrap.appendChild( nowTotal );
-			valueWrap.appendChild( valueTotal );
 			totals.appendChild( nowWrap );
-			totals.appendChild( valueWrap );
 			section.appendChild( totals );
 
 			var list = el( 'div', 'ffb-trade-cards' );
+			var undo = el( 'div', 'ffb-trade-undo' );
+			undo.setAttribute( 'aria-live', 'polite' );
+			undo.hidden = true;
 			var itemList = el( 'div', 'ffb-trade-items' );
 			section.appendChild( list );
+			section.appendChild( undo );
 			section.appendChild( itemList );
 
 			var actions = el( 'div', 'ffb-trade-actions' );
@@ -1947,17 +2652,19 @@
 			var fromCollection = null;
 			if ( key === 'give' && picks.length ) {
 				fromCollection = el( 'div', 'ffb-trade-from-collection' );
-				var pickSelect = el( 'select', 'ffb-trade-select ffb-trade-select-pick' );
-				fillSelect( pickSelect, picks.map( function ( p, i ) {
+				var pickChoice = '0';
+				var pickPicker = buildListPicker( uid + 'pick', picks.map( function ( p, i ) {
 					return { value: String( i ), label: p.label };
-				} ), '0' );
+				} ), '0', 'ffb-trade-input ffb-trade-select-pick', function ( v ) {
+					pickChoice = v;
+				} );
 				var pickButton = el( 'button', 'ffb-trade-add', 'Add' );
 				pickButton.type = 'button';
-				fromCollection.appendChild( field( uid + 'pick', 'Add from my collection', pickSelect, 'ffb-trade-field-pick' ).node );
+				fromCollection.appendChild( pickerField( uid + 'pick', 'Add from my collection', pickPicker, 'ffb-trade-field-pick' ).node );
 				fromCollection.appendChild( pickButton );
 				section.appendChild( fromCollection );
 				pickButton.addEventListener( 'click', function () {
-					var pick = picks[ parseInt( pickSelect.value, 10 ) ];
+					var pick = picks[ parseInt( pickChoice, 10 ) ];
 					if ( pick && addRow( cat, state[ key ], withId( tradeRowFromSaved( cat, pick.row ) ) ) ) {
 						renderSide( key );
 						refresh();
@@ -1981,16 +2688,36 @@
 			} );
 
 			ui[ key ] = {
-				section: section, count: count, nowTotal: nowTotal, valueTotal: valueTotal,
+				section: section, count: count, nowTotal: nowTotal,
 				list: list, itemList: itemList, addButton: addButton, fullNote: fullNote,
-				itemButton: itemButton, fromCollection: fromCollection, cards: [], items: []
+				itemButton: itemButton, fromCollection: fromCollection, cards: [], items: [], undo: undo
 			};
 			return section;
+		}
+
+		/** "Removed Hydra Dragon · Undo": puts it back where it was. */
+		function showUndo( key, row, at ) {
+			var box = ui[ key ].undo;
+			clear( box );
+			box.appendChild( el( 'span', null, 'Removed ' + row.name + '. ' ) );
+			var again = el( 'button', 'ffb-trade-undo-btn', 'Undo' );
+			again.type = 'button';
+			again.addEventListener( 'click', function () {
+				if ( state[ key ].length < data.maxPerSide ) {
+					state[ key ].splice( Math.min( at, state[ key ].length ), 0, row );
+					renderSide( key );
+					refresh();
+					ui[ key ].cards[ state[ key ].indexOf( row ) ].focus();
+				}
+			} );
+			box.appendChild( again );
+			box.hidden = false;
 		}
 
 		/** Rebuilds a side's cards and items after one is added or removed. */
 		function renderSide( key ) {
 			var side = ui[ key ];
+			side.undo.hidden = true;
 			clear( side.list );
 			clear( side.itemList );
 			side.cards = state[ key ].map( function ( row ) {
@@ -2133,7 +2860,6 @@
 				var u = ui[ side.key ];
 				u.count.textContent = side.count;
 				u.nowTotal.textContent = side.nowTotal;
-				u.valueTotal.textContent = side.valueTotal;
 				u.addButton.hidden = !side.canAdd;
 				u.fullNote.hidden = !side.full;
 				if ( u.fromCollection ) {
@@ -2159,6 +2885,11 @@
 
 			renderTable( result.table );
 
+			stickyTitle.textContent = result.verdict.title;
+			stickyTitle.className = 'ffb-trade-sticky-title ffb-trade-tone-' + result.verdict.tone;
+			stickyFigs.textContent = 'Today ' + result.today.text + ' · Fully upgraded ' + result.ceiling.text;
+			remember();
+
 			mineOut.textContent = result.mine.text;
 			mineOut.className = 'ffb-trade-mine-text ffb-trade-tone-' + result.mine.tone;
 			mineSource.textContent = result.mine.source === 'collection' ?
@@ -2175,12 +2906,92 @@
 			} );
 		}
 
+		// ---- toolbar: swap sides, share, clear -------------------------------
+		var toolbar = el( 'div', 'ffb-trade-toolbar' );
+		var swapBtn = el( 'button', 'ffb-trade-tool', '⇄ Swap sides' );
+		swapBtn.type = 'button';
+		swapBtn.title = 'See the trade from the other player’s side';
+		var shareBtn = el( 'button', 'ffb-trade-tool', 'Share' );
+		shareBtn.type = 'button';
+		var clearBtn = el( 'button', 'ffb-trade-tool', 'Clear trade' );
+		clearBtn.type = 'button';
+		var toolOut = el( 'span', 'ffb-trade-tool-out' );
+		toolOut.setAttribute( 'aria-live', 'polite' );
+		toolbar.appendChild( swapBtn );
+		toolbar.appendChild( shareBtn );
+		toolbar.appendChild( clearBtn );
+		toolbar.appendChild( toolOut );
+
+		swapBtn.addEventListener( 'click', function () {
+			var t = state.give;
+			state.give = state.get;
+			state.get = t;
+			t = state.items.give;
+			state.items.give = state.items.get;
+			state.items.get = t;
+			renderSide( 'give' );
+			renderSide( 'get' );
+			refresh();
+			toolOut.textContent = 'Swapped: you’re now looking from the other side.';
+		} );
+		clearBtn.addEventListener( 'click', function () {
+			state.give = [];
+			state.get = [];
+			state.items = { give: [], get: [] };
+			state.myIncome = '';
+			mineInput.value = '';
+			renderSide( 'give' );
+			renderSide( 'get' );
+			refresh();
+			toolOut.textContent = 'Cleared.';
+		} );
+		/** A link to this exact trade: the phone's share sheet, else the clipboard. */
+		function share( out ) {
+			var link = tradeLink( state );
+			var nav = typeof navigator !== 'undefined' ? navigator : null;
+			if ( nav && nav.share ) {
+				nav.share( { title: 'Fish for Brainrots trade', url: link } ).then( function () {
+					out.textContent = 'Shared.';
+				}, function () {} );
+			} else if ( nav && nav.clipboard && nav.clipboard.writeText ) {
+				nav.clipboard.writeText( link ).then( function () {
+					out.textContent = 'Link copied: paste it anywhere to show this trade.';
+				}, function () {
+					out.textContent = link;
+				} );
+			} else {
+				out.textContent = link;
+			}
+		}
+		shareBtn.addEventListener( 'click', function () {
+			share( toolOut );
+		} );
+
+		// ---- the verdict, pinned to the bottom of a phone screen ------------
+		var sticky = el( 'div', 'ffb-trade-sticky' );
+		var stickyText = el( 'div', 'ffb-trade-sticky-text' );
+		var stickyTitle = el( 'span', 'ffb-trade-sticky-title' );
+		var stickyFigs = el( 'span', 'ffb-trade-sticky-figs' );
+		stickyText.appendChild( stickyTitle );
+		stickyText.appendChild( stickyFigs );
+		var stickyShare = el( 'button', 'ffb-trade-sticky-share', 'Share' );
+		stickyShare.type = 'button';
+		stickyShare.addEventListener( 'click', function () {
+			share( toolOut );
+		} );
+		sticky.appendChild( stickyText );
+		sticky.appendChild( stickyShare );
+
 		var root = el( 'div', 'ffb-trade-calc' );
 		var sides = el( 'div', 'ffb-trade-sides' );
 		sides.appendChild( buildSide( 'give', 'You give' ) );
 		sides.appendChild( buildSide( 'get', 'You get' ) );
+		root.appendChild( toolbar );
 		root.appendChild( sides );
+		root.appendChild( sticky );
 		root.appendChild( compare );
+		compare.appendChild( suffixLegend() );
+		mineInput.value = state.myIncome;
 		renderSide( 'give' );
 		renderSide( 'get' );
 		refresh();
@@ -2377,19 +3188,31 @@
 		var addButton = el( 'button', 'ffb-trade-add', '+ Add brainrot' );
 		addButton.type = 'button';
 		var fullNote = el( 'span', 'ffb-trade-full', COLLECTION_MAX + ' is the most a collection can hold.' );
-		var sortSelect = el( 'select', 'ffb-trade-select ffb-collection-sort' );
-		fillSelect( sortSelect, SORTS, sortKey );
-		var sortField = field( uid + 'sort', 'Sort by', sortSelect, 'ffb-collection-field-sort' );
+		var sortPicker = buildListPicker( uid + 'sort', SORTS, sortKey, 'ffb-trade-input ffb-collection-sort', function ( v ) {
+			sortKey = v;
+			onSort();
+		} );
+		var sortField = pickerField( uid + 'sort', 'Sort by', sortPicker, 'ffb-collection-field-sort' );
 		toolbar.appendChild( addButton );
 		toolbar.appendChild( fullNote );
 		toolbar.appendChild( sortField.node );
 		root.appendChild( toolbar );
 
+		var undoBox = el( 'div', 'ffb-trade-undo ffb-collection-undo' );
+		undoBox.setAttribute( 'aria-live', 'polite' );
+		undoBox.hidden = true;
+		root.appendChild( undoBox );
 		var list = el( 'div', 'ffb-collection-list' );
 		root.appendChild( list );
+		root.appendChild( suffixLegend() );
 
 		function resort() {
 			order = sortCollection( cat, rows, sortKey );
+		}
+
+		function onSort() {
+			resort();
+			render();
 		}
 
 		function removeRow( row ) {
@@ -2404,6 +3227,22 @@
 			resort();
 			render();
 			scheduleSave();
+			// "Removed Hydra Dragon · Undo", until the next removal
+			clear( undoBox );
+			undoBox.appendChild( el( 'span', null, 'Removed ' + row.name + '. ' ) );
+			var again = el( 'button', 'ffb-trade-undo-btn', 'Undo' );
+			again.type = 'button';
+			again.addEventListener( 'click', function () {
+				undoBox.hidden = true;
+				if ( rows.length < COLLECTION_MAX && rows.indexOf( row ) === -1 ) {
+					rows.push( row );
+					resort();
+					render();
+					scheduleSave();
+				}
+			} );
+			undoBox.appendChild( again );
+			undoBox.hidden = false;
 			addButton.focus();
 		}
 
@@ -2500,7 +3339,6 @@
 			}
 			if ( s.measured ) {
 				fig( 'Income now', view.now, 'ffb-collection-fig-now' );
-				fig( 'Value', view.value );
 				fig( 'Fully upgraded', view.ceil );
 			} else {
 				figs.appendChild( el( 'span', 'ffb-collection-fig-none',
@@ -2530,7 +3368,7 @@
 			tCount.value.textContent = String( sum.count );
 			tCount.sub.textContent = sum.byRarityText;
 			tIncome.value.textContent = sum.totalNowText;
-			tIncome.sub.textContent = sum.leftOutText || 'Value ' + sum.totalValueText;
+			tIncome.sub.textContent = sum.leftOutText || '';
 			tMaxed.value.textContent = String( sum.maxed );
 			tMaxed.sub.textContent = 'level ' + data.maxLevel + ' and Evo ' + data.maxEvolution;
 			tStrong.value.textContent = sum.strongestText;
@@ -2568,11 +3406,6 @@
 			render();
 			editorCard.focus();
 			scheduleSave();
-		} );
-		sortSelect.addEventListener( 'change', function () {
-			sortKey = sortSelect.value;
-			resort();
-			render();
 		} );
 
 		// ---- moving the list ------------------------------------------------
@@ -2755,6 +3588,12 @@
 			traitOptions: traitOptions,
 			matchItem: matchItem,
 			brainrotOptions: brainrotOptions,
+			searchBrainrots: searchBrainrots,
+			raritiesFor: raritiesFor,
+			searchMutations: searchMutations,
+			searchTraits: searchTraits,
+			exactName: exactName,
+			exactBrainrot: exactBrainrot,
 			parseLevel: parseLevel,
 			diff: diff,
 			roughRatio: roughRatio,
@@ -2771,6 +3610,12 @@
 			collectionSummary: collectionSummary,
 			sortCollection: sortCollection,
 			collectionPicks: collectionPicks,
+			serializeTrade: serializeTrade,
+			parseTrade: parseTrade,
+			tradeToFragment: tradeToFragment,
+			tradeFromFragment: tradeFromFragment,
+			tradeLink: tradeLink,
+			suffixRows: suffixRows,
 			tradeRowFromSaved: tradeRowFromSaved,
 			collectionIncome: collectionIncome,
 			chooseStore: chooseStore,
@@ -2780,6 +3625,13 @@
 
 	if ( typeof document === 'undefined' ) {
 		return;
+	}
+	// The standalone calculator page asks for the picker for its own brainrot
+	// choice (it sets window.ffbStandalone first). On the wiki nothing is added.
+	if ( typeof window !== 'undefined' && window.ffbStandalone && typeof window.ffbStandalone === 'object' ) {
+		window.ffbStandalone.namePicker = function ( data, id, current, onPick ) {
+			return buildNamePicker( buildCatalog( data ), id, current, onPick );
+		};
 	}
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', start );

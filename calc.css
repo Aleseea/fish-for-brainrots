@@ -482,6 +482,144 @@
 	font-weight: 600;
 }
 
+/* ---- the searchable brainrot picker ------------------------------------ */
+
+.ffb-pick {
+	position: relative;
+}
+
+.ffb-pick-list {
+	position: absolute;
+	z-index: 20;
+	top: 100%;
+	left: 0;
+	right: 0;
+	margin: 4px 0 0;
+	padding: 0;
+	list-style: none;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--theme-page-background-color, #1b1e24);
+	border: 1px solid var(--ffb-line);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ffb-pick-list[hidden] {
+	display: none;
+}
+
+.ffb-pick-option {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 2px 10px;
+	min-height: 44px;
+	padding: 8px 12px;
+	box-sizing: border-box;
+	border-bottom: 1px solid var(--ffb-line);
+	cursor: pointer;
+	margin: 0;
+}
+
+.ffb-pick-option:last-child {
+	border-bottom: 0;
+}
+
+.ffb-pick-option-active,
+.ffb-pick-option:hover {
+	background: rgba(128, 128, 128, 0.18);
+}
+
+.ffb-pick-name {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.ffb-pick-base {
+	grid-row: 1;
+	grid-column: 2;
+	font-family: monospace;
+	font-size: 13px;
+	color: var(--ffb-accent);
+	white-space: nowrap;
+}
+
+.ffb-pick-meta {
+	grid-column: 1;
+	font-size: 12px;
+	opacity: 0.7;
+}
+
+/* list-only pickers (evolution, sort order, a saved brainrot): a chevron
+   says "tap to choose", and there's no text caret since nothing is typed */
+.ffb-pick-listonly::after {
+	content: '';
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	margin-top: -2px;
+	border: 5px solid transparent;
+	border-top-color: currentColor;
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+.ffb-pick-listonly .ffb-pick-input {
+	cursor: pointer;
+	caret-color: transparent;
+	padding-right: 30px;
+}
+
+/* the chevron belongs to the box, not to the open list below it */
+.ffb-pick-listonly .ffb-pick-list {
+	min-width: 180px;
+}
+
+/* a rarity's colour beside a brainrot's name; the outline keeps dark
+   colours (Secret) visible on dark backgrounds and light ones on light */
+.ffb-swatch {
+	display: inline-block;
+	width: 11px;
+	height: 11px;
+	margin-right: 7px;
+	border-radius: 3px;
+	box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.7);
+	vertical-align: -1px;
+	flex-shrink: 0;
+}
+
+.ffb-trade-rarity .ffb-swatch {
+	margin: 0 5px 0 0;
+}
+
+/* trait boxes are narrow (three to a row): their lists need room, and the
+   last one opens leftwards so it stays on screen */
+.ffb-trade-traits .ffb-pick-list,
+.ffb-trade-field-mut .ffb-pick-list {
+	min-width: 210px;
+}
+
+.ffb-trade-traits .ffb-trade-field:last-child .ffb-pick-list {
+	left: auto;
+	right: 0;
+}
+
+.ffb-calc .ffb-pick {
+	max-width: 360px;
+}
+
+.ffb-calc .ffb-pick-input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.ffb-pick-none {
+	padding: 10px 12px;
+	font-size: 13px;
+	opacity: 0.75;
+	margin: 0;
+}
+
 /* ---- items and the add buttons --------------------------------------- */
 
 .ffb-trade-item {
@@ -857,6 +995,247 @@
 		grid-row: 2;
 		padding-top: 5px;
 		overflow-wrap: anywhere;
+	}
+}
+
+/* ---- trade tools: swap, share, clear ---------------------------------- */
+
+.ffb-trade-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 14px;
+}
+
+.ffb-trade-tool,
+.ffb-trade-save,
+.ffb-trade-undo-btn,
+.ffb-trade-details,
+.ffb-trade-sticky-share {
+	min-height: 40px;
+	padding: 0 14px;
+	border-radius: 7px;
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.ffb-trade-tool:hover,
+.ffb-trade-save:hover,
+.ffb-trade-undo-btn:hover,
+.ffb-trade-details:hover {
+	border-color: var(--ffb-accent);
+}
+
+.ffb-trade-tool-out,
+.ffb-trade-save-out {
+	font-size: 13px;
+	opacity: 0.8;
+	overflow-wrap: anywhere;
+}
+
+/* ---- one card: duplicate, quick levels, details, save ------------------ */
+
+.ffb-trade-dup {
+	flex: 0 0 44px;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border-radius: 7px;
+	border: 1px solid rgba(128, 128, 128, 0.4);
+	background: transparent;
+	color: inherit;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.8;
+}
+
+.ffb-trade-dup:hover {
+	opacity: 1;
+	border-color: var(--ffb-accent);
+}
+
+.ffb-trade-quick {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.ffb-trade-quick-btn {
+	min-height: 36px;
+	padding: 0 10px;
+	border-radius: 999px;
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.ffb-trade-quick-btn:hover {
+	border-color: var(--ffb-accent);
+}
+
+.ffb-trade-quick-max {
+	border-color: var(--ffb-accent);
+	color: var(--ffb-accent);
+}
+
+/* the breakdown's toggle only matters on phones (see below) */
+.ffb-trade-details {
+	display: none;
+	margin-top: 8px;
+	min-height: 36px;
+	font-size: 13px;
+}
+
+.ffb-trade-card-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.ffb-trade-save {
+	min-height: 36px;
+	font-size: 13px;
+}
+
+.ffb-trade-undo {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: var(--ffb-panel);
+	font-size: 14px;
+}
+
+.ffb-trade-undo[hidden] {
+	display: none;
+}
+
+/* ---- the verdict pinned to the bottom (phones only) --------------------- */
+
+.ffb-trade-sticky {
+	display: none;
+}
+
+/* ---- "What do K, M, B… mean?" ------------------------------------------ */
+
+.ffb-legend {
+	margin: 14px 0 0;
+	font-size: 14px;
+}
+
+.ffb-legend-summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--ffb-accent);
+	min-height: 32px;
+	line-height: 32px;
+}
+
+.ffb-legend-list {
+	list-style: none;
+	margin: 6px 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+	gap: 4px 16px;
+}
+
+.ffb-legend-row {
+	display: grid;
+	grid-template-columns: 34px minmax(0, 1fr);
+	gap: 0 8px;
+	margin: 0;
+}
+
+.ffb-legend-suffix {
+	grid-row: 1 / span 2;
+	font-family: monospace;
+	color: var(--ffb-accent);
+}
+
+.ffb-legend-zeros,
+.ffb-legend-note {
+	font-size: 12px;
+	opacity: 0.7;
+}
+
+.ffb-legend-note {
+	margin: 8px 0 0;
+}
+
+@media (max-width: 720px) {
+	/* the breakdown folds behind Details on phones */
+	.ffb-trade-details {
+		display: inline-block;
+	}
+
+	.ffb-trade-card .ffb-trade-parts {
+		display: none;
+	}
+
+	.ffb-trade-card.ffb-trade-card-open .ffb-trade-parts {
+		display: grid;
+	}
+
+	/* the verdict stays in view while the sides are edited */
+	.ffb-trade-sticky {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		position: sticky;
+		bottom: 0;
+		z-index: 10;
+		margin: 12px -4px 0;
+		padding: 10px 12px;
+		border-radius: 10px 10px 0 0;
+		background: var(--theme-page-background-color, #1b1e24);
+		border: 1px solid var(--ffb-line);
+		box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35);
+	}
+
+	.ffb-trade-sticky-text {
+		flex: 1 1 auto;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.ffb-trade-sticky-title {
+		font-weight: 700;
+		font-size: 15px;
+		line-height: 1.25;
+	}
+
+	.ffb-trade-sticky-figs {
+		font-family: monospace;
+		font-size: 12px;
+		opacity: 0.8;
+	}
+
+	.ffb-trade-sticky-share {
+		flex: 0 0 auto;
+		min-height: 44px;
+		border-color: var(--ffb-accent);
+		background: var(--ffb-accent);
+		color: #14161a;
 	}
 }
 

@@ -9,6 +9,7 @@
 	--line: rgba(255, 255, 255, 0.14);
 	--accent: #e3a83f;
 	--bad: #ec7a72;
+	--theme-page-background-color: #251a2b;
 	color-scheme: dark;
 }
 
@@ -20,6 +21,7 @@
 	--line: rgba(0, 0, 0, 0.14);
 	--accent: #a86b00;
 	--bad: #b3342b;
+	--theme-page-background-color: #ffffff;
 	color-scheme: light;
 }
 
@@ -142,4 +144,20 @@ main {
 	border-top: 1px solid var(--line);
 	color: var(--muted);
 	font-size: 13px;
+}
+
+.site-pick-search {
+	max-width: 420px;
+}
+
+.site-pick-search .ffb-pick-input {
+	width: 100%;
+	padding: 10px;
+	font: inherit;
+	font-weight: 600;
+	color: var(--text);
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-sizing: border-box;
 }
