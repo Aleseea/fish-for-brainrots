@@ -482,6 +482,13 @@
 		} );
 		cat.traitEmoji = data.traitEmoji && typeof data.traitEmoji === 'object' ? data.traitEmoji : {};
 		cat.lookWords = data.lookWords && typeof data.lookWords === 'object' ? data.lookWords : {};
+		cat.brainrotIcon = {};
+		Object.keys( data.brainrotIcons || {} ).forEach( function ( b ) {
+			var u = safeIconUrl( data.brainrotIcons[ b ] );
+			if ( u ) {
+				cat.brainrotIcon[ b ] = u;
+			}
+		} );
 		cat.traitIcon = {};
 		Object.keys( data.traitIcons || {} ).forEach( function ( t ) {
 			var u = safeIconUrl( data.traitIcons[ t ] );
@@ -1956,6 +1963,168 @@
 		};
 	}
 
+	/* ---- My base: the profile and the plans built from it ---------------- */
+
+	var PROFILE_KEY = 'ffb-profile';
+	var REBIRTH_MAX = 45;
+
+	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], price }. */
+	function readProfile( cat, text ) {
+		var p = {};
+		var out = { slots: BASE_SLOTS_DEFAULT, rebirth: 0, indexes: [], price: null };
+		try {
+			p = JSON.parse( String( text || '' ) ) || {};
+		} catch ( err ) {
+			p = {};
+		}
+		if ( wholeNumber( p.slots, 1, BASE_SLOTS_MAX ) ) {
+			out.slots = p.slots;
+		}
+		if ( wholeNumber( p.rebirth, 0, REBIRTH_MAX ) ) {
+			out.rebirth = p.rebirth;
+		}
+		if ( Array.isArray( p.indexes ) ) {
+			out.indexes = p.indexes.filter( function ( m, i ) {
+				return typeof m === 'string' && has( cat.mutations, m ) && !isDefault( m ) && p.indexes.indexOf( m ) === i;
+			} );
+		}
+		if ( p.price && typeof p.price === 'object' && typeof p.price.cost === 'number' && p.price.cost > 0 &&
+			typeof p.price.strength === 'number' && p.price.strength > 0 && wholeNumber( p.price.level, 1, cat.data.maxLevel ) ) {
+			out.price = { cost: p.price.cost, strength: p.price.strength, level: p.price.level,
+				name: typeof p.price.name === 'string' ? p.price.name.slice( 0, MAX_NAME_CHARS ) : '' };
+		}
+		return out;
+	}
+
+	/**
+	 * Your base's cash multiplier: rebirths 1-35 add +0.5x each and 36-45
+	 * +0.25x each (rebirth 45 is 21x), and each finished mutation index +0.5x.
+	 */
+	function baseMultiplier( profile ) {
+		var r = profile.rebirth;
+		var fromRebirth = r <= 35 ? 1 + 0.5 * r : 18.5 + 0.25 * ( r - 35 );
+		return fromRebirth + 0.5 * profile.indexes.length;
+	}
+
+	function rebirthMultiplier( r ) {
+		return r <= 35 ? 1 + 0.5 * r : 18.5 + 0.25 * ( r - 35 );
+	}
+
+	/**
+	 * The price of the +1 upgrade bought AT `level`, for a brainrot of this
+	 * strength, or null when it isn't known: the curve is measured to
+	 * costKnownTo (150); above that only a price the player saw in game
+	 * (profile.price) lets us estimate it.
+	 */
+	function upgradePrice( cat, strength, level, profile ) {
+		var d = cat.data;
+		var known = d.costKnownTo || d.maxLevel;
+		var raw = strength * Math.pow( d.costGrowth, level - 1 );
+		if ( level <= known ) {
+			return raw;
+		}
+		if ( profile && profile.price && profile.price.level > known ) {
+			return raw * profile.price.cost / ( profile.price.strength * Math.pow( d.costGrowth, profile.price.level - 1 ) );
+		}
+		return null;
+	}
+
+	/**
+	 * The upgrade plan (the Upgrading guide): the brainrots worth keeping,
+	 * lowest level first, each up to `goal`. Each step says what reaching
+	 * the goal costs where prices are known, and roughly how long that takes
+	 * at the base's income times its multiplier.
+	 */
+	function upgradePlan( cat, rows, profile, goal ) {
+		var plan = planBase( cat, rows, profile.slots );
+		var keepers = plan.ranked.slice( 0, profile.slots );
+		var marked = rows.filter( function ( r ) {
+			return r.inBase && rowStrength( cat, r ) !== null;
+		} );
+		var earning = marked.length ? marked : keepers.map( function ( k ) {
+			return k.row;
+		} );
+		var income = earning.reduce( function ( sum, r ) {
+			return sum + collectionStats( cat, r ).now;
+		}, 0 );
+		var perSecond = income * baseMultiplier( profile );
+		var steps = keepers.filter( function ( k ) {
+			return k.row.level < goal;
+		} ).map( function ( k ) {
+			var known = 0;
+			var unknown = 0;
+			var L, price;
+			for ( L = k.row.level; L < goal; L++ ) {
+				price = upgradePrice( cat, k.strength, L, profile );
+				if ( price === null ) {
+					unknown++;
+				} else {
+					known += price;
+				}
+			}
+			return {
+				row: k.row,
+				strength: k.strength,
+				from: k.row.level,
+				to: goal,
+				cost: known,
+				unknownLevels: unknown,
+				seconds: known > 0 && perSecond > 0 ? known / perSecond : null
+			};
+		} );
+		steps.sort( function ( a, b ) {
+			return a.from - b.from || b.strength - a.strength;
+		} );
+		return { steps: steps, income: income, perSecond: perSecond, multiplier: baseMultiplier( profile ) };
+	}
+
+	/**
+	 * A pair from the list that shows rarity isn't everything: a rarer
+	 * brainrot that earns less than a less rare one, the biggest gap first.
+	 * { rare, common, times } or null.
+	 */
+	function rarityLesson( cat, rows ) {
+		var rank = {};
+		var best = null;
+		cat.groups.forEach( function ( g, i ) {
+			rank[ g.label ] = i;
+		} );
+		var list = rows.filter( function ( r ) {
+			return rowStrength( cat, r ) !== null;
+		} );
+		list.forEach( function ( a ) {
+			list.forEach( function ( b ) {
+				var ra = rank[ cat.brainrots[ a.name ].rarity ];
+				var rb = rank[ cat.brainrots[ b.name ].rarity ];
+				var x = rowStrength( cat, b ) / rowStrength( cat, a );
+				if ( ra < rb && x >= 2 && ( !best || x > best.times ) ) {
+					best = { rare: a, common: b, times: x };
+				}
+			} );
+		} );
+		return best;
+	}
+
+	/** "37 s", "12 min", "5.1 h", "3 days", "2 years" */
+	function roughTime( sec ) {
+		if ( sec === null || sec === undefined ) {
+			return '';
+		}
+		if ( sec < 60 ) {
+			return Math.max( 1, Math.round( sec ) ) + ' s';
+		}
+		if ( sec < 3600 ) {
+			return Math.round( sec / 60 ) + ' min';
+		}
+		if ( sec < 172800 ) {
+			return ( sec / 3600 ).toFixed( 1 ) + ' h';
+		}
+		if ( sec < 3 * 365 * 86400 ) {
+			return Math.round( sec / 86400 ) + ' days';
+		}
+		return Math.round( sec / ( 365 * 86400 ) ) + ' years';
+	}
+
 	/** Saved brainrots the trade calculator can use, strongest first. */
 	function collectionPicks( cat, rows ) {
 		return sortCollection( cat, rows, 'income' ).filter( function ( r ) {
@@ -2096,7 +2265,9 @@
 
 	/** The page's own mw and localStorage, when there are any. */
 	function pageEnv() {
-		var env = { mw: typeof mw !== 'undefined' ? mw : null, storage: null };
+		var env = { mw: typeof mw !== 'undefined' ? mw : null, storage: null,
+			// the phone site opts in to the new My base planner first
+			planner: typeof window !== 'undefined' && !!( window.ffbStandalone && window.ffbStandalone.planner ) };
 		try {
 			env.storage = window.localStorage;
 		} catch ( err ) {
@@ -3974,6 +4145,976 @@
 		}
 	}
 
+	/* ================================================================
+	 * My base: enter your brainrots once, then tabs that each answer one
+	 * question (what to upgrade next, which to keep, how they compare at
+	 * one level). Only the tabs that have something to say are shown.
+	 * Uses the same saved list as My collection.
+	 * ================================================================ */
+
+	var baseCount = 0;
+	var BASE_SORTS = [
+		{ value: 'strength', label: 'Level 1 $/s' },
+		{ value: 'income', label: 'Income now' },
+		{ value: 'ceiling', label: 'Fully upgraded' },
+		{ value: 'level', label: 'Level' },
+		{ value: 'rarity', label: 'Rarity' },
+		{ value: 'name', label: 'Name' }
+	];
+	var SAME_LEVELS = [ 1, 100, 175, 200 ];
+
+	/** A brainrot's picture (or its initials when there's no picture yet). */
+	function brainrotPic( cat, name, size ) {
+		var box = el( 'span', 'ffb-base-pic' );
+		var url = cat.brainrotIcon ? cat.brainrotIcon[ name ] : null;
+		var img;
+		box.setAttribute( 'style', 'width: ' + size + 'px; height: ' + size + 'px;' );
+		function initials() {
+			clear( box );
+			box.className = 'ffb-base-pic ffb-base-pic-none';
+			box.textContent = String( name || '?' ).split( ' ' ).slice( 0, 2 ).map( function ( w ) {
+				return w.charAt( 0 );
+			} ).join( '' );
+		}
+		if ( !url ) {
+			initials();
+			return box;
+		}
+		img = el( 'img' );
+		img.setAttribute( 'alt', '' );
+		// Fandom swaps pictures shown on other sites for a placeholder
+		// unless no referrer is sent (see mark())
+		img.referrerPolicy = 'no-referrer';
+		img.setAttribute( 'referrerpolicy', 'no-referrer' );
+		img.onerror = initials;
+		img.onload = function () {
+			if ( img.naturalWidth > 64 ) {
+				initials();
+			}
+		};
+		img.src = url;
+		box.appendChild( img );
+		return box;
+	}
+
+	/** The mutation and trait icons of a saved brainrot, in a row. */
+	function permIcons( cat, row ) {
+		var box = el( 'span', 'ffb-base-icons' );
+		var any = false;
+		var mk;
+		if ( !isDefault( row.mutation ) ) {
+			mk = mark( cat.mutationColor[ row.mutation ] || null, cat.mutationIcon[ row.mutation ] || null );
+			if ( mk ) {
+				mk.setAttribute( 'title', row.mutation );
+				box.appendChild( mk );
+				any = true;
+			}
+		}
+		row.traits.forEach( function ( t ) {
+			if ( !t ) {
+				return;
+			}
+			mk = cat.traitIcon[ t ] ? mark( null, cat.traitIcon[ t ] ) : el( 'span', null, traitLabel( cat, t ).split( ' ' )[ 0 ] );
+			mk.setAttribute( 'title', t );
+			box.appendChild( mk );
+			any = true;
+		} );
+		if ( !any ) {
+			box.appendChild( el( 'span', 'ffb-base-muted', 'no mutation or traits' ) );
+		}
+		return box;
+	}
+
+	function buildBase( container, data, env ) {
+		var cat = buildCatalog( data );
+		var uid = 'ffb-base-' + ( ++baseCount ) + '-';
+		var store = chooseStore( env );
+		var storage = workingStorage( env.storage );
+		var loaded = parseCollection( store.load(), cat );
+		var rows = loaded.rows;
+		var blocked = loaded.error === 'newer';
+		var nextId = 1;
+		var savedProfile = readStorage( storage, PROFILE_KEY );
+		var profile = readProfile( cat, savedProfile );
+		var oldSlots = parseInt( readStorage( storage, BASE_SLOTS_KEY ) || '', 10 );
+		var view = { tab: 'list', filter: 'all', sort: 'strength', editing: null, level: 175, check: 1, goal: 175, adding: false };
+		var lastInBase = false;
+
+		// the slots set on the old My collection page carry over
+		if ( !savedProfile && oldSlots >= 1 && oldSlots <= BASE_SLOTS_MAX ) {
+			profile.slots = oldSlots;
+		}
+		function withId( row ) {
+			row.id = nextId++;
+			return row;
+		}
+		rows.forEach( withId );
+
+		var root = el( 'div', 'ffb-base' );
+		var status = el( 'p', 'ffb-base-status' );
+		status.setAttribute( 'aria-live', 'polite' );
+		var nav = el( 'div', 'ffb-base-nav' );
+		nav.setAttribute( 'role', 'tablist' );
+		nav.setAttribute( 'aria-label', 'My base' );
+		var panel = el( 'div', 'ffb-base-panel' );
+		root.appendChild( nav );
+		root.appendChild( status );
+		root.appendChild( panel );
+		if ( loaded.error === 'unreadable' ) {
+			status.textContent = 'Your saved list couldn’t be read, so this starts empty.';
+		} else if ( blocked ) {
+			status.textContent = 'Your list was saved by a newer version of this page, so changes here won’t be saved.';
+		}
+
+		function save() {
+			if ( blocked || store.kind === 'none' ) {
+				return;
+			}
+			store.save( serializeCollection( rows ), function ( err ) {
+				status.textContent = err ? 'Couldn’t save: ' + err + '.' : '';
+			} );
+		}
+		function saveProfile() {
+			writeStorage( storage, PROFILE_KEY, JSON.stringify( profile ) );
+		}
+		function measured() {
+			return rows.filter( function ( r ) {
+				return rowStrength( cat, r ) !== null;
+			} );
+		}
+		function tabs() {
+			var m = measured().length;
+			var list = [ { key: 'list', label: rows.length ? 'Brainrots (' + rows.length + ')' : 'Brainrots' } ];
+			if ( m ) {
+				list.push( { key: 'plan', label: 'Upgrade plan' } );
+			}
+			if ( m > profile.slots ) {
+				list.push( { key: 'swap', label: 'Keep or swap' } );
+			}
+			if ( m >= 2 ) {
+				list.push( { key: 'level', label: 'Same level' } );
+			}
+			list.push( { key: 'profile', label: 'Profile' } );
+			return list;
+		}
+		function render() {
+			var list = tabs();
+			if ( !list.some( function ( t ) {
+				return t.key === view.tab;
+			} ) ) {
+				view.tab = 'list';
+			}
+			clear( nav );
+			list.forEach( function ( t ) {
+				var b = el( 'button', 'ffb-base-tab' + ( t.key === view.tab ? ' ffb-base-tab-on' : '' ), t.label );
+				b.type = 'button';
+				b.setAttribute( 'role', 'tab' );
+				b.setAttribute( 'aria-selected', t.key === view.tab ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					view.tab = t.key;
+					render();
+				} );
+				nav.appendChild( b );
+			} );
+			clear( panel );
+			( { list: renderList, plan: renderPlan, swap: renderSwap, level: renderLevel, profile: renderProfile } )[ view.tab ]();
+		}
+
+		/** A brainrot as one line: picture, name, icons, level, a figure. */
+		function line( row, right, sub, tag, note ) {
+			var box = el( 'div', 'ffb-base-line' );
+			box.appendChild( brainrotPic( cat, row.name, 36 ) );
+			var mid = el( 'div', 'ffb-base-line-mid' );
+			var name = el( 'div', 'ffb-base-line-name', row.name );
+			if ( !isDefault( row.mutation ) ) {
+				name.appendChild( el( 'span', 'ffb-base-muted', ' · ' + row.mutation ) );
+			}
+			mid.appendChild( name );
+			var meta = el( 'div', 'ffb-base-line-meta' );
+			meta.appendChild( permIcons( cat, row ) );
+			meta.appendChild( el( 'span', 'ffb-base-lv', ( row.evolution ? 'Evo ' + row.evolution + ' · ' : '' ) + 'Lv ' + row.level ) );
+			if ( tag ) {
+				meta.appendChild( el( 'span', 'ffb-base-tag ffb-base-tag-' + tag.kind, tag.text ) );
+			}
+			mid.appendChild( meta );
+			if ( note ) {
+				mid.appendChild( el( 'div', 'ffb-base-muted ffb-base-small ffb-base-line-note', note ) );
+			}
+			box.appendChild( mid );
+			var fig = el( 'div', 'ffb-base-line-fig' );
+			fig.appendChild( el( 'div', 'ffb-base-line-value', right ) );
+			if ( sub ) {
+				fig.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', sub ) );
+			}
+			box.appendChild( fig );
+			return box;
+		}
+
+		// ---- quick add: built once, so typing isn't lost when the list redraws
+		var draft = { name: '', mutation: cat.defaultMutation, traits: [], evolution: 0, level: 1 };
+		var quick = null;
+		function buildQuick() {
+			var i;
+			for ( i = 0; i < data.maxTraits; i++ ) {
+				draft.traits.push( '' );
+			}
+			var box = el( 'div', 'ffb-base-quick' );
+			box.appendChild( el( 'div', 'ffb-trade-label', 'Quick add' ) );
+			var namePick = buildSearchPicker( {
+				id: uid + 'qn',
+				current: '',
+				inputClass: 'ffb-trade-input ffb-base-quick-name',
+				placeholder: 'Type a brainrot',
+				noun: 'brainrot',
+				search: function ( q ) {
+					return searchBrainrots( cat, q ).map( function ( m ) {
+						return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity,
+							color: m.color, icon: cat.brainrotIcon[ m.value ] || null, right: m.base || 'no base yet' };
+					} );
+				},
+				lead: function ( v ) {
+					return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ] } : null;
+				},
+				exact: function ( text ) {
+					return exactBrainrot( cat, text );
+				},
+				onPick: function ( v ) {
+					draft.name = v;
+				}
+			} );
+			box.appendChild( namePick.node );
+			var grid = el( 'div', 'ffb-base-quick-grid' );
+			var mutPick = buildSearchPicker( {
+				id: uid + 'qm',
+				current: draft.mutation,
+				inputClass: 'ffb-trade-input',
+				placeholder: 'Mutation',
+				noun: 'mutation',
+				search: function ( q ) {
+					return searchMutations( cat, q );
+				},
+				lead: function ( v ) {
+					return cat.mutationIcon[ v ] || cat.mutationColor[ v ] ?
+						{ icon: cat.mutationIcon[ v ] || null, color: cat.mutationColor[ v ] || null } : null;
+				},
+				exact: function ( text ) {
+					return exactName( cat.mutations, text );
+				},
+				onPick: function ( v ) {
+					draft.mutation = v;
+				}
+			} );
+			mutPick.input.setAttribute( 'aria-label', 'Mutation' );
+			grid.appendChild( mutPick.node );
+			var traitPicks = [];
+			function traitPick( slot ) {
+				var tp = buildSearchPicker( {
+					id: uid + 'qt' + slot,
+					current: '',
+					inputClass: 'ffb-trade-input',
+					placeholder: 'Trait ' + ( slot + 1 ),
+					noun: 'trait',
+					label: function ( v ) {
+						return traitPickLabel( cat, v );
+					},
+					lead: function ( v ) {
+						return v && cat.traitIcon[ v ] ? { icon: cat.traitIcon[ v ] } : null;
+					},
+					search: function ( q ) {
+						return searchTraits( cat, draft, slot, q );
+					},
+					exact: function ( text ) {
+						var t = String( text || '' ).trim().replace( /^[^A-Za-z]+/, '' );
+						if ( t === '' || squash( t ) === 'notrait' ) {
+							return '';
+						}
+						return exactName( cat.traits, t );
+					},
+					onPick: function ( v ) {
+						draft.traits[ slot ] = v;
+					}
+				} );
+				tp.input.setAttribute( 'aria-label', 'Trait ' + ( slot + 1 ) );
+				return tp;
+			}
+			for ( i = 0; i < data.maxTraits; i++ ) {
+				traitPicks.push( traitPick( i ) );
+				grid.appendChild( traitPicks[ i ].node );
+			}
+			var lvl = el( 'input', 'ffb-trade-input ffb-base-quick-level' );
+			lvl.type = 'number';
+			lvl.min = '1';
+			lvl.max = String( data.maxLevel );
+			lvl.value = '1';
+			lvl.setAttribute( 'inputmode', 'numeric' );
+			lvl.setAttribute( 'aria-label', 'Level' );
+			grid.appendChild( lvl );
+			box.appendChild( grid );
+			var foot = el( 'div', 'ffb-base-quick-foot' );
+			var addBtn = el( 'button', 'ffb-trade-add ffb-base-quick-add', 'Add' );
+			addBtn.type = 'button';
+			var inBaseLabel = el( 'label', 'ffb-base-check' );
+			var inBase = el( 'input' );
+			inBase.type = 'checkbox';
+			inBaseLabel.appendChild( inBase );
+			inBaseLabel.appendChild( el( 'span', null, ' In my base' ) );
+			foot.appendChild( addBtn );
+			foot.appendChild( inBaseLabel );
+			box.appendChild( foot );
+			var said = el( 'p', 'ffb-base-muted ffb-base-small ffb-base-quick-said' );
+			said.setAttribute( 'aria-live', 'polite' );
+			said.textContent = 'Press Enter or Add; the boxes clear for the next one.';
+			box.appendChild( said );
+
+			function add() {
+				var name = draft.name || exactBrainrot( cat, namePick.input.value );
+				var n = parseLevel( cat, lvl.value );
+				var row;
+				if ( !name ) {
+					said.textContent = 'Pick a brainrot from the list first.';
+					namePick.input.focus();
+					return;
+				}
+				if ( rows.length >= COLLECTION_MAX ) {
+					said.textContent = COLLECTION_MAX + ' is the most a list can hold.';
+					return;
+				}
+				row = withId( {
+					name: name,
+					mutation: draft.mutation,
+					traits: draft.traits.slice(),
+					evolution: 0,
+					level: n === null ? 1 : n,
+					notes: [],
+					inBase: !!inBase.checked
+				} );
+				rows.push( row );
+				lastInBase = row.inBase;
+				// the first brainrot turns the start page into the list:
+				// keep the quick-add bar open there
+				view.adding = true;
+				save();
+				said.textContent = 'Added ' + describeSaved( cat, row ) + '.';
+				draft.name = '';
+				draft.mutation = cat.defaultMutation;
+				draft.traits = draft.traits.map( function () {
+					return '';
+				} );
+				namePick.set( '' );
+				namePick.input.value = '';
+				mutPick.set( cat.defaultMutation );
+				traitPicks.forEach( function ( tp ) {
+					tp.set( '' );
+				} );
+				lvl.value = '1';
+				renderNavOnly();
+				if ( view.tab === 'list' ) {
+					renderListBody();
+				}
+				namePick.input.focus();
+			}
+			addBtn.addEventListener( 'click', add );
+			lvl.addEventListener( 'keydown', function ( e ) {
+				if ( e && e.key === 'Enter' ) {
+					add();
+				}
+			} );
+			box.addEventListener( 'keydown', function ( e ) {
+				// Enter on a closed picker adds; an open list's Enter picks first
+				if ( e && e.key === 'Enter' && e.target !== lvl && e.target.getAttribute &&
+					e.target.getAttribute( 'aria-expanded' ) === 'false' ) {
+					add();
+				}
+			} );
+			inBase.checked = lastInBase;
+			return box;
+		}
+
+		function renderNavOnly() {
+			var t = view.tab;
+			var list = tabs();
+			clear( nav );
+			list.forEach( function ( x ) {
+				var b = el( 'button', 'ffb-base-tab' + ( x.key === t ? ' ffb-base-tab-on' : '' ), x.label );
+				b.type = 'button';
+				b.setAttribute( 'role', 'tab' );
+				b.setAttribute( 'aria-selected', x.key === t ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					view.tab = x.key;
+					render();
+				} );
+				nav.appendChild( b );
+			} );
+		}
+
+		// ---- Brainrots ----------------------------------------------------
+		var listBody = null;
+		function renderList() {
+			if ( !quick ) {
+				quick = buildQuick();
+			}
+			if ( !rows.length ) {
+				panel.appendChild( el( 'h3', 'ffb-base-h', 'Plan your base' ) );
+				panel.appendChild( el( 'p', 'ffb-base-muted', 'Add your brainrots once. The page then shows what to upgrade next, which to keep, and more. It all stays on this device.' ) );
+				var steps = el( 'ol', 'ffb-base-steps' );
+				[ [ 'Add your brainrots', 'The ones on your base, and any in Storage you might use.' ],
+					[ 'Tell us about your base (optional)', 'Slots, rebirth and finished indexes, in Profile, make the time estimates real.' ],
+					[ 'Get your plan', 'New tabs appear as soon as they have something to tell you.' ] ].forEach( function ( s, k ) {
+					var li = el( 'li', 'ffb-base-step' + ( k === 0 ? ' ffb-base-step-on' : '' ) );
+					li.appendChild( el( 'span', 'ffb-base-step-n', String( k + 1 ) ) );
+					var txt = el( 'span' );
+					txt.appendChild( el( 'strong', null, s[ 0 ] ) );
+					txt.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', s[ 1 ] ) );
+					li.appendChild( txt );
+					steps.appendChild( li );
+				} );
+				panel.appendChild( steps );
+				panel.appendChild( quick );
+				var moving = el( 'p', 'ffb-base-muted ffb-base-small' );
+				moving.textContent = 'Moving from another device? Paste your list in Profile.';
+				panel.appendChild( moving );
+				listBody = null;
+				return;
+			}
+			var bar = el( 'div', 'ffb-base-bar' );
+			var addToggle = el( 'button', 'ffb-trade-add', view.adding ? 'Close quick add' : '+ Add' );
+			addToggle.type = 'button';
+			addToggle.addEventListener( 'click', function () {
+				view.adding = !view.adding;
+				render();
+			} );
+			bar.appendChild( addToggle );
+			var sortPick = buildListPicker( uid + 'sort', BASE_SORTS, view.sort, 'ffb-trade-input ffb-base-sort', function ( v ) {
+				view.sort = v;
+				renderListBody();
+			} );
+			sortPick.input.setAttribute( 'aria-label', 'Sort by' );
+			bar.appendChild( sortPick.node );
+			panel.appendChild( bar );
+			if ( view.adding ) {
+				panel.appendChild( quick );
+			}
+			listBody = el( 'div', 'ffb-base-list' );
+			panel.appendChild( listBody );
+			renderListBody();
+		}
+
+		function renderListBody() {
+			if ( !listBody ) {
+				render();
+				return;
+			}
+			clear( listBody );
+			var inBaseCount = rows.filter( function ( r ) {
+				return r.inBase;
+			} ).length;
+			var chips = el( 'div', 'ffb-base-chips' );
+			[ [ 'all', 'All ' + rows.length ], [ 'base', 'In base ' + inBaseCount ], [ 'storage', 'Storage ' + ( rows.length - inBaseCount ) ] ].forEach( function ( c ) {
+				var b = el( 'button', 'ffb-base-chip' + ( view.filter === c[ 0 ] ? ' ffb-base-chip-on' : '' ), c[ 1 ] );
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', view.filter === c[ 0 ] ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					view.filter = c[ 0 ];
+					renderListBody();
+				} );
+				chips.appendChild( b );
+			} );
+			listBody.appendChild( chips );
+			var plan = planBase( cat, rows, profile.slots );
+			var order = view.sort === 'level' ? rows.slice().sort( function ( a, b ) {
+				return b.level - a.level;
+			} ) : sortCollection( cat, rows, view.sort );
+			order.filter( function ( r ) {
+				return view.filter === 'all' || ( view.filter === 'base' ) === !!r.inBase;
+			} ).forEach( function ( row ) {
+				var s = collectionStats( cat, row );
+				var strength = rowStrength( cat, row );
+				var right, sub;
+				var tag = row.inBase ? { kind: 'in', text: 'In base' } : { kind: 'store', text: 'Storage' };
+				if ( plan.marked && plan.moveIn.indexOf( row ) !== -1 ) {
+					tag = { kind: 'movein', text: 'Move in' };
+				} else if ( plan.swapOut.indexOf( row ) !== -1 ) {
+					tag = { kind: 'out', text: 'Swap out' };
+				}
+				if ( strength === null ) {
+					right = '—';
+					sub = 'no measured income';
+				} else if ( view.sort === 'income' ) {
+					right = money( s.now ) + '/s';
+					sub = 'now';
+				} else if ( view.sort === 'ceiling' ) {
+					right = money( s.ceil ) + '/s';
+					sub = 'fully upgraded';
+				} else {
+					right = money( strength ) + '/s';
+					sub = 'at level 1';
+				}
+				var item = el( 'div', 'ffb-base-item' );
+				var open = el( 'button', 'ffb-base-item-open' );
+				open.type = 'button';
+				open.setAttribute( 'aria-expanded', view.editing === row ? 'true' : 'false' );
+				open.setAttribute( 'aria-label', 'Edit ' + describeSaved( cat, row ) );
+				open.appendChild( line( row, right, sub, tag ) );
+				open.addEventListener( 'click', function () {
+					view.editing = view.editing === row ? null : row;
+					renderListBody();
+				} );
+				item.appendChild( open );
+				if ( view.editing === row ) {
+					item.appendChild( editor( row ) );
+				}
+				listBody.appendChild( item );
+			} );
+		}
+
+		function editor( row ) {
+			var wrap = el( 'div', 'ffb-base-editor' );
+			var card = buildRowCard( cat, uid + 'e' + row.id, row, {
+				onChange: function () {
+					row.notes = [];
+					card.update( rowView( cat, row, collectionStats( cat, row ) ) );
+					save();
+				},
+				onRemove: function () {
+					var at = rows.indexOf( row );
+					if ( at !== -1 ) {
+						rows.splice( at, 1 );
+					}
+					view.editing = null;
+					save();
+					render();
+				}
+			}, { showCeiling: true } );
+			card.update( rowView( cat, row, collectionStats( cat, row ) ) );
+			wrap.appendChild( card.node );
+			var foot = el( 'div', 'ffb-base-quick-foot' );
+			var lab = el( 'label', 'ffb-base-check' );
+			var box = el( 'input' );
+			box.type = 'checkbox';
+			box.checked = !!row.inBase;
+			box.addEventListener( 'change', function () {
+				row.inBase = !!box.checked;
+				save();
+			} );
+			lab.appendChild( box );
+			lab.appendChild( el( 'span', null, ' In my base' ) );
+			var done = el( 'button', 'ffb-trade-add', 'Done' );
+			done.type = 'button';
+			done.addEventListener( 'click', function () {
+				view.editing = null;
+				render();
+			} );
+			foot.appendChild( lab );
+			foot.appendChild( done );
+			wrap.appendChild( foot );
+			return wrap;
+		}
+
+		// ---- Upgrade plan ---------------------------------------------------
+		function stepCost( s ) {
+			if ( s.cost > 0 ) {
+				return money( s.cost ) + ( s.unknownLevels ? ' to level ' + ( data.costKnownTo || data.maxLevel ) + ', then unknown' : '' ) +
+					( s.seconds !== null ? ' · ~' + roughTime( s.seconds ) : '' );
+			}
+			return s.unknownLevels ? 'price above level ' + ( data.costKnownTo || data.maxLevel ) + ' not known yet' : '';
+		}
+
+		function renderPlan() {
+			var up = upgradePlan( cat, rows, profile, view.goal );
+			var head = el( 'div', 'ffb-base-bar' );
+			var goalPick = buildListPicker( uid + 'goal', [ { value: '175', label: 'Goal: level 175' }, { value: '200', label: 'Goal: level 200' } ],
+				String( view.goal ), 'ffb-trade-input ffb-base-sort', function ( v ) {
+					view.goal = parseInt( v, 10 );
+					render();
+				} );
+			goalPick.input.setAttribute( 'aria-label', 'Goal level' );
+			head.appendChild( goalPick.node );
+			panel.appendChild( head );
+			if ( !up.steps.length ) {
+				panel.appendChild( el( 'p', 'ffb-base-note', 'Everything you’re keeping is at level ' + view.goal + ' or higher. Nice! ' +
+					( view.goal === 175 ? 'Switch the goal to level 200, or look at evolving in the Upgrading guide.' : '' ) ) );
+				return;
+			}
+			var first = up.steps[ 0 ];
+			var card = el( 'div', 'ffb-base-next' );
+			card.appendChild( el( 'div', 'ffb-trade-label ffb-base-accent', 'Upgrade next' ) );
+			var who = el( 'div', 'ffb-base-next-who' );
+			who.appendChild( brainrotPic( cat, first.row.name, 52 ) );
+			var whoText = el( 'div' );
+			whoText.appendChild( el( 'div', 'ffb-base-next-name', first.row.name ) );
+			var detail = el( 'div', 'ffb-base-line-meta' );
+			detail.appendChild( permIcons( cat, first.row ) );
+			if ( !first.row.inBase && rows.some( function ( r ) {
+				return r.inBase;
+			} ) ) {
+				detail.appendChild( el( 'span', 'ffb-base-tag ffb-base-tag-store', 'In Storage: place it to upgrade' ) );
+			}
+			whoText.appendChild( detail );
+			who.appendChild( whoText );
+			card.appendChild( who );
+			var big = el( 'div', 'ffb-base-next-lv' );
+			big.appendChild( el( 'span', null, 'Lv ' + first.from + ' → ' + first.to ) );
+			big.appendChild( el( 'span', 'ffb-base-muted ffb-base-small', stepCost( first ) ) );
+			card.appendChild( big );
+			card.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'It’s your lowest level, so its upgrades pay for themselves fastest. ' +
+				( up.perSecond > 0 ? 'Times are at your base’s income, ' + money( up.perSecond ) + '/s with your ×' + up.multiplier + ' multiplier.' : '' ) ) );
+			panel.appendChild( card );
+			if ( up.steps.length > 1 ) {
+				panel.appendChild( el( 'div', 'ffb-trade-label ffb-base-gap', 'Then, lowest level first' ) );
+				var list = el( 'ol', 'ffb-base-plan' );
+				up.steps.slice( 1 ).forEach( function ( s ) {
+					var li = el( 'li', 'ffb-base-plan-step' );
+					li.appendChild( line( s.row, 'Lv ' + s.from + ' → ' + s.to, null, null, stepCost( s ) ) );
+					list.appendChild( li );
+				} );
+				panel.appendChild( list );
+			}
+			var notes = [];
+			if ( view.goal > 175 ) {
+				notes.push( 'Above level 175 each level adds only 3%, so for pure income the Upgrading guide stops at 175.' );
+			} else {
+				notes.push( 'Stops at level 175: after that each level adds only 3%.' );
+			}
+			if ( up.steps.some( function ( s ) {
+				return s.unknownLevels;
+			} ) && !profile.price ) {
+				notes.push( 'Prices above level ' + ( data.costKnownTo || data.maxLevel ) + ' aren’t known yet; add one you’ve seen in Profile and the times fill in.' );
+			}
+			if ( !profile.rebirth && !profile.indexes.length ) {
+				notes.push( 'Add your rebirth and finished indexes in Profile for real times.' );
+			}
+			panel.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', notes.join( ' ' ) ) );
+		}
+
+		// ---- Keep or swap -----------------------------------------------------
+		function renderSwap() {
+			var plan = planBase( cat, rows, profile.slots );
+			var keepers = plan.ranked.slice( 0, profile.slots ).map( function ( p ) {
+				return p.row;
+			} );
+			panel.appendChild( el( 'p', null, 'You’ve added ' + plan.ranked.length + ' brainrots and your base holds ' + profile.slots +
+				'. Keep the ' + profile.slots + ' that earn the most per level:' ) );
+			function group( title, kind, list ) {
+				if ( !list.length ) {
+					return;
+				}
+				panel.appendChild( el( 'div', 'ffb-trade-label ffb-base-' + kind, title + ' · ' + list.length ) );
+				list.forEach( function ( r ) {
+					var card = el( 'div', 'ffb-base-card' );
+					var tagText = cat.brainrots[ r.name ].rarity;
+					card.appendChild( line( r, money( rowStrength( cat, r ) ) + '/s', 'at level 1', { kind: 'rarity', text: tagText } ) );
+					panel.appendChild( card );
+				} );
+			}
+			if ( plan.marked ) {
+				group( 'Move into your base', 'good', plan.moveIn );
+				group( 'Swap out', 'bad', plan.swapOut );
+				if ( !plan.moveIn.length && !plan.swapOut.length ) {
+					panel.appendChild( el( 'p', 'ffb-base-note', 'Your base already holds your strongest brainrots.' ) );
+				}
+			} else {
+				group( 'Leave these in Storage', 'bad', plan.ranked.slice( profile.slots ).map( function ( p ) {
+					return p.row;
+				} ) );
+			}
+			var mark2 = el( 'button', 'ffb-base-wide', plan.marked ? 'I’ve swapped them · update my list' : 'Mark my best ' + profile.slots + ' as in my base' );
+			mark2.type = 'button';
+			mark2.addEventListener( 'click', function () {
+				rows.forEach( function ( r ) {
+					r.inBase = keepers.indexOf( r ) !== -1;
+				} );
+				save();
+				render();
+			} );
+			if ( !plan.marked || plan.moveIn.length || plan.swapOut.length ) {
+				panel.appendChild( mark2 );
+			}
+			var lesson = rarityLesson( cat, rows );
+			if ( lesson ) {
+				var box = el( 'div', 'ffb-base-lesson' );
+				box.appendChild( el( 'strong', null, 'Rarity isn’t everything' ) );
+				var pair = el( 'div', 'ffb-base-pair' );
+				[ [ lesson.rare, 'bad' ], [ lesson.common, 'good' ] ].forEach( function ( x ) {
+					var cell = el( 'div', 'ffb-base-pair-cell' );
+					cell.appendChild( brainrotPic( cat, x[ 0 ].name, 44 ) );
+					cell.appendChild( el( 'div', 'ffb-base-small', x[ 0 ].name ) );
+					cell.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', cat.brainrots[ x[ 0 ].name ].rarity ) );
+					cell.appendChild( permIcons( cat, x[ 0 ] ) );
+					cell.appendChild( el( 'div', 'ffb-base-line-value ffb-base-' + x[ 1 ], money( rowStrength( cat, x[ 0 ] ) ) + '/s' ) );
+					pair.appendChild( cell );
+				} );
+				box.appendChild( pair );
+				box.appendChild( el( 'p', 'ffb-base-small', 'The ' + cat.brainrots[ lesson.common.name ].rarity + ' earns ' +
+					Math.round( lesson.times ) + ' times as much as the ' + cat.brainrots[ lesson.rare.name ].rarity +
+					' at every level: a brainrot’s mutation and traits count for more than its rarity.' ) );
+				panel.appendChild( box );
+			}
+			var w = plan.weakest;
+			if ( w ) {
+				var check = el( 'div', 'ffb-base-card ffb-base-checkbox' );
+				check.appendChild( el( 'p', 'ffb-base-small', 'Your weakest keeper is ' + describeSaved( cat, w.row ) + ', at ' + money( w.strength ) + '/s at level 1.' ) );
+				var lvlIn = el( 'input', 'ffb-trade-input ffb-base-num' );
+				lvlIn.type = 'number';
+				lvlIn.min = '1';
+				lvlIn.max = String( data.maxLevel );
+				lvlIn.value = String( view.check );
+				lvlIn.setAttribute( 'inputmode', 'numeric' );
+				var f = field( uid + 'chk', 'Check a card at level', lvlIn, 'ffb-base-field' );
+				check.appendChild( f.node );
+				var out = el( 'p', 'ffb-base-need' );
+				out.setAttribute( 'aria-live', 'polite' );
+				function say() {
+					out.textContent = 'To make your top ' + profile.slots + ', its card at level ' + view.check + ' must show more than ' +
+						money( plan.need( view.check ) ) + '/s.';
+				}
+				lvlIn.addEventListener( 'input', function () {
+					var n = parseLevel( cat, lvlIn.value );
+					if ( n !== null ) {
+						view.check = n;
+						say();
+					}
+				} );
+				say();
+				check.appendChild( out );
+				panel.appendChild( check );
+			}
+		}
+
+		// ---- Same level ----------------------------------------------------------
+		function renderLevel() {
+			var plan = planBase( cat, rows, profile.slots );
+			var list = plan.ranked.slice( 0, profile.slots );
+			panel.appendChild( el( 'p', null, 'Your ' + ( plan.over ? 'keepers' : 'brainrots' ) + ' side by side at the same level, so you can see which earn the most.' ) );
+			var chips = el( 'div', 'ffb-base-chips' );
+			SAME_LEVELS.forEach( function ( L ) {
+				var b = el( 'button', 'ffb-base-chip' + ( view.level === L ? ' ffb-base-chip-on' : '' ), 'Lv ' + L );
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', view.level === L ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					view.level = L;
+					render();
+				} );
+				chips.appendChild( b );
+			} );
+			var other = el( 'input', 'ffb-trade-input ffb-base-num' );
+			other.type = 'number';
+			other.min = '1';
+			other.max = String( data.maxLevel );
+			other.placeholder = 'Other';
+			other.setAttribute( 'aria-label', 'Other level' );
+			if ( SAME_LEVELS.indexOf( view.level ) === -1 ) {
+				other.value = String( view.level );
+			}
+			other.addEventListener( 'change', function () {
+				var n = parseLevel( cat, other.value );
+				if ( n !== null ) {
+					view.level = n;
+					render();
+				}
+			} );
+			chips.appendChild( other );
+			panel.appendChild( chips );
+			panel.appendChild( el( 'div', 'ffb-trade-label ffb-base-gap', 'At level ' + view.level ) );
+			list.forEach( function ( p ) {
+				var s = collectionStats( cat, p.row );
+				panel.appendChild( line( p.row, money( p.strength * growthFactor( view.level, data ) ) + '/s',
+					p.row.level === view.level ? 'now: same' : 'now ' + money( s.now ) + '/s' ) );
+			} );
+		}
+
+		// ---- Profile ---------------------------------------------------------------
+		function renderProfile() {
+			panel.appendChild( el( 'p', 'ffb-base-muted', 'All optional. The more you fill in, the more accurate the upgrade times.' ) );
+			function numberRow( label, hint, value, lo, hi, onSet ) {
+				var r = el( 'div', 'ffb-base-row' );
+				var t = el( 'div' );
+				t.appendChild( el( 'div', 'ffb-base-row-label', label ) );
+				t.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', hint ) );
+				var inp = el( 'input', 'ffb-trade-input ffb-base-num' );
+				inp.type = 'number';
+				inp.min = String( lo );
+				inp.max = String( hi );
+				inp.value = String( value );
+				inp.setAttribute( 'inputmode', 'numeric' );
+				inp.setAttribute( 'aria-label', label );
+				inp.addEventListener( 'change', function () {
+					var n = parseInt( inp.value, 10 );
+					if ( n >= lo && n <= hi ) {
+						onSet( n );
+						saveProfile();
+						render();
+					} else {
+						inp.value = String( value );
+					}
+				} );
+				r.appendChild( t );
+				r.appendChild( inp );
+				panel.appendChild( r );
+			}
+			numberRow( 'Slots in your base', 'How many brainrots your base holds', profile.slots, 1, BASE_SLOTS_MAX, function ( n ) {
+				profile.slots = n;
+			} );
+			numberRow( 'Rebirth', 'Your rebirth multiplier: ×' + rebirthMultiplier( profile.rebirth ), profile.rebirth, 0, REBIRTH_MAX, function ( n ) {
+				profile.rebirth = n;
+			} );
+			var idx = el( 'div', 'ffb-base-row ffb-base-row-block' );
+			var idxHead = el( 'div', 'ffb-base-row-head' );
+			idxHead.appendChild( el( 'span', 'ffb-base-row-label', 'Finished mutation indexes' ) );
+			idxHead.appendChild( el( 'span', 'ffb-base-good ffb-base-small', profile.indexes.length + ' · +' + ( 0.5 * profile.indexes.length ) + 'x' ) );
+			idx.appendChild( idxHead );
+			idx.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Tap the ones you’ve completed.' ) );
+			var grid = el( 'div', 'ffb-base-idx' );
+			data.mutations.forEach( function ( m ) {
+				var name = m[ 0 ];
+				if ( isDefault( name ) ) {
+					return;
+				}
+				var on = profile.indexes.indexOf( name ) !== -1;
+				var b = el( 'button', 'ffb-base-idx-btn' + ( on ? ' ffb-base-idx-on' : '' ) );
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
+				b.setAttribute( 'aria-label', name + ' index' );
+				b.setAttribute( 'title', name );
+				var mk = mark( cat.mutationColor[ name ] || null, cat.mutationIcon[ name ] || null );
+				b.appendChild( mk || el( 'span', null, name.charAt( 0 ) ) );
+				b.addEventListener( 'click', function () {
+					var at = profile.indexes.indexOf( name );
+					if ( at === -1 ) {
+						profile.indexes.push( name );
+					} else {
+						profile.indexes.splice( at, 1 );
+					}
+					saveProfile();
+					render();
+				} );
+				grid.appendChild( b );
+			} );
+			idx.appendChild( grid );
+			panel.appendChild( idx );
+			var sum = el( 'div', 'ffb-base-mult' );
+			var sumText = el( 'span' );
+			sumText.appendChild( el( 'span', 'ffb-trade-label', 'Your base multiplier' ) );
+			sumText.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', 'rebirth ×' + rebirthMultiplier( profile.rebirth ) +
+				' + indexes +' + ( 0.5 * profile.indexes.length ) + 'x' ) );
+			sum.appendChild( sumText );
+			sum.appendChild( el( 'span', 'ffb-base-mult-value', '×' + baseMultiplier( profile ) ) );
+			panel.appendChild( sum );
+
+			// a price seen in game: sets the price curve above level 150
+			var priceBox = el( 'div', 'ffb-base-card ffb-base-price' );
+			priceBox.appendChild( el( 'div', 'ffb-base-row-label', 'An upgrade price you’ve seen' ) );
+			priceBox.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Prices above level ' + ( data.costKnownTo || data.maxLevel ) +
+				' aren’t known. Pick a brainrot above that level and type the +1 price the game shows.' ) );
+			var pickable = rows.filter( function ( r ) {
+				return rowStrength( cat, r ) !== null && r.level > ( data.costKnownTo || data.maxLevel ) && r.level < data.maxLevel;
+			} );
+			if ( profile.price ) {
+				priceBox.appendChild( el( 'p', 'ffb-base-small', 'Using: ' + profile.price.name + ' at level ' + profile.price.level + ', +1 costs ' + money( profile.price.cost ) + '.' ) );
+			}
+			if ( pickable.length ) {
+				var choice = String( pickable[ 0 ].id );
+				var picker = buildListPicker( uid + 'price', pickable.map( function ( r ) {
+					return { value: String( r.id ), label: describeSaved( cat, r ) };
+				} ), choice, 'ffb-trade-input', function ( v ) {
+					choice = v;
+				} );
+				picker.input.setAttribute( 'aria-label', 'Brainrot' );
+				priceBox.appendChild( picker.node );
+				var priceIn = el( 'input', 'ffb-trade-input' );
+				priceIn.type = 'text';
+				priceIn.placeholder = 'The +1 price, e.g. 4.4Ud';
+				priceIn.setAttribute( 'aria-label', 'The +1 price' );
+				priceBox.appendChild( priceIn );
+				var useBtn = el( 'button', 'ffb-trade-add', 'Use this price' );
+				useBtn.type = 'button';
+				var msg = el( 'p', 'ffb-base-small' );
+				useBtn.addEventListener( 'click', function () {
+					var cost = parseMoney( priceIn.value );
+					var row = rows.filter( function ( r ) {
+						return String( r.id ) === choice;
+					} )[ 0 ];
+					if ( !row || !( cost > 0 ) ) {
+						msg.textContent = 'Type the price like the game shows it, e.g. 4.4Ud.';
+						return;
+					}
+					profile.price = { cost: cost, strength: rowStrength( cat, row ), level: row.level, name: row.name };
+					saveProfile();
+					render();
+				} );
+				priceBox.appendChild( useBtn );
+				priceBox.appendChild( msg );
+			} else if ( !profile.price ) {
+				priceBox.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'None of your brainrots is between level ' +
+					( ( data.costKnownTo || data.maxLevel ) + 1 ) + ' and ' + ( data.maxLevel - 1 ) + ' yet.' ) );
+			}
+			if ( profile.price ) {
+				var forget = el( 'button', 'ffb-collection-button', 'Forget this price' );
+				forget.type = 'button';
+				forget.addEventListener( 'click', function () {
+					profile.price = null;
+					saveProfile();
+					render();
+				} );
+				priceBox.appendChild( forget );
+			}
+			panel.appendChild( priceBox );
+
+			// moving the list
+			var move = el( 'div', 'ffb-base-card' );
+			move.appendChild( el( 'div', 'ffb-base-row-label', 'Move your list' ) );
+			move.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Your list is saved on this device only. Copy it as text to keep it or move it, then paste it in on the other device.' ) );
+			var copyBtn = el( 'button', 'ffb-collection-button', 'Copy my list as text' );
+			copyBtn.type = 'button';
+			var copyBox = el( 'textarea', 'ffb-collection-text' );
+			copyBox.readOnly = true;
+			copyBox.rows = 3;
+			copyBox.hidden = true;
+			copyBox.setAttribute( 'aria-label', 'Your list as text' );
+			copyBtn.addEventListener( 'click', function () {
+				copyBox.value = serializeCollection( rows );
+				copyBox.hidden = false;
+				copyBox.select();
+			} );
+			move.appendChild( copyBtn );
+			move.appendChild( copyBox );
+			var pasteBox = el( 'textarea', 'ffb-collection-text' );
+			pasteBox.rows = 3;
+			pasteBox.placeholder = 'Paste a list here';
+			pasteBox.setAttribute( 'aria-label', 'Paste a list' );
+			var pasteBtn = el( 'button', 'ffb-collection-button', 'Add to my list' );
+			pasteBtn.type = 'button';
+			var pasteSaid = el( 'p', 'ffb-base-small' );
+			pasteSaid.setAttribute( 'aria-live', 'polite' );
+			pasteBtn.addEventListener( 'click', function () {
+				var text = pasteBox.value;
+				var got;
+				if ( text.length > MAX_PASTE_CHARS ) {
+					pasteSaid.textContent = 'That’s too long to be a saved list.';
+					return;
+				}
+				got = parseCollection( text, cat );
+				if ( got.error ) {
+					pasteSaid.textContent = 'That doesn’t look like a saved list. It should start with {"v":1.';
+					return;
+				}
+				var left = addToCollection( rows, got.rows.map( withId ) );
+				save();
+				pasteSaid.textContent = 'Added ' + plural( got.rows.length - left, 'brainrot', 'brainrots' ) + '.' +
+					( left ? ' ' + left + ' didn’t fit.' : '' );
+				pasteBox.value = '';
+				renderNavOnly();
+			} );
+			move.appendChild( pasteBox );
+			move.appendChild( pasteBtn );
+			move.appendChild( pasteSaid );
+			panel.appendChild( move );
+		}
+
+		render();
+		container.appendChild( root );
+		return { root: root };
+	}
+
 	function init() {
 		var env = pageEnv();
 		var calcs = document.querySelectorAll( '.brainrot-calculator' );
@@ -4009,7 +5150,11 @@
 			if ( note ) {
 				note.parentNode.removeChild( note );
 			}
-			buildCollection( container, data, env );
+			if ( env.planner ) {
+				buildBase( container, data, env );
+			} else {
+				buildCollection( container, data, env );
+			}
 		} );
 	}
 
@@ -4050,6 +5195,13 @@
 			mutationOptions: mutationOptions,
 			evolutionOptions: evolutionOptions,
 			planBase: planBase,
+			buildBase: buildBase,
+			readProfile: readProfile,
+			baseMultiplier: baseMultiplier,
+			upgradePrice: upgradePrice,
+			upgradePlan: upgradePlan,
+			rarityLesson: rarityLesson,
+			roughTime: roughTime,
 			rowStrength: rowStrength,
 			BASE_SLOTS_DEFAULT: BASE_SLOTS_DEFAULT,
 			traitOptions: traitOptions,

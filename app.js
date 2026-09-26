@@ -18,7 +18,9 @@
 	// tells calc.js it runs on this page, so it hands over its brainrot picker
 	// noPrefill: here ?brainrot= picks the Value tab's brainrot; it must not
 	// also start a new trade (which would stop the last trade coming back)
-	window.ffbStandalone = { noPrefill: true };
+	// planner: the My base tab uses the new planner (the wiki keeps My
+	// collection until its script review is through)
+	window.ffbStandalone = { noPrefill: true, planner: true };
 	var SAVED_KEY = 'ffb-site-figures';
 	var catalog = null;
 
@@ -129,7 +131,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=d1589cab20';
+		s.src = 'calc.js?v=39e6a40ef8';
 		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
@@ -286,24 +288,48 @@
 	}
 
 	var upcomingEvents = [];
+	var bannerAt = 0;
+	var seenKey = 'ffb-site-seen-events';
+	function whenText( x ) {
+		return x.when ?
+			x.when.toLocaleString( [], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' } ) :
+			x.day.toLocaleDateString( [], { weekday: 'short', month: 'short', day: 'numeric' } ) + ' · time not announced';
+	}
+	function itemKey( x ) {
+		return x.name + '|' + ( x.note || '' ) + '|' + ( x.when ? x.when.getTime() : x.day.getTime() );
+	}
+	function seen() {
+		try {
+			return JSON.parse( localStorage.getItem( seenKey ) || '[]' );
+		} catch ( err ) {
+			return [];
+		}
+	}
+	/**
+	 * What's coming up lives in a bell (with a count of the ones not seen
+	 * yet) and a one-line banner that rotates through them, instead of a
+	 * box at the top of every tab.
+	 */
 	function renderUpcoming() {
 		var box = document.getElementById( 'upcoming' );
+		var bell = document.getElementById( 'bell' );
+		var banner = document.getElementById( 'banner' );
 		var now = new Date();
 		var items = upcomingTimes( upcomingEvents, now );
 		box.textContent = '';
 		if ( !items.length ) {
+			bell.hidden = true;
+			banner.hidden = true;
 			box.hidden = true;
 			return;
 		}
-		box.appendChild( el( 'div', 'site-upcoming-title', 'Coming up · your time' ) );
+		var head = el( 'div', 'site-upcoming-title', 'Coming up · your time' );
+		box.appendChild( head );
 		var list = el( 'ul', 'site-upcoming-list' );
 		items.forEach( function ( x ) {
 			var li = el( 'li', 'site-upcoming-row' );
 			li.appendChild( el( 'span', 'site-upcoming-name', x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-			var when = x.when ?
-				x.when.toLocaleString( [], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' } ) :
-				x.day.toLocaleDateString( [], { weekday: 'short', month: 'short', day: 'numeric' } ) + ' · time not announced';
-			li.appendChild( el( 'span', 'site-upcoming-when', when ) );
+			li.appendChild( el( 'span', 'site-upcoming-when', whenText( x ) ) );
 			if ( x.when ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', countdown( x.when, now ) ) );
 			}
@@ -313,14 +339,66 @@
 		var more = el( 'a', 'site-upcoming-more', 'All events on the wiki' );
 		more.href = WIKI + '/wiki/' + encodeURIComponent( ( HUB + ' - Events' ).replace( / /g, '_' ) );
 		box.appendChild( more );
-		box.hidden = false;
+		var already = seen();
+		var fresh = items.filter( function ( x ) {
+			return already.indexOf( itemKey( x ) ) === -1;
+		} ).length;
+		bell.hidden = false;
+		document.getElementById( 'bell-count' ).textContent = fresh ? String( fresh ) : '';
+		bell.setAttribute( 'aria-label', 'Coming up' + ( fresh ? ' (' + fresh + ' new)' : '' ) );
+		var x = items[ bannerAt % items.length ];
+		banner.hidden = false;
+		banner.textContent = '';
+		banner.appendChild( el( 'span', 'site-banner-icon', '📣' ) );
+		var txt = el( 'span', 'site-banner-text' );
+		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
+		txt.appendChild( document.createTextNode( ' ' + ( x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
+		banner.appendChild( txt );
+		banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
 	}
+	function openUpcoming( open ) {
+		var box = document.getElementById( 'upcoming' );
+		var bell = document.getElementById( 'bell' );
+		box.hidden = !open;
+		bell.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+		if ( open ) {
+			// opening the list counts them as seen
+			try {
+				localStorage.setItem( seenKey, JSON.stringify( upcomingTimes( upcomingEvents, new Date() ).map( itemKey ) ) );
+			} catch ( err ) {}
+			document.getElementById( 'bell-count' ).textContent = '';
+		}
+	}
+	document.getElementById( 'bell' ).addEventListener( 'click', function ( e ) {
+		e.stopPropagation();
+		openUpcoming( document.getElementById( 'upcoming' ).hidden );
+	} );
+	document.getElementById( 'banner' ).addEventListener( 'click', function ( e ) {
+		e.stopPropagation();
+		openUpcoming( true );
+	} );
+	document.addEventListener( 'click', function ( e ) {
+		var box = document.getElementById( 'upcoming' );
+		if ( !box.hidden && !box.contains( e.target ) ) {
+			openUpcoming( false );
+		}
+	} );
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( e.key === 'Escape' ) {
+			openUpcoming( false );
+		}
+	} );
 	function showUpcoming( events ) {
 		upcomingEvents = Array.isArray( events ) ? events.filter( function ( e ) {
 			return e && typeof e.name === 'string';
 		} ) : [];
 		renderUpcoming();
 		setInterval( renderUpcoming, 60000 );
+		// the banner steps to the next announcement every 6 seconds
+		setInterval( function () {
+			bannerAt++;
+			renderUpcoming();
+		}, 6000 );
 	}
 
 	// ---- the Codes tab: the wiki's "Active codes" table, read live ---------

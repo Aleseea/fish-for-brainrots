@@ -11,19 +11,26 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FfB Calc">
-<link rel="stylesheet" href="site.css?v=f764c63e31">
-<link rel="stylesheet" href="calc.css?v=d1589cab20">
+<link rel="stylesheet" href="site.css?v=ca4aed8918">
+<link rel="stylesheet" href="calc.css?v=39e6a40ef8">
 </head>
 <body>
 <header class="site-head">
-	<h1>Fish for Brainrots Calculators</h1>
-	<p class="site-sub">For phones and anywhere the wiki's calculators don't load. Every figure comes live from the
-		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>.</p>
-	<div class="site-upcoming" id="upcoming" hidden></div>
+	<div class="site-top">
+		<div class="site-title">
+			<h1>Fish for Brainrots Calculators</h1>
+			<p class="site-sub">Every figure comes live from the <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>.</p>
+		</div>
+		<div class="site-bell-wrap">
+			<button type="button" class="site-bell" id="bell" aria-label="Coming up" aria-expanded="false" aria-controls="upcoming" hidden>🔔<span class="site-bell-count" id="bell-count"></span></button>
+			<div class="site-upcoming" id="upcoming" hidden></div>
+		</div>
+	</div>
+	<button type="button" class="site-banner" id="banner" hidden></button>
 	<nav class="site-tabs" role="tablist" aria-label="Calculators">
 		<a role="tab" href="#trade" id="tab-trade">Trade</a>
 		<a role="tab" href="#value" id="tab-value">Value</a>
-		<a role="tab" href="#collection" id="tab-collection">My collection</a>
+		<a role="tab" href="#collection" id="tab-collection">My base</a>
 		<a role="tab" href="#codes" id="tab-codes">Codes</a>
 	</nav>
 </header>
@@ -58,8 +65,6 @@
 	</section>
 
 	<section class="site-panel" id="panel-collection" role="tabpanel" aria-labelledby="tab-collection" hidden>
-		<h2>My collection</h2>
-		<p class="site-intro">List the brainrots you own to see each one's income, value and ceiling, with totals. Your list is kept in this browser on this device only; nothing is sent anywhere.</p>
 		<div class="site-slot" id="slot-collection"></div>
 	</section>
 </main>
@@ -73,6 +78,6 @@
 </footer>
 
 <script data-goatcounter="https://aleseea.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<script src="app.js?v=aa44628c6a"></script>
+<script src="app.js?v=f13d438f34"></script>
 </body>
 </html>
