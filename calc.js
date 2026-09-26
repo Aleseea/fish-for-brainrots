@@ -1448,7 +1448,7 @@
 					} ),
 					r.evolution,
 					r.level
-				];
+				].concat( r.inBase ? [ 1 ] : [] );
 			} )
 		} );
 	}
@@ -1508,6 +1508,9 @@
 			row.level = item[ 4 ];
 		} else if ( item[ 4 ] !== undefined ) {
 			row.notes.push( 'level “' + item[ 4 ] + '” not understood, shown as level 1' );
+		}
+		if ( item[ 5 ] === 1 || item[ 5 ] === true ) {
+			row.inBase = true;
 		}
 		return row;
 	}
@@ -1840,6 +1843,7 @@
 
 	var SORTS = [
 		{ value: 'income', label: 'Income now' },
+		{ value: 'strength', label: 'Strength (level 1 $/s)' },
 		{ value: 'ceiling', label: 'Fully upgraded' },
 		{ value: 'rarity', label: 'Rarity' },
 		{ value: 'name', label: 'Name' }
@@ -1863,6 +1867,7 @@
 				at: i,
 				now: s.measured ? s.now : -1,
 				ceil: s.measured ? s.ceil : -1,
+				strength: s.measured ? rowStrength( cat, r ) : -1,
 				rarity: entry ? rarityRank[ entry.rarity ] : cat.groups.length,
 				name: r.name.toLowerCase()
 			};
@@ -1871,6 +1876,8 @@
 			var d = 0;
 			if ( key === 'ceiling' ) {
 				d = b.ceil - a.ceil;
+			} else if ( key === 'strength' ) {
+				d = b.strength - a.strength;
 			} else if ( key === 'rarity' ) {
 				d = a.rarity - b.rarity || b.now - a.now;
 			} else if ( key === 'name' ) {
@@ -1883,6 +1890,70 @@
 		return keyed.map( function ( k ) {
 			return k.row;
 		} );
+	}
+
+	/**
+	 * A brainrot's strength: what it earns per second at level 1, with its
+	 * mutation, traits and evolution (all permanent). It doesn't depend on
+	 * level, so it's the fair way to compare brainrots; null if unmeasured.
+	 */
+	function rowStrength( cat, row ) {
+		var s = collectionStats( cat, row );
+		var entry = cat.brainrots[ row.name ];
+		return s.measured ? entry.base * s.tot : null;
+	}
+
+	/** Base slots, as the collection page remembers them. */
+	var BASE_SLOTS_KEY = 'ffb-base-slots';
+	var BASE_SLOTS_DEFAULT = 24;
+	var BASE_SLOTS_MAX = 60;
+
+	/**
+	 * Which saved brainrots belong in a base of `slots`: the strongest ones.
+	 * Returns { ranked, picks (Set-like map by id), weakest, spare, marked,
+	 * moveIn, swapOut, need(level) }. moveIn and swapOut are only filled when
+	 * some brainrots are ticked "in my base". need(level) is the card $/s a
+	 * brainrot must beat at that level to out-earn the weakest pick.
+	 */
+	function planBase( cat, rows, slots ) {
+		var ranked = rows.filter( function ( r ) {
+			return rowStrength( cat, r ) !== null;
+		} ).map( function ( r, i ) {
+			return { row: r, at: i, strength: rowStrength( cat, r ) };
+		} );
+		ranked.sort( function ( a, b ) {
+			return b.strength - a.strength || a.at - b.at;
+		} );
+		var picks = ranked.slice( 0, slots );
+		var isPick = function ( r ) {
+			return picks.some( function ( p ) {
+				return p.row === r;
+			} );
+		};
+		var marked = rows.filter( function ( r ) {
+			return r.inBase;
+		} );
+		var over = ranked.length > slots;
+		var weakest = over ? picks[ picks.length - 1 ] : null;
+		return {
+			ranked: ranked,
+			over: over,
+			isPick: isPick,
+			weakest: weakest,
+			spare: Math.max( 0, slots - ranked.length ),
+			marked: marked.length,
+			moveIn: marked.length ? picks.filter( function ( p ) {
+				return !p.row.inBase;
+			} ).map( function ( p ) {
+				return p.row;
+			} ) : [],
+			swapOut: marked.filter( function ( r ) {
+				return !isPick( r );
+			} ),
+			need: function ( level ) {
+				return weakest ? weakest.strength * growthFactor( level, cat.data ) : null;
+			}
+		};
 	}
 
 	/** Saved brainrots the trade calculator can use, strongest first. */
@@ -3463,6 +3534,56 @@
 		var tCeil = tile( 'Highest ceiling', true );
 		var tReady = tile( 'Ready to evolve', true );
 
+		// ---- your base: which brainrots belong in it ------------------------
+		var savedSlots = parseInt( readStorage( storage, BASE_SLOTS_KEY ) || '', 10 );
+		var slots = savedSlots >= 1 && savedSlots <= BASE_SLOTS_MAX ? savedSlots : BASE_SLOTS_DEFAULT;
+		var checkLevel = 1;
+		var baseBox = el( 'div', 'ffb-collection-base' );
+		baseBox.appendChild( el( 'h4', 'ffb-trade-reason-title', 'Your base' ) );
+		var slotsInput = el( 'input', 'ffb-trade-input ffb-collection-slots' );
+		slotsInput.type = 'number';
+		slotsInput.min = '1';
+		slotsInput.max = String( BASE_SLOTS_MAX );
+		slotsInput.step = '1';
+		slotsInput.setAttribute( 'inputmode', 'numeric' );
+		slotsInput.value = String( slots );
+		var slotsField = field( uid + 'slots', 'Slots in your base', slotsInput, 'ffb-collection-field-slots' );
+		baseBox.appendChild( slotsField.node );
+		var basePlanText = el( 'p', 'ffb-collection-base-text ffb-collection-base-plan' );
+		baseBox.appendChild( basePlanText );
+		var checkRow = el( 'div', 'ffb-collection-base-check' );
+		var levelInput = el( 'input', 'ffb-trade-input ffb-collection-check-level' );
+		levelInput.type = 'number';
+		levelInput.min = '1';
+		levelInput.max = String( data.maxLevel );
+		levelInput.step = '1';
+		levelInput.setAttribute( 'inputmode', 'numeric' );
+		levelInput.value = '1';
+		var levelField = field( uid + 'checklevel', 'Check a card at level', levelInput, 'ffb-collection-field-slots' );
+		checkRow.appendChild( levelField.node );
+		var checkOut = el( 'p', 'ffb-collection-base-need' );
+		checkOut.setAttribute( 'aria-live', 'polite' );
+		checkRow.appendChild( checkOut );
+		baseBox.appendChild( checkRow );
+		var swapText = el( 'p', 'ffb-collection-base-text ffb-collection-base-swaps' );
+		baseBox.appendChild( swapText );
+		summaryBox.parentNode ? summaryBox.parentNode.insertBefore( baseBox, summaryBox.nextSibling ) : root.appendChild( baseBox );
+		slotsInput.addEventListener( 'input', function () {
+			var n = parseInt( slotsInput.value, 10 );
+			if ( n >= 1 && n <= BASE_SLOTS_MAX ) {
+				slots = n;
+				writeStorage( storage, BASE_SLOTS_KEY, String( n ) );
+				render();
+			}
+		} );
+		levelInput.addEventListener( 'input', function () {
+			var n = parseLevel( cat, levelInput.value );
+			if ( n !== null ) {
+				checkLevel = n;
+				renderBase( planBase( cat, rows, slots ) );
+			}
+		} );
+
 		// ---- the toolbar ----------------------------------------------------
 		var toolbar = el( 'div', 'ffb-collection-toolbar' );
 		var addButton = el( 'button', 'ffb-trade-add', '+ Add brainrot' );
@@ -3585,6 +3706,14 @@
 			} else if ( s.maxed ) {
 				tags.appendChild( el( 'span', 'ffb-trade-badge ffb-trade-badge-maxed', 'Fully maxed' ) );
 			}
+			var plan = summary.plan;
+			if ( plan && plan.marked && plan.moveIn.indexOf( row ) !== -1 ) {
+				tags.appendChild( el( 'span', 'ffb-trade-badge ffb-trade-badge-evolve', 'Move in' ) );
+			} else if ( plan && plan.swapOut.indexOf( row ) !== -1 ) {
+				tags.appendChild( el( 'span', 'ffb-trade-badge ffb-collection-badge-out', 'Swap out' ) );
+			} else if ( plan && plan.over && plan.isPick( row ) ) {
+				tags.appendChild( el( 'span', 'ffb-trade-badge ffb-collection-badge-pick', 'Base pick' ) );
+			}
 			if ( summary.highestCeiling && summary.highestCeiling.row === row && summary.measured > 1 ) {
 				tags.appendChild( el( 'span', 'ffb-trade-badge ffb-collection-badge-ceiling', 'Highest ceiling' ) );
 			}
@@ -3619,6 +3748,7 @@
 			}
 			if ( s.measured ) {
 				fig( 'Income now', view.now, 'ffb-collection-fig-now' );
+				fig( 'Strength (level 1)', money( rowStrength( cat, row ) ) + '/s' );
 				fig( 'Fully upgraded', view.ceil );
 			} else {
 				figs.appendChild( el( 'span', 'ffb-collection-fig-none',
@@ -3637,10 +3767,62 @@
 			remove.addEventListener( 'click', function () {
 				removeRow( row );
 			} );
+			var baseLabel = el( 'label', 'ffb-collection-inbase' );
+			var baseBox2 = el( 'input' );
+			baseBox2.type = 'checkbox';
+			baseBox2.checked = !!row.inBase;
+			baseBox2.setAttribute( 'aria-label', row.name + ' is in my base' );
+			baseBox2.addEventListener( 'change', function () {
+				row.inBase = !!baseBox2.checked;
+				render();
+				scheduleSave();
+			} );
+			baseLabel.appendChild( baseBox2 );
+			baseLabel.appendChild( el( 'span', null, ' In my base' ) );
+			actions.appendChild( baseLabel );
 			actions.appendChild( edit );
 			actions.appendChild( remove );
 			entry.appendChild( actions );
 			return entry;
+		}
+
+		function names( list ) {
+			return list.map( function ( r ) {
+				return describeSaved( cat, r );
+			} ).join( '; ' );
+		}
+
+		function renderBase( plan ) {
+			if ( !plan.ranked.length ) {
+				basePlanText.textContent = 'Add the brainrots you own, including the ones in Storage, to see which belong in your base.';
+				checkOut.textContent = '';
+				swapText.textContent = '';
+				return;
+			}
+			if ( !plan.over ) {
+				basePlanText.textContent = 'All ' + plural( plan.ranked.length, 'brainrot', 'brainrots' ) +
+					' fit in your base' + ( plan.spare ? ', with ' + plural( plan.spare, 'slot', 'slots' ) + ' to spare' : '' ) +
+					'. Add the ones in your Storage too, and the page marks the ' + slots + ' strongest as Base picks.';
+				checkOut.textContent = plan.spare ? 'With a free slot, any brainrot adds to your income.' : '';
+			} else {
+				basePlanText.textContent = 'Your ' + slots + ' strongest are marked Base pick. Strength is what a brainrot earns at level 1, ' +
+					'with its mutation, traits and evolution, so it doesn\u2019t depend on level. The weakest Base pick is ' +
+					describeSaved( cat, plan.weakest.row ) + ', at ' + money( plan.weakest.strength ) + '/s at level 1.';
+				checkOut.textContent = 'To beat it, a brainrot\u2019s card at level ' + checkLevel + ' must show more than ' +
+					money( plan.need( checkLevel ) ) + '/s.';
+			}
+			if ( plan.marked ) {
+				var bits = [];
+				if ( plan.moveIn.length ) {
+					bits.push( 'Move into your base: ' + names( plan.moveIn ) + '.' );
+				}
+				if ( plan.swapOut.length ) {
+					bits.push( 'Swap out: ' + names( plan.swapOut ) + '.' );
+				}
+				swapText.textContent = bits.length ? bits.join( ' ' ) : 'Your base already holds your strongest brainrots.';
+			} else {
+				swapText.textContent = plan.over ? 'Tick “In my base” on the brainrots you have placed, and the page will say which to swap.' : '';
+			}
 		}
 
 		function renderSummary() {
@@ -3658,6 +3840,8 @@
 			tReady.sub.textContent = sum.ready.length ? 'level ' + data.maxLevel + ' and not yet Evo ' + data.maxEvolution : '';
 			addButton.hidden = sum.full;
 			fullNote.hidden = !sum.full;
+			sum.plan = planBase( cat, rows, slots );
+			renderBase( sum.plan );
 			return sum;
 		}
 
@@ -3865,6 +4049,9 @@
 			rowView: rowView,
 			mutationOptions: mutationOptions,
 			evolutionOptions: evolutionOptions,
+			planBase: planBase,
+			rowStrength: rowStrength,
+			BASE_SLOTS_DEFAULT: BASE_SLOTS_DEFAULT,
 			traitOptions: traitOptions,
 			matchItem: matchItem,
 			brainrotOptions: brainrotOptions,

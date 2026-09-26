@@ -1448,6 +1448,71 @@
 	background: transparent;
 }
 
+/* ---- your base: Base pick / Swap out, the slots and the bar ------------- */
+.ffb-collection-badge-pick {
+	color: var(--ffb-good);
+	border: 1px solid var(--ffb-good);
+	background: transparent;
+}
+
+.ffb-collection-badge-out {
+	color: var(--ffb-bad);
+	background: rgba(236, 122, 114, 0.16);
+}
+
+.ffb-collection-base {
+	margin: 14px 0;
+	padding: 12px 14px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 10px;
+}
+
+.ffb-collection-base .ffb-trade-reason-title {
+	margin: 0 0 8px;
+}
+
+.ffb-collection-field-slots {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-right: 14px;
+}
+
+.ffb-collection-slots,
+.ffb-collection-check-level {
+	width: 90px;
+}
+
+.ffb-collection-base-text {
+	margin: 8px 0 0;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.ffb-collection-base-check {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 6px 14px;
+	margin-top: 10px;
+}
+
+.ffb-collection-base-need {
+	margin: 0;
+	font-weight: 600;
+	color: var(--ffb-accent);
+}
+
+.ffb-collection-inbase {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-height: 32px;
+	margin-right: auto;
+	font-size: 13px;
+	cursor: pointer;
+}
+
 .ffb-collection-row-detail {
 	font-size: 13px;
 	opacity: 0.8;
