@@ -2968,6 +2968,59 @@
 	 * saved trade and share links as the classic page.
 	 * ================================================================ */
 
+	/**
+	 * A finished trade applied to the saved list: each brainrot given away
+	 * comes off (the first exact match: name, mutation, traits, evolution,
+	 * level), each one received goes on. A received brainrot takes the base
+	 * slot a given-away one had; the rest go to storage. Returns
+	 * { rows, removed, added, missing, full } and never changes saved.
+	 */
+	function applyTrade( cat, saved, give, get ) {
+		var rows = saved.slice();
+		var removed = [];
+		var missing = [];
+		var added = [];
+		var freed = 0;
+		function key( r ) {
+			return [ r.name, r.mutation, r.traits.filter( function ( t ) {
+				return t !== '';
+			} ).sort().join( '+' ), r.evolution, r.level ].join( '|' );
+		}
+		give.forEach( function ( g ) {
+			var k = key( g );
+			var at = -1;
+			var i;
+			// a match that's in the base first, so its slot is the one freed
+			for ( i = 0; i < rows.length; i++ ) {
+				if ( key( rows[ i ] ) === k && ( at === -1 || ( rows[ i ].inBase && !rows[ at ].inBase ) ) ) {
+					at = i;
+				}
+			}
+			if ( at === -1 ) {
+				missing.push( g.name );
+				return;
+			}
+			if ( rows[ at ].inBase ) {
+				freed++;
+			}
+			removed.push( g.name );
+			rows.splice( at, 1 );
+		} );
+		if ( rows.length + get.length > COLLECTION_MAX ) {
+			return { rows: saved, removed: [], added: [], missing: missing, full: true };
+		}
+		get.forEach( function ( g ) {
+			var r = parseSavedRow( JSON.parse( serializeCollection( [ g ] ) ).r[ 0 ], cat );
+			r.inBase = freed > 0;
+			if ( r.inBase ) {
+				freed--;
+			}
+			rows.push( r );
+			added.push( { name: g.name, inBase: r.inBase } );
+		} );
+		return { rows: rows, removed: removed, added: added, missing: missing, full: false };
+	}
+
 	var trade2Count = 0;
 
 	/**
@@ -3145,6 +3198,11 @@
 			if ( !undo ) {
 				return;
 			}
+			if ( undo.list !== undefined ) {
+				store.save( undo.list, function ( err ) {
+					toolOut.textContent = err ? 'Couldn’t put My base back: ' + err + '.' : 'Put back, My base too.';
+				} );
+			}
 			if ( undo.all ) {
 				state.give = undo.all.give;
 				state.get = undo.all.get;
@@ -3152,8 +3210,10 @@
 			} else if ( state[ undo.key ].length < data.maxPerSide ) {
 				state[ undo.key ].splice( Math.min( undo.at, state[ undo.key ].length ), 0, undo.row );
 			}
+			if ( undo.list === undefined ) {
+				toolOut.textContent = 'Put back.';
+			}
 			undo = null;
-			toolOut.textContent = 'Put back.';
 			changed();
 		} );
 		tool( 'Clear', function () {
@@ -3747,6 +3807,60 @@
 			}
 			reasons( 'Reasons to take it', res.take, 'take' );
 			reasons( 'Reasons to pass', res.pass, 'pass' );
+			if ( store.kind !== 'none' ) {
+				panel.appendChild( doneCard() );
+			}
+		}
+
+		/** "Trade done": take what you gave off My base and put what you got on. */
+		function doneCard() {
+			var box = el( 'div', 'ffb-t2-done' );
+			box.appendChild( el( 'div', 'ffb-trade-label', 'Did the trade go through?' ) );
+			box.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'Update My base: what you gave comes off your list, what you got goes on (into the base slots the others leave free). Rods and potions aren’t tracked.' ) );
+			var go = el( 'button', 'ffb-trade-add ffb-t2-done-go', 'Trade done: update My base' );
+			go.type = 'button';
+			var said = el( 'p', 'ffb-base-small' );
+			said.setAttribute( 'aria-live', 'polite' );
+			go.addEventListener( 'click', function () {
+				var before = store.load();
+				var out = applyTrade( cat, parseCollection( before, cat ).rows, state.give, state.get );
+				var tradeBefore = { give: state.give, get: state.get, items: state.items };
+				if ( out.full ) {
+					said.textContent = 'Your list would go over ' + COLLECTION_MAX + ' brainrots. Remove some in My base first.';
+					return;
+				}
+				go.disabled = true;
+				store.save( serializeCollection( out.rows ), function ( err ) {
+					var bits = [];
+					if ( err ) {
+						go.disabled = false;
+						said.textContent = 'Couldn’t save: ' + err + '.';
+						return;
+					}
+					if ( out.removed.length ) {
+						bits.push( 'Removed ' + out.removed.join( ', ' ) + '.' );
+					}
+					if ( out.added.length ) {
+						bits.push( 'Added ' + out.added.map( function ( a ) {
+							return a.name + ( a.inBase ? ' (in your base)' : ' (in storage)' );
+						} ).join( ', ' ) + '.' );
+					}
+					if ( out.missing.length ) {
+						bits.push( 'Not on your list, so nothing removed for: ' + out.missing.join( ', ' ) + '.' );
+					}
+					// the trade is done: clear it so it can't be applied twice
+					undo = { list: before, all: tradeBefore };
+					state.give = [];
+					state.get = [];
+					state.items = { give: [], get: [] };
+					view.tab = 'sides';
+					toolOut.textContent = bits.join( ' ' ) + ' Undo puts it all back.';
+					changed();
+				} );
+			} );
+			box.appendChild( go );
+			box.appendChild( said );
+			return box;
 		}
 
 		// ---- Reasons -------------------------------------------------------------
@@ -6071,6 +6185,7 @@
 			buildBase: buildBase,
 			buildTrade2: buildTrade2,
 			plainChange: plainChange,
+			applyTrade: applyTrade,
 			readProfile: readProfile,
 			baseMultiplier: baseMultiplier,
 			upgradePrice: upgradePrice,

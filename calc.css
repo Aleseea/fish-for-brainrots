@@ -2556,3 +2556,21 @@
 	font-size: 12.5px;
 	font-weight: 700;
 }
+
+.ffb-t2-done {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 12px;
+	border-radius: 12px;
+	border: 1px solid var(--ffb-accent);
+	background: var(--ffb-panel);
+}
+
+.ffb-t2-done p {
+	margin: 0;
+}
+
+.ffb-t2-done-go {
+	align-self: flex-start;
+}
