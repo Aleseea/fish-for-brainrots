@@ -46,9 +46,9 @@
  * multiplies that sum. growth(level) is 1.3 per level up to level 175 and
  * only 1.03 per level after that (the game caps growth above 175).
  *
- * Upgrade costs are not shown anywhere: the cost curve is only measured up
- * to level 150 (costKnownTo in the payload), and a wrong price is worse
- * than none.
+ * Upgrade prices (upgradePrice) follow the old x1.5 curve to level 150 and
+ * the cheaper curve the game switched to from level 151 (newCost* and
+ * lateCost* in the payload, fitted to in-game readings up to level 189).
  */
 ( function () {
 	'use strict';
@@ -2011,20 +2011,40 @@
 	}
 
 	/**
+	 * The price of the +1 upgrade bought AT `level`, per unit of strength
+	 * (base x total): costGrowth per level up to newCostFrom - 1, then the
+	 * cheaper curve from level 151 (newCostStart x newCostGrowth per level,
+	 * and from lateCostFrom the level before x lateCostStep, then
+	 * lateCostGrowth per level). Same as Module:Brainrot's p._price.
+	 */
+	function priceCurve( d, level ) {
+		var from = d.newCostFrom || d.maxLevel + 1;
+		var late = d.lateCostFrom || d.maxLevel + 1;
+		if ( level < from ) {
+			return Math.pow( d.costGrowth, level - 1 );
+		}
+		if ( level < late ) {
+			return d.newCostStart * Math.pow( d.newCostGrowth, level - from );
+		}
+		return d.newCostStart * Math.pow( d.newCostGrowth, late - 1 - from ) *
+			d.lateCostStep * Math.pow( d.lateCostGrowth, level - late );
+	}
+
+	/**
 	 * The price of the +1 upgrade bought AT `level`, for a brainrot of this
-	 * strength, or null when it isn't known: the curve is measured to
-	 * costKnownTo (150); above that only a price the player saw in game
-	 * (profile.price) lets us estimate it.
+	 * strength, or null when it isn't known: the curve is modelled to
+	 * costKnownTo; above that (an older payload) only a price the player saw
+	 * in game (profile.price) lets us estimate it.
 	 */
 	function upgradePrice( cat, strength, level, profile ) {
 		var d = cat.data;
 		var known = d.costKnownTo || d.maxLevel;
-		var raw = strength * Math.pow( d.costGrowth, level - 1 );
+		var raw = strength * priceCurve( d, level );
 		if ( level <= known ) {
 			return raw;
 		}
 		if ( profile && profile.price && profile.price.level > known ) {
-			return raw * profile.price.cost / ( profile.price.strength * Math.pow( d.costGrowth, profile.price.level - 1 ) );
+			return raw * profile.price.cost / ( profile.price.strength * priceCurve( d, profile.price.level ) );
 		}
 		return null;
 	}
@@ -5983,7 +6003,7 @@
 			sum.appendChild( el( 'span', 'ffb-base-mult-value', '×' + baseMultiplier( profile ) ) );
 			panel.appendChild( sum );
 
-			// a price seen in game: sets the price curve above level 150
+			// a price seen in game: sets the price curve past costKnownTo
 			var priceBox = el( 'div', 'ffb-base-card ffb-base-price' );
 			priceBox.appendChild( el( 'div', 'ffb-base-row-label', 'An upgrade price you’ve seen' ) );
 			priceBox.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Prices above level ' + ( data.costKnownTo || data.maxLevel ) +
@@ -6040,7 +6060,10 @@
 				} );
 				priceBox.appendChild( forget );
 			}
-			panel.appendChild( priceBox );
+			// only while the curve stops short of the cap (an older payload)
+			if ( ( data.costKnownTo || data.maxLevel ) < data.maxLevel - 1 ) {
+				panel.appendChild( priceBox );
+			}
 
 			// moving the list
 			var move = el( 'div', 'ffb-base-card' );
