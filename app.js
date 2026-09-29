@@ -210,8 +210,9 @@
 	// ---- "Coming up": event start times in the reader's own time zone ------
 	// The wiki lists the events; their start times follow two fixed schedules
 	// (Events page and hub, 2026-09-24): Admin Abuse runs Saturday 9 PM and
-	// reruns Sunday 11 AM, Eastern time; the weekly Admin Pond starts
-	// Wednesday 8 PM Eastern. Eastern time is converted with the browser's own
+	// reruns Sunday 11 AM, Eastern time; the weekly Admin Pond runs from
+	// Tuesday 8 PM to Wednesday 8 PM Eastern (user, 2026-09-29; midnight UTC
+	// going into Wednesday). Eastern time is converted with the browser's own
 	// time-zone data, so daylight saving is handled on both ends.
 	var ET = 'America/New_York';
 
@@ -253,7 +254,7 @@
 				out.push( { name: e.name, day: new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ], 12 ) ), note: '' } );
 			}
 		} );
-		// the next weekly Admin Pond: the coming Wednesday, 8 PM Eastern
+		// the next weekly Admin Pond: the coming Tuesday, 8 PM Eastern
 		var i, t, nyDay;
 		for ( i = 0; i < 8; i++ ) {
 			t = new Date( now.getTime() + i * 86400000 );
@@ -262,7 +263,7 @@
 			nyDay.forEach( function ( x ) {
 				p[ x.type ] = x.value;
 			} );
-			if ( p.weekday === 'Wed' ) {
+			if ( p.weekday === 'Tue' ) {
 				var start = zoned( +p.year, +p.month, +p.day, 20, 0, ET );
 				if ( start > now ) {
 					out.push( { name: 'Admin Pond (weekly)', when: start, note: '24 hours' } );
