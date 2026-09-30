@@ -2658,6 +2658,18 @@
 	 * chosen label; a value or a label typed into it (by a test or an
 	 * assistive tool) picks that option.
 	 */
+	/** The evolution picker in the quick-add panels: "No evo" to "Evo 7", with badges. */
+	function quickEvoPicker( cat, id, onPick ) {
+		var opts = evolutionOptions( cat ).map( function ( o, i ) {
+			return { value: o.value, label: i === 0 ? 'No evo' : 'Evo ' + i, icon: o.icon };
+		} );
+		var pick = buildListPicker( id, opts, '0', 'ffb-trade-input ffb-base-quick-evo', function ( v ) {
+			onPick( parseInt( v, 10 ) || 0 );
+		} );
+		pick.input.setAttribute( 'aria-label', 'Evolution' );
+		return pick;
+	}
+
 	function buildListPicker( id, options, current, inputClass, onPick ) {
 		var labelOf = function ( v ) {
 			var i;
@@ -3576,7 +3588,7 @@
 				}
 			} );
 			box.appendChild( namePick.node );
-			var grid = el( 'div', 'ffb-base-quick-grid' );
+			var grid = el( 'div', 'ffb-base-quick-grid ffb-base-quick-grid-evo' );
 			var mutPick = buildSearchPicker( {
 				id: uid + key + 'qm',
 				current: draft.mutation,
@@ -3640,6 +3652,10 @@
 			lvl.setAttribute( 'inputmode', 'numeric' );
 			lvl.setAttribute( 'aria-label', 'Level' );
 			grid.appendChild( lvl );
+			var evoPick = quickEvoPicker( cat, uid + key + 'qe', function ( v ) {
+				draft.evolution = v;
+			} );
+			grid.appendChild( evoPick.node );
 			box.appendChild( grid );
 			var foot = el( 'div', 'ffb-base-quick-foot' );
 			var addBtn = el( 'button', 'ffb-trade-add ffb-base-quick-add', 'Add to ' + TITLES[ key ] );
@@ -3660,6 +3676,7 @@
 				row = newRow( cat, name );
 				row.mutation = draft.mutation;
 				row.traits = draft.traits.slice();
+				row.evolution = draft.evolution;
 				row.level = n === null ? 1 : n;
 				addRowNow( row, describeSaved( cat, row ) );
 			}
@@ -5386,7 +5403,7 @@
 				}
 			} );
 			box.appendChild( namePick.node );
-			var grid = el( 'div', 'ffb-base-quick-grid' );
+			var grid = el( 'div', 'ffb-base-quick-grid ffb-base-quick-grid-evo' );
 			var mutPick = buildSearchPicker( {
 				id: uid + 'qm',
 				current: draft.mutation,
@@ -5452,6 +5469,10 @@
 			lvl.setAttribute( 'inputmode', 'numeric' );
 			lvl.setAttribute( 'aria-label', 'Level' );
 			grid.appendChild( lvl );
+			var evoPick = quickEvoPicker( cat, uid + 'qe', function ( v ) {
+				draft.evolution = v;
+			} );
+			grid.appendChild( evoPick.node );
 			box.appendChild( grid );
 			var foot = el( 'div', 'ffb-base-quick-foot' );
 			var addBtn = el( 'button', 'ffb-trade-add ffb-base-quick-add', 'Add' );
@@ -5486,7 +5507,7 @@
 					name: name,
 					mutation: draft.mutation,
 					traits: draft.traits.slice(),
-					evolution: 0,
+					evolution: draft.evolution,
 					level: n === null ? 1 : n,
 					notes: [],
 					inBase: !!inBase.checked
@@ -5509,6 +5530,8 @@
 				traitPicks.forEach( function ( tp ) {
 					tp.set( '' );
 				} );
+				draft.evolution = 0;
+				evoPick.set( '0' );
 				lvl.value = '1';
 				renderNavOnly();
 				if ( view.tab === 'list' ) {
