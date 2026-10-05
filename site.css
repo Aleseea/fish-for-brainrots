@@ -391,3 +391,24 @@ main {
 	margin-top: 6px;
 	font-size: 13px;
 }
+
+/* an event that's on right now */
+.site-banner-live {
+	border-color: rgba(230, 70, 70, 0.75);
+	background: rgba(230, 70, 70, 0.12);
+}
+.site-banner-livetag {
+	display: inline-block;
+	padding: 0 6px;
+	margin-right: 2px;
+	border-radius: 999px;
+	background: #d94848;
+	color: #fff;
+	font-size: 0.8em;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+.site-upcoming-live .site-upcoming-name {
+	font-weight: 700;
+}

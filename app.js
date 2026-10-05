@@ -246,23 +246,30 @@
 			var d = isoParts( e.from );
 			// an exact start time, when the wiki has one, beats the schedule
 			if ( typeof e.start === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test( e.start ) ) {
-				out.push( { name: e.name, when: new Date( e.start ), note: '' } );
+				var st = new Date( e.start ), to = isoParts( e.to ), ends = null;
+				if ( to ) {
+					ends = new Date( Date.UTC( to[ 0 ], to[ 1 ] - 1, to[ 2 ], st.getUTCHours(), st.getUTCMinutes() ) );
+				}
+				out.push( { name: e.name, when: st, ends: ends && ends > st ? ends : null, note: '' } );
 				return;
 			}
 			if ( !d ) {
 				return;
 			}
 			if ( e.type === 'abuse' && new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] ) ).getUTCDay() === 6 ) {
-				out.push( { name: e.name, when: zoned( d[ 0 ], d[ 1 ], d[ 2 ], 21, 0, ET ), note: 'main run' } );
-				out.push( { name: e.name, when: zoned( d[ 0 ], d[ 1 ], d[ 2 ] + 1, 11, 0, ET ), note: 'rerun' } );
+				// each run lasts 45 minutes (admins join 15 minutes before)
+				var main = zoned( d[ 0 ], d[ 1 ], d[ 2 ], 21, 0, ET ), rerun = zoned( d[ 0 ], d[ 1 ], d[ 2 ] + 1, 11, 0, ET );
+				out.push( { name: e.name, when: main, ends: new Date( main.getTime() + 45 * 60000 ), note: 'main run' } );
+				out.push( { name: e.name, when: rerun, ends: new Date( rerun.getTime() + 45 * 60000 ), note: 'rerun' } );
 			} else {
 				// no known start time (a weekend Admin Pond, a mini event): the day only
 				out.push( { name: e.name, day: new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ], 12 ) ), note: '' } );
 			}
 		} );
-		// the next weekly Admin Pond: the coming Tuesday, 8 PM Eastern
+		// the weekly Admin Pond, Tuesday 8 PM Eastern for 24 hours: the one
+		// running now (from yesterday's start) or the next one
 		var i, t, nyDay;
-		for ( i = 0; i < 8; i++ ) {
+		for ( i = -1; i < 8; i++ ) {
 			t = new Date( now.getTime() + i * 86400000 );
 			nyDay = new Intl.DateTimeFormat( 'en-US', { timeZone: ET, weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric' } ).formatToParts( t );
 			var p = {};
@@ -271,18 +278,29 @@
 			} );
 			if ( p.weekday === 'Tue' ) {
 				var start = zoned( +p.year, +p.month, +p.day, 20, 0, ET );
-				if ( start > now ) {
-					out.push( { name: 'Admin Pond (weekly)', when: start, note: '24 hours' } );
+				var stop = new Date( start.getTime() + 86400000 );
+				if ( stop > now ) {
+					out.push( { name: 'Admin Pond (weekly)', when: start, ends: stop, note: '24 hours' } );
 					break;
 				}
 			}
 		}
 		return out.filter( function ( x ) {
-			// a run that started less than an hour ago is still worth showing
+			if ( x.ends ) {
+				return x.ends.getTime() > now.getTime();
+			}
+			// no known end: a run that started less than an hour ago still shows
 			return x.when ? x.when.getTime() > now.getTime() - 3600000 : x.day.getTime() > now.getTime() - 86400000;
+		} ).map( function ( x ) {
+			x.live = !!( x.when && x.ends && x.when <= now );
+			return x;
 		} ).sort( function ( a, b ) {
-			return ( a.when || a.day ) - ( b.when || b.day );
-		} ).slice( 0, 4 );
+			// what's on now first (ending soonest first), then what's next
+			if ( a.live !== b.live ) {
+				return a.live ? -1 : 1;
+			}
+			return a.live ? a.ends - b.ends : ( a.when || a.day ) - ( b.when || b.day );
+		} ).slice( 0, 5 );
 	}
 
 	function countdown( when, now ) {
@@ -330,14 +348,16 @@
 			box.hidden = true;
 			return;
 		}
-		var head = el( 'div', 'site-upcoming-title', 'Coming up · your time' );
+		var head = el( 'div', 'site-upcoming-title', ( items[ 0 ].live ? 'On now and coming up' : 'Coming up' ) + ' · your time' );
 		box.appendChild( head );
 		var list = el( 'ul', 'site-upcoming-list' );
 		items.forEach( function ( x ) {
-			var li = el( 'li', 'site-upcoming-row' );
-			li.appendChild( el( 'span', 'site-upcoming-name', x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-			li.appendChild( el( 'span', 'site-upcoming-when', whenText( x ) ) );
-			if ( x.when ) {
+			var li = el( 'li', 'site-upcoming-row' + ( x.live ? ' site-upcoming-live' : '' ) );
+			li.appendChild( el( 'span', 'site-upcoming-name', ( x.live ? '🔴 Live now: ' : '' ) + x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
+			li.appendChild( el( 'span', 'site-upcoming-when', x.live ? 'until ' + whenText( { when: x.ends } ) : whenText( x ) ) );
+			if ( x.live ) {
+				li.appendChild( el( 'span', 'site-upcoming-count', 'ends ' + countdown( x.ends, now ) ) );
+			} else if ( x.when ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', countdown( x.when, now ) ) );
 			}
 			list.appendChild( li );
@@ -356,10 +376,15 @@
 		var x = items[ bannerAt % items.length ];
 		banner.hidden = false;
 		banner.textContent = '';
-		banner.appendChild( el( 'span', 'site-banner-icon', '📣' ) );
+		banner.className = 'site-banner' + ( x.live ? ' site-banner-live' : '' );
+		banner.appendChild( el( 'span', 'site-banner-icon', x.live ? '🔴' : '📣' ) );
 		var txt = el( 'span', 'site-banner-text' );
+		if ( x.live ) {
+			txt.appendChild( el( 'span', 'site-banner-livetag', 'Live now' ) );
+			txt.appendChild( document.createTextNode( ' ' ) );
+		}
 		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-		txt.appendChild( document.createTextNode( ' ' + ( x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
+		txt.appendChild( document.createTextNode( ' ' + ( x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
 		banner.appendChild( txt );
 		banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
 	}
