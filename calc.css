@@ -2778,3 +2778,24 @@
 		padding: 14px;
 	}
 }
+
+.ffb-catch-admin {
+	margin: 12px 0 0 0;
+	padding: 10px 12px;
+	border: 1px solid rgba(227, 168, 63, 0.45);
+	border-radius: 8px;
+	background: rgba(227, 168, 63, 0.08);
+}
+.ffb-catch-admin-h {
+	margin: 0 0 4px 0;
+	font-weight: 700;
+}
+.ffb-catch-admin-line {
+	margin: 2px 0;
+	font-variant-numeric: tabular-nums;
+}
+.ffb-catch-admin-note {
+	margin: 6px 0 0 0;
+	font-size: 85%;
+	opacity: 0.8;
+}

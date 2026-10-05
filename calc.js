@@ -6193,8 +6193,19 @@
 		if ( o.pond === 'server' ) {
 			return sum + luckExtra( o.golden );
 		}
+		if ( o.pond === 'admin' ) {
+			return Math.max( 1, sum + luckPart( o.potion ) + ADMIN_POND.luck );
+		}
 		return Math.max( 1, sum + luckPart( o.potion ) + luckExtra( o.boost ) );
 	}
+
+	/**
+	 * The Admin Pond (user, 2026-10-04): +20 luck on top of rod, potion,
+	 * server and event luck (a potion's mutation chance only works at the
+	 * base pond), and on every catch separate 1-in-N rolls for these, on top
+	 * of the skill odds. Celestials can't be caught anywhere else.
+	 */
+	var ADMIN_POND = { luck: 20, extra: [ [ 'Eternal', 1000 ], [ 'Celestial', 1500 ], [ 'Admin Secret', 2000 ] ] };
 
 	/** How far luck tilts the odds, 0 (none) to 1 (everything to the rarest). */
 	function catchTilt( luck ) {
@@ -6405,7 +6416,7 @@
 		pondRow.appendChild( el( 'span', 'ffb-trade-label', 'Where you fish' ) );
 		var pondChips = el( 'div', 'ffb-catch-chips' );
 		var pondButtons = [];
-		[ [ 'base', 'Base pond' ], [ 'server', 'Server Pond' ] ].forEach( function ( pd ) {
+		[ [ 'base', 'Base pond' ], [ 'server', 'Server Pond' ], [ 'admin', 'Admin Pond' ] ].forEach( function ( pd ) {
 			var b = el( 'button', 'ffb-catch-chip', pd[ 1 ] );
 			b.type = 'button';
 			b.setAttribute( 'aria-pressed', pd[ 0 ] === state.pond ? 'true' : 'false' );
@@ -6517,17 +6528,26 @@
 		out.appendChild( luckLine );
 		out.appendChild( bars );
 		out.appendChild( note );
+		var adminBox = el( 'div', 'ffb-catch-admin' );
+		adminBox.appendChild( el( 'p', 'ffb-catch-admin-h', 'Also on every Admin Pond catch' ) );
+		ADMIN_POND.extra.forEach( function ( x ) {
+			adminBox.appendChild( el( 'p', 'ffb-catch-admin-line', x[ 0 ] + ': 1 in ' + x[ 1 ].toLocaleString( 'en-US' ) + ' (' + catchPct( 100 / x[ 1 ] ) + ')' ) );
+		} );
+		adminBox.appendChild( el( 'p', 'ffb-catch-admin-note', 'These are separate chances on top of the ones above. Celestials can only be caught here. The Admin Pond adds 20 luck; a potion’s luck counts here, but its mutation chance only works at your base pond.' ) );
+		out.appendChild( adminBox );
 		root.appendChild( out );
-		root.appendChild( el( 'p', 'ffb-catch-foot', 'Chances are per catch: a rod with 2× catch brings in two brainrots each cast, each rolled with these chances. Luck only boosts rarities your skill can already catch; it never unlocks one. Celestials and Admin Secrets are never caught by fishing.' ) );
+		root.appendChild( el( 'p', 'ffb-catch-foot', 'Chances are per catch: a rod with 2× catch brings in two brainrots each cast, each rolled with these chances. Luck only boosts rarities your skill can already catch; it never unlocks one. Celestials and Admin Secrets aren’t in the skill odds: on the Admin Pond they come from separate chances (below).' ) );
 
 		function refresh() {
 			var server = state.pond === 'server';
+			var admin = state.pond === 'admin';
 			var luck, t, base, odds;
 			pondButtons.forEach( function ( b ) {
 				b.node.setAttribute( 'aria-pressed', b.key === state.pond ? 'true' : 'false' );
 			} );
 			potionField.node.hidden = server;
-			boostRow.hidden = server;
+			boostRow.hidden = server || admin;
+			adminBox.hidden = !admin;
 			boostButtons.forEach( function ( b ) {
 				b.node.setAttribute( 'aria-pressed', b.key === state.boost ? 'true' : 'false' );
 			} );
