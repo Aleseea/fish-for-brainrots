@@ -6512,7 +6512,7 @@
 			f.label.appendChild( el( 'span', 'ffb-trade-optional', ' ' + hint ) );
 			return { node: f.node, input: input };
 		}
-		var serverField = numberField( 'server', 'Server luck', '(optional)' );
+		var serverField = numberField( 'server', 'Server luck', '(optional: during Admin Abuse, or bought in the shop: +5, +10 or +20)' );
 		var eventField = numberField( 'event', 'Event luck', '(optional)' );
 		var goldenField = numberField( 'golden', 'Golden zone', '(optional)' );
 		controls.appendChild( serverField.node );
