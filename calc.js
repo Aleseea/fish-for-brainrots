@@ -6155,8 +6155,8 @@
 	 * Fishing Skill sets each rarity's base chance per catch; luck then
 	 * tilts those chances toward the rarer rarities the skill already
 	 * reaches. It never unlocks a rarity. The game's rules (its data chart):
-	 *   luck, base pond   = rod + potion + server + event, at least 1 (the game's chart
-	 *   also lists a "catch boost": the extra catches of a 2x-catch rod, not luck; user)
+	 *   luck, base pond   = rod + potion + server + event + catch boost, at least 1
+	 *   (catch boost: +5 luck at 500 catches, +10 at 800, +15 with both, 5 min each; user)
 	 *   luck, Server Pond = rod + server + event + golden zone (no potion)
 	 *   an item with no luck (1x) adds nothing; a 2x rod adds 2
 	 *   tilt t = min(1, 0.12 * log2(luck))
@@ -6175,7 +6175,7 @@
 		return isFinite( n ) && n > 1 ? n : 0;
 	}
 
-	/** A typed extra (server, event, golden zone): 0 if blank or bad. */
+	/** A typed extra (server, event, catch boost, golden zone): 0 if blank or bad. */
 	function luckExtra( x ) {
 		var n = Number( x );
 		return isFinite( n ) && n > 0 ? n : 0;
@@ -6193,7 +6193,7 @@
 		if ( o.pond === 'server' ) {
 			return sum + luckExtra( o.golden );
 		}
-		return Math.max( 1, sum + luckPart( o.potion ) );
+		return Math.max( 1, sum + luckPart( o.potion ) + luckExtra( o.boost ) );
 	}
 
 	/** How far luck tilts the odds, 0 (none) to 1 (everything to the rarest). */
@@ -6380,7 +6380,7 @@
 		var rods = Array.isArray( data.rods ) && data.rods.length ? data.rods : [ { n: 'Basic Rod (no luck)', luck: 1 } ];
 		var potions = Array.isArray( data.potions ) && data.potions.length ? data.potions : [ { n: 'No potion', luck: 1 } ];
 		var max = data.maxSkill || 500;
-		var state = { skill: 0, pond: 'base', rod: 0, potion: 0, server: 0, event: 0, golden: 0 };
+		var state = { skill: 0, pond: 'base', rod: 0, potion: 0, server: 0, event: 0, boost: 0, golden: 0 };
 
 		var root = el( 'div', 'ffb-catch-calc' );
 		var controls = el( 'div', 'ffb-catch-controls' );
@@ -6418,6 +6418,25 @@
 		} );
 		pondRow.appendChild( pondChips );
 		controls.appendChild( pondRow );
+
+		// ---- catch luck boost (base pond only) --------------------------
+		var boostRow = el( 'div', 'ffb-catch-field ffb-catch-ponds' );
+		boostRow.appendChild( el( 'span', 'ffb-trade-label', 'Catch luck boost' ) );
+		var boostChips = el( 'div', 'ffb-catch-chips' );
+		var boostButtons = [];
+		[ [ 0, 'None' ], [ 5, '+5' ], [ 10, '+10' ], [ 15, '+15 (both)' ] ].forEach( function ( bd ) {
+			var b = el( 'button', 'ffb-catch-chip', bd[ 1 ] );
+			b.type = 'button';
+			b.setAttribute( 'aria-pressed', bd[ 0 ] === state.boost ? 'true' : 'false' );
+			b.addEventListener( 'click', function () {
+				state.boost = bd[ 0 ];
+				refresh();
+			} );
+			boostButtons.push( { key: bd[ 0 ], node: b } );
+			boostChips.appendChild( b );
+		} );
+		boostRow.appendChild( boostChips );
+		boostRow.appendChild( el( 'span', 'ffb-trade-optional', ' +5 at 500 catches, +10 at 800; each lasts 5 minutes' ) );
 
 		// ---- rod and potion ---------------------------------------------
 		function itemPicker( key, list, label ) {
@@ -6459,6 +6478,7 @@
 		var potionField = itemPicker( 'potion', potions, 'Potion' );
 		controls.appendChild( rodField.node );
 		controls.appendChild( potionField.node );
+		controls.appendChild( boostRow );
 
 		// ---- other luck -------------------------------------------------
 		function numberField( key, label, hint ) {
@@ -6502,6 +6522,10 @@
 				b.node.setAttribute( 'aria-pressed', b.key === state.pond ? 'true' : 'false' );
 			} );
 			potionField.node.hidden = server;
+			boostRow.hidden = server;
+			boostButtons.forEach( function ( b ) {
+				b.node.setAttribute( 'aria-pressed', b.key === state.boost ? 'true' : 'false' );
+			} );
 			goldenField.node.hidden = !server;
 			rodField.note.textContent = luckLabel( rods[ state.rod ].luck );
 			potionField.note.textContent = luckLabel( potions[ state.potion ].luck );
@@ -6512,6 +6536,7 @@
 				potion: potions[ state.potion ].luck,
 				server: state.server,
 				event: state.event,
+				boost: state.boost,
 				golden: state.golden
 			} );
 			t = catchTilt( luck );
