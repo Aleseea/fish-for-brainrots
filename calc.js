@@ -6155,7 +6155,8 @@
 	 * Fishing Skill sets each rarity's base chance per catch; luck then
 	 * tilts those chances toward the rarer rarities the skill already
 	 * reaches. It never unlocks a rarity. The game's rules (its data chart):
-	 *   luck, base pond   = rod + potion + server + event + catch boost, at least 1
+	 *   luck, base pond   = rod + potion + server + event, at least 1 (the game's chart
+	 *   also lists a "catch boost": the extra catches of a 2x-catch rod, not luck; user)
 	 *   luck, Server Pond = rod + server + event + golden zone (no potion)
 	 *   an item with no luck (1x) adds nothing; a 2x rod adds 2
 	 *   tilt t = min(1, 0.12 * log2(luck))
@@ -6174,7 +6175,7 @@
 		return isFinite( n ) && n > 1 ? n : 0;
 	}
 
-	/** A typed extra (server, event, catch boost, golden zone): 0 if blank or bad. */
+	/** A typed extra (server, event, golden zone): 0 if blank or bad. */
 	function luckExtra( x ) {
 		var n = Number( x );
 		return isFinite( n ) && n > 0 ? n : 0;
@@ -6192,7 +6193,7 @@
 		if ( o.pond === 'server' ) {
 			return sum + luckExtra( o.golden );
 		}
-		return Math.max( 1, sum + luckPart( o.potion ) + luckExtra( o.boost ) );
+		return Math.max( 1, sum + luckPart( o.potion ) );
 	}
 
 	/** How far luck tilts the odds, 0 (none) to 1 (everything to the rarest). */
@@ -6379,7 +6380,7 @@
 		var rods = Array.isArray( data.rods ) && data.rods.length ? data.rods : [ { n: 'Basic Rod (no luck)', luck: 1 } ];
 		var potions = Array.isArray( data.potions ) && data.potions.length ? data.potions : [ { n: 'No potion', luck: 1 } ];
 		var max = data.maxSkill || 500;
-		var state = { skill: 0, pond: 'base', rod: 0, potion: 0, server: 0, event: 0, boost: 0, golden: 0 };
+		var state = { skill: 0, pond: 'base', rod: 0, potion: 0, server: 0, event: 0, golden: 0 };
 
 		var root = el( 'div', 'ffb-catch-calc' );
 		var controls = el( 'div', 'ffb-catch-controls' );
@@ -6477,11 +6478,9 @@
 		}
 		var serverField = numberField( 'server', 'Server luck', '(optional)' );
 		var eventField = numberField( 'event', 'Event luck', '(optional)' );
-		var boostField = numberField( 'boost', 'Catch boost', '(optional)' );
 		var goldenField = numberField( 'golden', 'Golden zone', '(optional)' );
 		controls.appendChild( serverField.node );
 		controls.appendChild( eventField.node );
-		controls.appendChild( boostField.node );
 		controls.appendChild( goldenField.node );
 		root.appendChild( controls );
 
@@ -6494,7 +6493,7 @@
 		out.appendChild( bars );
 		out.appendChild( note );
 		root.appendChild( out );
-		root.appendChild( el( 'p', 'ffb-catch-foot', 'Luck only boosts rarities your skill can already catch; it never unlocks one. Celestials and Admin Secrets are never caught by fishing.' ) );
+		root.appendChild( el( 'p', 'ffb-catch-foot', 'Chances are per catch: a rod with 2× catch brings in two brainrots each cast, each rolled with these chances. Luck only boosts rarities your skill can already catch; it never unlocks one. Celestials and Admin Secrets are never caught by fishing.' ) );
 
 		function refresh() {
 			var server = state.pond === 'server';
@@ -6503,7 +6502,6 @@
 				b.node.setAttribute( 'aria-pressed', b.key === state.pond ? 'true' : 'false' );
 			} );
 			potionField.node.hidden = server;
-			boostField.node.hidden = server;
 			goldenField.node.hidden = !server;
 			rodField.note.textContent = luckLabel( rods[ state.rod ].luck );
 			potionField.note.textContent = luckLabel( potions[ state.potion ].luck );
@@ -6514,7 +6512,6 @@
 				potion: potions[ state.potion ].luck,
 				server: state.server,
 				event: state.event,
-				boost: state.boost,
 				golden: state.golden
 			} );
 			t = catchTilt( luck );
