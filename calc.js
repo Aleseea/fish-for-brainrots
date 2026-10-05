@@ -2373,7 +2373,7 @@
 	 * address before the no-referrer fix.)
 	 */
 	function safeIconUrl( path ) {
-		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'-]+\.png$/.test( path ) ?
+		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ?
 			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=1' : null;
 	}
 
@@ -6449,9 +6449,14 @@
 					var it = list[ Number( v ) ];
 					return it ? it.n : '';
 				},
+				lead: function ( v ) {
+					var it = list[ Number( v ) ];
+					var icon = it && safeIconUrl( it.i );
+					return icon ? { icon: icon, color: null } : null;
+				},
 				search: function () {
 					return list.map( function ( it, i ) {
-						return { value: String( i ), name: it.n, right: luckLabel( it.luck ) };
+						return { value: String( i ), name: it.n, icon: safeIconUrl( it.i ), right: luckLabel( it.luck ) };
 					} );
 				},
 				exact: function ( text ) {
