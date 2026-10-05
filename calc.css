@@ -2590,3 +2590,191 @@
 	grid-column: 4 / span 2;
 	grid-row: 1;
 }
+
+/* =======================================================================
+   Catch calculator ("What can I catch?")
+   -----------------------------------------------------------------------
+   Styles for the script that renders into .ffb-catch (Module:Brainrot,
+   catchMount). Fields and pickers reuse the trade calculator's classes
+   (ffb-trade-field, ffb-trade-input, ffb-pick); colours as the trade
+   calculator's, darker ones for light themes.
+   ======================================================================= */
+.ffb-catch {
+	--ffb-accent: #e3a83f;
+	--ffb-line: rgba(128, 128, 128, 0.35);
+	--ffb-panel: rgba(128, 128, 128, 0.08);
+	margin: 16px 0;
+}
+
+.theme-fandom-light .ffb-catch {
+	--ffb-accent: #a86b00;
+}
+
+.ffb-catch [hidden] {
+	display: none !important;
+}
+
+.ffb-catch-calc {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 10px;
+	padding: 18px 20px;
+}
+
+.ffb-catch-calc button,
+.ffb-catch-calc input {
+	font: inherit;
+	color: inherit;
+}
+
+.ffb-catch-calc button:focus-visible,
+.ffb-catch-calc input:focus-visible {
+	outline: 2px solid var(--ffb-accent);
+	outline-offset: 2px;
+}
+
+.ffb-catch-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px 18px;
+	align-items: start;
+}
+
+.ffb-catch-skill {
+	font-family: monospace;
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.ffb-catch-num {
+	font-family: monospace;
+}
+
+.ffb-catch-chips {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.ffb-catch-chip {
+	flex: 1 1 0;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: 7px;
+	border: 1px solid rgba(128, 128, 128, 0.4);
+	background: transparent;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.ffb-catch-chip[aria-pressed="true"] {
+	background: var(--ffb-accent);
+	border-color: var(--ffb-accent);
+	color: #14161a;
+}
+
+.ffb-catch-ponds {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.ffb-catch-itemluck {
+	font-size: 12px;
+	opacity: 0.75;
+}
+
+.ffb-catch-out {
+	padding-top: 14px;
+	border-top: 1px solid var(--ffb-line);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.ffb-catch-luck {
+	margin: 0;
+	font-size: 14px;
+}
+
+.ffb-catch-luck-value,
+.ffb-catch-tilt-value {
+	font-family: monospace;
+	font-size: 20px;
+	color: var(--ffb-accent);
+}
+
+.ffb-catch-bars {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.ffb-catch-row-head {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 14px;
+}
+
+.ffb-catch-name {
+	flex: 1 1 auto;
+	font-weight: 600;
+}
+
+.ffb-catch-pct {
+	font-family: monospace;
+	font-weight: 700;
+}
+
+.ffb-catch-track {
+	margin-top: 4px;
+	height: 10px;
+	border-radius: 5px;
+	background: var(--ffb-panel);
+	box-shadow: inset 0 0 0 1px var(--ffb-line);
+	overflow: hidden;
+}
+
+.ffb-catch-fill {
+	height: 100%;
+	border-radius: 5px;
+	background-color: var(--ffb-accent);
+	box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.5);
+}
+
+.ffb-catch-row-locked,
+.ffb-catch-row-gone {
+	opacity: 0.55;
+}
+
+.ffb-catch-lock {
+	font-family: inherit;
+	font-weight: 400;
+	font-size: 13px;
+}
+
+.ffb-catch-note,
+.ffb-catch-foot {
+	margin: 0;
+	font-size: 12.5px;
+	opacity: 0.75;
+}
+
+.ffb-catch-approx {
+	opacity: 0.9;
+	font-style: italic;
+}
+
+@media (max-width: 720px) {
+	.ffb-catch-controls {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ffb-catch-calc {
+		padding: 14px;
+	}
+}

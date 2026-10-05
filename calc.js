@@ -19,6 +19,11 @@
  *   A reader's saved brainrots can be added to the "You give" side, and
  *   their collection's total stands in for "your total income now".
  *
+ * What can I catch? (.ffb-catch)
+ *   Fishing Skill, rod, potion and any server/event luck -> the chance of
+ *   each rarity per catch (exact at measured skill levels, "approximate"
+ *   between them).
+ *
  * My collection (.ffb-collection)
  *   A reader lists the brainrots they own (up to 600) and sees each one's
  *   income, value and ceiling, with totals, the strongest, the highest
@@ -6144,6 +6149,443 @@
 		return { root: root };
 	}
 
+	/* ================================================================
+	 * What can I catch? (.ffb-catch, Module:Brainrot catchMount)
+	 *
+	 * Fishing Skill sets each rarity's base chance per catch; luck then
+	 * tilts those chances toward the rarer rarities the skill already
+	 * reaches. It never unlocks a rarity. The game's rules (its data chart):
+	 *   luck, base pond   = rod + potion + server + event + catch boost, at least 1
+	 *   luck, Server Pond = rod + server + event + golden zone (no potion)
+	 *   an item with no luck (1x) adds nothing; a 2x rod adds 2
+	 *   tilt t = min(1, 0.12 * log2(luck))
+	 *   each chance p_i is multiplied by (1 / (1 - t))^rank_i (Common 0 ...
+	 *   Eternal 8), then all are scaled back to 100%; at t = 1 every catch
+	 *   is the rarest rarity with a chance above 0.
+	 * Base chances are exact at measured levels; between them they are
+	 * interpolated (and the page says "approximate").
+	 * ================================================================ */
+
+	var catchCount = 0;
+
+	/** What one item adds to a catch's luck: nothing for a 1x item. */
+	function luckPart( x ) {
+		var n = Number( x );
+		return isFinite( n ) && n > 1 ? n : 0;
+	}
+
+	/** A typed extra (server, event, catch boost, golden zone): 0 if blank or bad. */
+	function luckExtra( x ) {
+		var n = Number( x );
+		return isFinite( n ) && n > 0 ? n : 0;
+	}
+
+	/**
+	 * Total luck. opts: { pond: 'base' | 'server', rod, potion (multipliers,
+	 * 1 = none), server, event, boost, golden (amounts added as they are) }.
+	 * The base pond never goes below 1; the Server Pond has no minimum (the
+	 * maths treats anything under 1 as 1).
+	 */
+	function catchLuck( opts ) {
+		var o = opts || {};
+		var sum = luckPart( o.rod ) + luckExtra( o.server ) + luckExtra( o.event );
+		if ( o.pond === 'server' ) {
+			return sum + luckExtra( o.golden );
+		}
+		return Math.max( 1, sum + luckPart( o.potion ) + luckExtra( o.boost ) );
+	}
+
+	/** How far luck tilts the odds, 0 (none) to 1 (everything to the rarest). */
+	function catchTilt( luck ) {
+		var l = Number( luck );
+		if ( !isFinite( l ) || l <= 1 ) {
+			return 0;
+		}
+		return Math.min( 1, 0.12 * Math.log( l ) / Math.LN2 );
+	}
+
+	/** Scales chances so they add up to 100 (left alone when all are 0). */
+	function toHundred( odds ) {
+		var sum = 0;
+		var i;
+		for ( i = 0; i < odds.length; i++ ) {
+			sum += odds[ i ];
+		}
+		return sum > 0 ? odds.map( function ( p ) {
+			return p * 100 / sum;
+		} ) : odds.slice();
+	}
+
+	/**
+	 * Base chances (%) at a Fishing Skill level, before luck, one per rarity
+	 * in data.rarities order: { odds, exact, between: [lo, hi] }.
+	 * exact: the level was measured, and its chances are passed through as
+	 * the game showed them. Otherwise each rarity is interpolated in a
+	 * straight line between its nearest known points: every measured level,
+	 * the chart's fixed points (anchors), and 0 at the level before it
+	 * unlocks. Below its unlock level a rarity is 0, and so is one fishing
+	 * never catches. Past its last known point a rarity keeps that value.
+	 * The rest is then scaled to 100%, leaving any chance fixed at this
+	 * exact level (an anchor, or 0) as it is. between = the nearest
+	 * measured levels below and above (hi null past the highest).
+	 */
+	function baseCatchOdds( data, skill ) {
+		var rar = data.rarities || [];
+		var levels = data.levels || [];
+		var max = data.maxSkill || 500;
+		var s = Math.round( Number( skill ) );
+		var lo = null;
+		var hi = null;
+		var odds = [];
+		var pinned = [];
+		var i, k, row, pts, a, before, after, p, fixed, rest;
+		if ( !isFinite( s ) || s < 0 ) {
+			s = 0;
+		}
+		if ( s > max ) {
+			s = max;
+		}
+		for ( k = 0; k < levels.length; k++ ) {
+			row = levels[ k ];
+			if ( row[ 0 ] === s ) {
+				return { odds: rar.map( function ( r, j ) {
+					return r[ 2 ] === null || r[ 2 ] === undefined ? 0 : Number( row[ 1 ][ j ] ) || 0;
+				} ), exact: true, between: [ s, s ], skill: s };
+			}
+			if ( row[ 0 ] < s && ( lo === null || row[ 0 ] > lo ) ) {
+				lo = row[ 0 ];
+			}
+			if ( row[ 0 ] > s && ( hi === null || row[ 0 ] < hi ) ) {
+				hi = row[ 0 ];
+			}
+		}
+		for ( i = 0; i < rar.length; i++ ) {
+			var unlock = rar[ i ][ 2 ];
+			if ( unlock === null || unlock === undefined || s < unlock ) {
+				odds.push( 0 );
+				pinned.push( true );
+				continue;
+			}
+			// this rarity's known points, measured levels first so a measured
+			// value wins over an anchor at the same level
+			pts = {};
+			for ( k = 0; k < levels.length; k++ ) {
+				pts[ levels[ k ][ 0 ] ] = Number( levels[ k ][ 1 ][ i ] ) || 0;
+			}
+			( data.anchors || [] ).forEach( function ( an ) {
+				if ( an[ 1 ] === rar[ i ][ 0 ] && !has( pts, an[ 0 ] ) ) {
+					pts[ an[ 0 ] ] = Number( an[ 2 ] ) || 0;
+				}
+			} );
+			if ( unlock > 0 && !has( pts, unlock - 1 ) ) {
+				pts[ unlock - 1 ] = 0;
+			}
+			before = null;
+			after = null;
+			for ( a in pts ) {
+				if ( has( pts, a ) ) {
+					a = Number( a );
+					if ( a <= s && ( before === null || a > before ) ) {
+						before = a;
+					}
+					if ( a >= s && ( after === null || a < after ) ) {
+						after = a;
+					}
+				}
+			}
+			if ( before === null && after === null ) {
+				p = 0;
+			} else if ( before === null ) {
+				p = pts[ after ];
+			} else if ( after === null || after === before ) {
+				p = pts[ before ];
+			} else {
+				p = pts[ before ] + ( pts[ after ] - pts[ before ] ) * ( s - before ) / ( after - before );
+			}
+			odds.push( Math.max( 0, p ) );
+			pinned.push( before === s );
+		}
+		// scale what was interpolated to fill what the fixed chances leave
+		fixed = 0;
+		rest = 0;
+		for ( i = 0; i < odds.length; i++ ) {
+			if ( pinned[ i ] ) {
+				fixed += odds[ i ];
+			} else {
+				rest += odds[ i ];
+			}
+		}
+		if ( rest > 0 && fixed < 100 ) {
+			odds = odds.map( function ( v, j ) {
+				return pinned[ j ] ? v : v * ( 100 - fixed ) / rest;
+			} );
+		} else {
+			odds = toHundred( odds );
+		}
+		return { odds: odds, exact: false, between: [ lo, hi ], skill: s };
+	}
+
+	/**
+	 * Chances after luck: each one times (1 / (1 - t))^rank, rank = its
+	 * place in the list (Common 0), then scaled to 100%. At t = 1 all of it
+	 * goes to the rarest rarity with a chance above 0. A 0 stays 0.
+	 */
+	function applyLuck( odds, t ) {
+		var tilt = Math.max( 0, Math.min( 1, Number( t ) || 0 ) );
+		var i, top;
+		if ( tilt >= 1 ) {
+			top = -1;
+			for ( i = 0; i < odds.length; i++ ) {
+				if ( odds[ i ] > 0 ) {
+					top = i;
+				}
+			}
+			return odds.map( function ( p, j ) {
+				return j === top ? 100 : 0;
+			} );
+		}
+		var f = 1 / ( 1 - tilt );
+		return toHundred( odds.map( function ( p, j ) {
+			return p > 0 ? p * Math.pow( f, j ) : 0;
+		} ) );
+	}
+
+	/** A chance for the page: "42.5%", "3.07%", "<0.01%". */
+	function catchPct( p ) {
+		if ( p <= 0 ) {
+			return '0%';
+		}
+		if ( p < 0.01 ) {
+			return '<0.01%';
+		}
+		if ( p >= 99.995 ) {
+			return '100%';
+		}
+		return String( Number( p.toFixed( p >= 10 ? 1 : 2 ) ) ) + '%';
+	}
+
+	/** "2x luck" / "no luck" for the rod and potion lists. */
+	function luckLabel( x ) {
+		return luckPart( x ) ? String( Number( x ) ) + 'x luck' : 'no luck';
+	}
+
+	/** Luck shown as a number: 37, 7.5, 1.25. */
+	function luckNumber( n ) {
+		return String( Number( n.toFixed( 2 ) ) );
+	}
+
+	function buildCatch( container, data ) {
+		var id = 'ffb-catch-' + ( ++catchCount );
+		var rods = Array.isArray( data.rods ) && data.rods.length ? data.rods : [ { n: 'Basic Rod (no luck)', luck: 1 } ];
+		var potions = Array.isArray( data.potions ) && data.potions.length ? data.potions : [ { n: 'No potion', luck: 1 } ];
+		var max = data.maxSkill || 500;
+		var state = { skill: 0, pond: 'base', rod: 0, potion: 0, server: 0, event: 0, boost: 0, golden: 0 };
+
+		var root = el( 'div', 'ffb-catch-calc' );
+		var controls = el( 'div', 'ffb-catch-controls' );
+
+		// ---- Fishing Skill ----------------------------------------------
+		var skillInput = el( 'input', 'ffb-trade-input ffb-catch-skill' );
+		skillInput.type = 'number';
+		skillInput.min = '0';
+		skillInput.max = String( max );
+		skillInput.step = '1';
+		skillInput.setAttribute( 'inputmode', 'numeric' );
+		skillInput.value = '0';
+		skillInput.addEventListener( 'input', function () {
+			var n = parseInt( skillInput.value, 10 );
+			state.skill = isFinite( n ) ? Math.max( 0, Math.min( max, n ) ) : 0;
+			refresh();
+		} );
+		controls.appendChild( field( id + '-skill', 'Fishing Skill (0-' + max + ')', skillInput, 'ffb-catch-field' ).node );
+
+		// ---- where you fish ---------------------------------------------
+		var pondRow = el( 'div', 'ffb-catch-field ffb-catch-ponds' );
+		pondRow.appendChild( el( 'span', 'ffb-trade-label', 'Where you fish' ) );
+		var pondChips = el( 'div', 'ffb-catch-chips' );
+		var pondButtons = [];
+		[ [ 'base', 'Base pond' ], [ 'server', 'Server Pond' ] ].forEach( function ( pd ) {
+			var b = el( 'button', 'ffb-catch-chip', pd[ 1 ] );
+			b.type = 'button';
+			b.setAttribute( 'aria-pressed', pd[ 0 ] === state.pond ? 'true' : 'false' );
+			b.addEventListener( 'click', function () {
+				state.pond = pd[ 0 ];
+				refresh();
+			} );
+			pondButtons.push( { key: pd[ 0 ], node: b } );
+			pondChips.appendChild( b );
+		} );
+		pondRow.appendChild( pondChips );
+		controls.appendChild( pondRow );
+
+		// ---- rod and potion ---------------------------------------------
+		function itemPicker( key, list, label ) {
+			var picker = buildSearchPicker( {
+				id: id + '-' + key,
+				current: '0',
+				searchable: false,
+				inputClass: 'ffb-trade-input ffb-catch-select',
+				label: function ( v ) {
+					var it = list[ Number( v ) ];
+					return it ? it.n : '';
+				},
+				search: function () {
+					return list.map( function ( it, i ) {
+						return { value: String( i ), name: it.n, right: luckLabel( it.luck ) };
+					} );
+				},
+				exact: function ( text ) {
+					var t = String( text || '' ).trim().toLowerCase();
+					var i;
+					for ( i = 0; i < list.length; i++ ) {
+						if ( list[ i ].n.toLowerCase() === t ) {
+							return String( i );
+						}
+					}
+					return null;
+				},
+				onPick: function ( v ) {
+					state[ key ] = Number( v );
+					refresh();
+				}
+			} );
+			var f = pickerField( id + '-' + key, label, picker, 'ffb-catch-field' );
+			var luckNote = el( 'span', 'ffb-catch-itemluck' );
+			f.node.appendChild( luckNote );
+			return { node: f.node, note: luckNote, list: list, key: key };
+		}
+		var rodField = itemPicker( 'rod', rods, 'Rod' );
+		var potionField = itemPicker( 'potion', potions, 'Potion' );
+		controls.appendChild( rodField.node );
+		controls.appendChild( potionField.node );
+
+		// ---- other luck -------------------------------------------------
+		function numberField( key, label, hint ) {
+			var input = el( 'input', 'ffb-trade-input ffb-catch-num' );
+			input.type = 'number';
+			input.min = '0';
+			input.step = 'any';
+			input.setAttribute( 'inputmode', 'decimal' );
+			input.placeholder = '0';
+			input.addEventListener( 'input', function () {
+				state[ key ] = luckExtra( input.value );
+				refresh();
+			} );
+			var f = field( id + '-' + key, label, input, 'ffb-catch-field' );
+			f.label.appendChild( el( 'span', 'ffb-trade-optional', ' ' + hint ) );
+			return { node: f.node, input: input };
+		}
+		var serverField = numberField( 'server', 'Server luck', '(optional)' );
+		var eventField = numberField( 'event', 'Event luck', '(optional)' );
+		var boostField = numberField( 'boost', 'Catch boost', '(optional)' );
+		var goldenField = numberField( 'golden', 'Golden zone', '(optional)' );
+		controls.appendChild( serverField.node );
+		controls.appendChild( eventField.node );
+		controls.appendChild( boostField.node );
+		controls.appendChild( goldenField.node );
+		root.appendChild( controls );
+
+		// ---- results ----------------------------------------------------
+		var out = el( 'div', 'ffb-catch-out' );
+		var luckLine = el( 'p', 'ffb-catch-luck' );
+		var bars = el( 'div', 'ffb-catch-bars' );
+		var note = el( 'p', 'ffb-catch-note' );
+		out.appendChild( luckLine );
+		out.appendChild( bars );
+		out.appendChild( note );
+		root.appendChild( out );
+		root.appendChild( el( 'p', 'ffb-catch-foot', 'Luck only boosts rarities your skill can already catch; it never unlocks one. Celestials and Admin Secrets are never caught by fishing.' ) );
+
+		function refresh() {
+			var server = state.pond === 'server';
+			var luck, t, base, odds;
+			pondButtons.forEach( function ( b ) {
+				b.node.setAttribute( 'aria-pressed', b.key === state.pond ? 'true' : 'false' );
+			} );
+			potionField.node.hidden = server;
+			boostField.node.hidden = server;
+			goldenField.node.hidden = !server;
+			rodField.note.textContent = luckLabel( rods[ state.rod ].luck );
+			potionField.note.textContent = luckLabel( potions[ state.potion ].luck );
+
+			luck = catchLuck( {
+				pond: state.pond,
+				rod: rods[ state.rod ].luck,
+				potion: potions[ state.potion ].luck,
+				server: state.server,
+				event: state.event,
+				boost: state.boost,
+				golden: state.golden
+			} );
+			t = catchTilt( luck );
+			base = baseCatchOdds( data, state.skill );
+			odds = applyLuck( base.odds, t );
+
+			clear( luckLine );
+			luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', 'Total luck ' ) );
+			luckLine.appendChild( el( 'strong', 'ffb-catch-luck-value', luckNumber( luck ) ) );
+			luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' · tilt ' ) );
+			luckLine.appendChild( el( 'strong', 'ffb-catch-tilt-value', Math.round( t * 100 ) + '%' ) );
+			if ( server && luck < 1 ) {
+				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' (counts as 1)' ) );
+			}
+
+			clear( bars );
+			( data.rarities || [] ).forEach( function ( r, i ) {
+				var unlock = r[ 2 ];
+				var line, head, track, fill, color;
+				if ( unlock === null || unlock === undefined ) {
+					return;
+				}
+				line = el( 'div', 'ffb-catch-row' );
+				head = el( 'div', 'ffb-catch-row-head' );
+				color = safeColor( r[ 1 ] );
+				if ( color ) {
+					head.appendChild( swatch( color ) );
+				}
+				head.appendChild( el( 'span', 'ffb-catch-name', r[ 0 ] ) );
+				if ( base.skill < unlock ) {
+					line.className += ' ffb-catch-row-locked';
+					head.appendChild( el( 'span', 'ffb-catch-pct ffb-catch-lock', 'unlocks at skill ' + unlock ) );
+					line.appendChild( head );
+					bars.appendChild( line );
+					return;
+				}
+				if ( !( odds[ i ] > 0 ) ) {
+					line.className += ' ffb-catch-row-gone';
+					head.appendChild( el( 'span', 'ffb-catch-pct', '0%' ) );
+					line.appendChild( head );
+					bars.appendChild( line );
+					return;
+				}
+				head.appendChild( el( 'span', 'ffb-catch-pct', catchPct( odds[ i ] ) ) );
+				line.appendChild( head );
+				track = el( 'div', 'ffb-catch-track' );
+				fill = el( 'div', 'ffb-catch-fill' );
+				fill.setAttribute( 'style', 'width: ' + Math.max( 0.5, Math.min( 100, odds[ i ] ) ).toFixed( 2 ) + '%;' +
+					( color && color.charAt( 0 ) === '#' ? ' background-color: ' + color + ';' : '' ) );
+				track.appendChild( fill );
+				line.appendChild( track );
+				bars.appendChild( line );
+			} );
+
+			if ( base.exact ) {
+				note.textContent = 'Base chances measured in game at skill ' + base.skill + '.';
+				note.className = 'ffb-catch-note';
+			} else if ( base.between[ 1 ] === null ) {
+				note.textContent = 'Approximate: above the highest measured level (' + base.between[ 0 ] + '), worked out from the game’s schedule to level ' + max + '.';
+				note.className = 'ffb-catch-note ffb-catch-approx';
+			} else {
+				note.textContent = 'Approximate: between measured levels ' + base.between[ 0 ] + ' and ' + base.between[ 1 ] + '.';
+				note.className = 'ffb-catch-note ffb-catch-approx';
+			}
+		}
+
+		refresh();
+		container.appendChild( root );
+		return { root: root, refresh: refresh };
+	}
+
 	function init() {
 		var env = pageEnv();
 		var calcs = document.querySelectorAll( '.brainrot-calculator' );
@@ -6171,6 +6613,19 @@
 			} else {
 				buildTrade( container, data, env );
 			}
+		} );
+
+		var catches = document.querySelectorAll( '.ffb-catch' );
+		Array.prototype.forEach.call( catches, function ( container ) {
+			var data = readPayload( container.querySelector( '.ffb-catch-data' ) );
+			var note = container.querySelector( '.ffb-catch-nojs' );
+			if ( !data || !Array.isArray( data.rarities ) || !Array.isArray( data.levels ) ) {
+				return;
+			}
+			if ( note ) {
+				note.parentNode.removeChild( note );
+			}
+			buildCatch( container, data );
 		} );
 
 		var collections = document.querySelectorAll( '.ffb-collection' );
@@ -6276,7 +6731,13 @@
 			tradeRowFromSaved: tradeRowFromSaved,
 			collectionIncome: collectionIncome,
 			chooseStore: chooseStore,
-			browserListOffer: browserListOffer
+			browserListOffer: browserListOffer,
+			catchLuck: catchLuck,
+			catchTilt: catchTilt,
+			baseCatchOdds: baseCatchOdds,
+			applyLuck: applyLuck,
+			catchPct: catchPct,
+			buildCatch: buildCatch
 		};
 	}
 

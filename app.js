@@ -12,7 +12,7 @@
 
 	var WIKI = 'https://fortnite-creator-islands.fandom.com';
 	var HUB = 'Fish for Brainrots';
-	var TABS = [ 'trade', 'value', 'collection', 'codes' ];
+	var TABS = [ 'trade', 'value', 'collection', 'catch', 'codes' ];
 	var CODES_KEY = 'ffb-site-codes';
 
 	// tells calc.js it runs on this page, so it hands over its brainrot picker
@@ -131,7 +131,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=460d1731c3';
+		s.src = 'calc.js?v=93f2c4fd92';
 		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
@@ -142,6 +142,7 @@
 	var text = '{{#invoke:Brainrot|tradeMount}}\n' +
 		'{{#invoke:Brainrot|eventsJson}}\n' +
 		'{{#invoke:Brainrot|collectionMount}}\n' +
+		'{{#invoke:Brainrot|catchMount}}\n' +
 		'{{#invoke:Brainrot|calculatorMount|brainrot=' + chosen.replace( /[|{}\[\]]/g, '' ) + '}}';
 	var url = WIKI + '/api.php?action=parse&format=json&formatversion=2&origin=*' +
 		'&prop=text&disablelimitreport=1&contentmodel=wikitext&text=' + encodeURIComponent( text );
@@ -163,6 +164,11 @@
 		buildPicker( catalog );
 		move( holder, '.ffb-trade', 'slot-trade' );
 		move( holder, '.ffb-collection', 'slot-collection' );
+		// "What can I catch?" (needs the wiki's Module:Brainrot to have catchMount)
+		if ( !move( holder, '.ffb-catch', 'slot-catch' ) ) {
+			document.getElementById( 'slot-catch' ).textContent =
+				'The catch calculator isn\'t on the wiki yet. Check back soon.';
+		}
 		if ( !move( holder, '.brainrot-calculator', 'slot-value' ) ) {
 			document.getElementById( 'slot-value' ).textContent =
 				chosen + ' has no measured base yet, so it can\'t be calculated.';
