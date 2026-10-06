@@ -215,10 +215,9 @@
 
 	// ---- "Coming up": event start times in the reader's own time zone ------
 	// The wiki lists the events; their start times follow two fixed schedules
-	// (Events page and hub, 2026-09-24): Admin Abuse runs Saturday 9 PM and
-	// reruns Sunday 11 AM, Eastern time; the weekly Admin Pond runs from
-	// Tuesday 8 PM to Wednesday 8 PM Eastern (user, 2026-09-29; midnight UTC
-	// going into Wednesday). Eastern time is converted with the browser's own
+	// (Events page and hub): Admin Abuse runs Saturday 9 PM and reruns
+	// Sunday 11 AM, Eastern time; the Admin Pond runs twice a week for 48
+	// hours (since 2026-10-06; see below). Eastern time is converted with the browser's own
 	// time-zone data, so daylight saving is handled on both ends.
 	var ET = 'America/New_York';
 
@@ -266,25 +265,28 @@
 				out.push( { name: e.name, day: new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ], 12 ) ), note: '' } );
 			}
 		} );
-		// the weekly Admin Pond, Tuesday 8 PM Eastern for 24 hours: the one
-		// running now (from yesterday's start) or the next one
-		var i, t, nyDay;
-		for ( i = -1; i < 8; i++ ) {
-			t = new Date( now.getTime() + i * 86400000 );
-			nyDay = new Intl.DateTimeFormat( 'en-US', { timeZone: ET, weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric' } ).formatToParts( t );
-			var p = {};
-			nyDay.forEach( function ( x ) {
-				p[ x.type ] = x.value;
-			} );
-			if ( p.weekday === 'Tue' ) {
-				var start = zoned( +p.year, +p.month, +p.day, 20, 0, ET );
-				var stop = new Date( start.getTime() + 86400000 );
-				if ( stop > now ) {
-					out.push( { name: 'Admin Pond (weekly)', when: start, ends: stop, note: '24 hours' } );
-					break;
+		// the Admin Pond, twice a week for 48 hours since October 6, 2026
+		// (announcement; times 2 AM / 2 PM Mountain): midweek from Tuesday
+		// 4 AM Eastern, weekend from Friday 4 PM Eastern. For each, the run
+		// that's on now (it may have started up to 2 days ago) or the next.
+		[ [ 'Tue', 4, 'Admin Pond (midweek)' ], [ 'Fri', 16, 'Admin Pond (weekend)' ] ].forEach( function ( w ) {
+			var i, t, p;
+			for ( i = -2; i < 8; i++ ) {
+				t = new Date( now.getTime() + i * 86400000 );
+				p = {};
+				new Intl.DateTimeFormat( 'en-US', { timeZone: ET, weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric' } ).formatToParts( t ).forEach( function ( x ) {
+					p[ x.type ] = x.value;
+				} );
+				if ( p.weekday === w[ 0 ] ) {
+					var start = zoned( +p.year, +p.month, +p.day, w[ 1 ], 0, ET );
+					var stop = new Date( start.getTime() + 2 * 86400000 );
+					if ( stop > now ) {
+						out.push( { name: w[ 2 ], when: start, ends: stop, note: '48 hours' } );
+						return;
+					}
 				}
 			}
-		}
+		} );
 		return out.filter( function ( x ) {
 			if ( x.ends ) {
 				return x.ends.getTime() > now.getTime();
