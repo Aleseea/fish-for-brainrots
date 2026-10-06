@@ -2647,8 +2647,13 @@
 			noun: 'brainrot',
 			search: function ( q ) {
 				return searchBrainrots( cat, q ).map( function ( m ) {
-					return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity, color: m.color, right: m.base || 'no base yet' };
+					return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity, color: m.color,
+						icon: cat.brainrotIcon[ m.value ] || null, right: m.base || 'no base yet' };
 				} );
+			},
+			// the chosen brainrot's picture inside the box, like the other pickers
+			lead: function ( v ) {
+				return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ] } : null;
 			},
 			exact: function ( text ) {
 				return exactBrainrot( cat, text );
