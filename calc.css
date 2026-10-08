@@ -3289,6 +3289,43 @@ a.ffb-card-tab:hover {
 	font-size: 30px;
 }
 
+/* the phone site's value calculator: the trade card's dropdowns,
+   mutation | evolution | level on one row, the three traits below */
+.ffb-v2-dd.ffb-trade-card {
+	border: 0;
+	padding: 0;
+	background: none;
+}
+
+.ffb-v2-dd .ffb-trade-fields {
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.6fr);
+}
+
+.ffb-v2-dd .ffb-trade-field-mut {
+	grid-column: auto;
+}
+
+/* phones: mutation on its own row, evolution and level under it */
+@media (max-width: 480px) {
+	.ffb-v2-dd .ffb-trade-fields {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+	}
+
+	.ffb-v2-dd .ffb-trade-field-mut {
+		grid-column: 1 / -1;
+	}
+}
+
+.ffb-v2-dd .ffb-trade-input,
+.ffb-v2-dd .ffb-pick {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.ffb-v2-dd-quick .ffb-v2-quick {
+	margin: 10px 0;
+}
+
 /* what the climb still costs: to level 200, and on to Evo 7 */
 .ffb-v2 .ffb-v2-cost .ffb-calc-figure-value {
 	font-size: 17px;

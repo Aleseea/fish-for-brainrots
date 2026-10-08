@@ -329,7 +329,18 @@
 		var evos = [ 0 ].concat( data.evolutions );
 		var cat = {
 			data: { maxTraits: data.maxTraits || 3, maxEvolution: data.maxEvolution || data.evolutions.length,
-				maxLevel: data.maxLevel, evolutions: evos },
+				maxLevel: data.maxLevel, evolutions: evos,
+				// [ name, multiplier ], as the trade catalog has them (for its pickers)
+				mutations: data.mutations.map( function ( m ) {
+					return [ m.n, m.m ];
+				} ),
+				traits: data.traits.map( function ( t ) {
+					return [ t.n, t.m ];
+				} ) },
+			evolutionIcon: [ null ].concat( ( Array.isArray( data.evoIcons ) ? data.evoIcons : [] ).map( function ( u ) {
+				return safeIconUrl( u ) || null;
+			} ) ),
+			traitEmoji: {},
 			brainrots: {}, mutations: {}, traits: {},
 			rarityColor: {}, rarityColor2: {}, spinRarity: {},
 			brainrotIcon: {}, mutationIcon: {}, mutationColor: {}, traitIcon: {},
@@ -361,6 +372,9 @@
 		} );
 		data.traits.forEach( function ( t ) {
 			cat.traits[ t.n ] = t.m;
+			if ( t.e ) {
+				cat.traitEmoji[ t.n ] = t.e;
+			}
 			if ( safeIconUrl( t.i ) ) {
 				cat.traitIcon[ t.n ] = safeIconUrl( t.i );
 			}
@@ -467,7 +481,143 @@
 			return ( isDefault( r.mutation ) ? 'Default' : r.mutation ) + ', L' + r.level + ( r.evolution ? ', Evo ' + r.evolution : '' );
 		}
 
-		var root = el( 'div', 'ffb-calc ffb-v2' );
+		/**
+		 * The trade card's fields for this one brainrot: evolution, mutation
+		 * and level in a row, then a searchable picker per trait slot. They
+		 * edit state; set() puts state back into them after a load or reset.
+		 */
+		function buildDropdowns() {
+			var box = el( 'div', 'ffb-trade-card ffb-v2-dd' );
+			var fields = el( 'div', 'ffb-trade-fields' );
+			var row = stateRow();
+			var evo = buildListPicker( uid + 'e', evolutionOptions( cat ), String( state.evolution ),
+				'ffb-trade-input ffb-trade-select-evo', function ( v ) {
+					state.evolution = parseInt( v, 10 );
+					refresh();
+				} );
+			var mut = buildSearchPicker( {
+				id: uid + 'mutation',
+				current: row.mutation,
+				inputClass: 'ffb-trade-input ffb-trade-select-mut',
+				placeholder: 'Type a mutation',
+				noun: 'mutation',
+				search: function ( q ) {
+					return searchMutations( cat, q );
+				},
+				lead: function ( v ) {
+					return cat.mutationIcon[ v ] || cat.mutationColor[ v ] ?
+						{ icon: cat.mutationIcon[ v ] || null, color: cat.mutationColor[ v ] || null } : null;
+				},
+				exact: function ( text ) {
+					return exactName( cat.mutations, text );
+				},
+				onPick: function ( m ) {
+					state.mutation = mutIndex( m );
+					refresh();
+				}
+			} );
+			var lvl = el( 'input', 'ffb-trade-input ffb-trade-input-level' );
+			lvl.type = 'number';
+			lvl.min = '1';
+			lvl.max = String( data.maxLevel );
+			lvl.step = '1';
+			lvl.setAttribute( 'inputmode', 'numeric' );
+			lvl.value = String( state.level );
+			lvl.addEventListener( 'input', function () {
+				var n = parseInt( lvl.value, 10 );
+				if ( n >= 1 && n <= data.maxLevel ) {
+					state.level = n;
+					refresh();
+				}
+			} );
+			lvl.addEventListener( 'change', function () {
+				lvl.value = String( state.level );
+			} );
+			// mutation | evolution | level, as in the trade page's add box
+			fields.appendChild( pickerField( uid + 'mutation', 'Mutation', mut, 'ffb-trade-field-mut' ).node );
+			fields.appendChild( pickerField( uid + 'e', 'Evolution', evo, 'ffb-trade-field-evo' ).node );
+			fields.appendChild( field( uid + 'level', 'Level', lvl, 'ffb-trade-field-level' ).node );
+			box.appendChild( fields );
+			var quickHost = el( 'div', 'ffb-v2-dd-quick' );
+			box.appendChild( quickHost );
+			var traitGrid = el( 'div', 'ffb-trade-traits' );
+			var traits = [];
+			// the slots as shown (an empty one in the middle stays put);
+			// state.traits is the same traits without the gaps
+			var slots = { traits: row.traits.slice() };
+			var i;
+			function traitPicker( slot ) {
+				return buildSearchPicker( {
+					id: uid + 't' + slot,
+					current: row.traits[ slot ],
+					inputClass: 'ffb-trade-input ffb-trade-select-trait',
+					placeholder: 'No trait',
+					noun: 'trait',
+					label: function ( v ) {
+						return traitPickLabel( cat, v );
+					},
+					lead: function ( v ) {
+						return v && cat.traitIcon[ v ] ? { icon: cat.traitIcon[ v ] } : null;
+					},
+					search: function ( q ) {
+						return searchTraits( cat, slots, slot, q );
+					},
+					exact: function ( text ) {
+						var t = String( text || '' ).trim();
+						if ( t === '' || squash( t ) === 'notrait' ) {
+							return '';
+						}
+						var name = exactName( cat.traits, t );
+						return name && searchTraits( cat, slots, slot, name ).some( function ( m ) {
+							return m.value === name;
+						} ) ? name : null;
+					},
+					onPick: function ( t ) {
+						if ( setTrait( cat, slots, slot, t ) ) {
+							state.traits = slots.traits.filter( function ( n ) {
+								return n;
+							} ).map( traitIndex );
+							refresh();
+						}
+					}
+				} );
+			}
+			for ( i = 0; i < maxTraits; i++ ) {
+				traits.push( traitPicker( i ) );
+				traitGrid.appendChild( pickerField( uid + 't' + i, 'Trait ' + ( i + 1 ), traits[ i ] ).node );
+			}
+			box.appendChild( traitGrid );
+			controls.appendChild( box );
+			return {
+				quickHost: quickHost,
+				set: function () {
+					var r = stateRow();
+					evo.set( String( state.evolution ) );
+					mut.set( r.mutation );
+					lvl.value = String( state.level );
+					slots.traits = r.traits.slice();
+					traits.forEach( function ( p, k ) {
+						p.set( r.traits[ k ] );
+					} );
+				}
+			};
+		}
+
+		/** Puts state back into whichever controls this page has. */
+		function syncControls() {
+			if ( dd ) {
+				dd.set();
+				return;
+			}
+			mutPicker.set( String( state.mutation ) );
+			lvlInput.value = String( state.level );
+		}
+
+		// the phone site picks with the trade card's dropdowns (user,
+		// 2026-10-08); the wiki keeps its chips (redesign canvas)
+		var dropdowns = !!( env && env.planner );
+		var dd = null;
+		var root = el( 'div', 'ffb-calc ffb-v2' + ( dropdowns ? ' ffb-v2-dropdowns' : '' ) );
 
 		// ---- In My base: the reader's own copies of this brainrot ----------
 		var strip = el( 'div', 'ffb-v2-strip' );
@@ -493,159 +643,165 @@
 			return body;
 		}
 
-		// ---- mutation: the strongest as chips, any of them by search -------
-		var mutBody = ctl( 'Mutation', uid + 'mutation' );
-		var mutOrder = data.mutations.map( function ( m, i ) {
-			return i;
-		} ).sort( function ( a, b ) {
-			return data.mutations[ b ].m - data.mutations[ a ].m || a - b;
-		} );
-		var mutChips = el( 'div', 'ffb-calc-chips' );
-		var mutChipNodes = [];
-		mutOrder.slice( 0, 6 ).concat( [ 0 ] ).forEach( function ( i ) {
-			var m = data.mutations[ i ];
-			var b = el( 'button', 'ffb-calc-chip ffb-v2-mut', m.n );
-			var mk = mark( safeColor( m.c ), safeIconUrl( m.i ) );
-			if ( mk ) {
-				b.insertBefore( mk, b.firstChild );
-			}
-			b.type = 'button';
-			b.addEventListener( 'click', function () {
-				state.mutation = i;
-				mutPicker.set( String( i ) );
-				refresh();
+		var mutPicker, mutChipNodes, trNodes, evoNodes, lvlInput, lvlOut, lvlBody;
+		if ( dropdowns ) {
+			dd = buildDropdowns();
+			lvlBody = dd.quickHost;
+		} else {
+			// ---- mutation: the strongest as chips, any of them by search -------
+			var mutBody = ctl( 'Mutation', uid + 'mutation' );
+			var mutOrder = data.mutations.map( function ( m, i ) {
+				return i;
+			} ).sort( function ( a, b ) {
+				return data.mutations[ b ].m - data.mutations[ a ].m || a - b;
 			} );
-			mutChipNodes.push( { i: i, b: b } );
-			mutChips.appendChild( b );
-		} );
-		mutBody.appendChild( mutChips );
-		var mutPicker = buildSearchPicker( {
-			id: uid + 'mutation',
-			current: String( state.mutation ),
-			inputClass: 'ffb-calc-select',
-			placeholder: 'Type any mutation',
-			noun: 'mutation',
-			label: function ( v ) {
-				return data.mutations[ Number( v ) ].n;
-			},
-			lead: function ( v ) {
-				var m = data.mutations[ Number( v ) ];
-				var icon = m && safeIconUrl( m.i );
-				var color = m && safeColor( m.c );
-				return icon || color ? { icon: icon, color: color } : null;
-			},
-			search: function ( q ) {
-				var sq = squash( q || '' );
-				return mutOrder.filter( function ( i ) {
-					return sq === '' || squash( data.mutations[ i ].n ).indexOf( sq ) !== -1;
-				} ).map( function ( i ) {
-					return { value: String( i ), color: safeColor( data.mutations[ i ].c ), icon: safeIconUrl( data.mutations[ i ].i ), right: '+' + data.mutations[ i ].m.toFixed( 2 ) };
-				} );
-			},
-			exact: function ( text ) {
-				var t = squash( text );
-				var i;
-				for ( i = 0; i < data.mutations.length; i++ ) {
-					if ( squash( data.mutations[ i ].n ) === t && t !== '' ) {
-						return String( i );
-					}
-				}
-				return null;
-			},
-			onPick: function ( v ) {
-				state.mutation = Number( v );
-				refresh();
-			}
-		} );
-		mutPicker.input.id = uid + 'mutation';
-		mutBody.appendChild( mutPicker.node );
-
-		// ---- traits: up to the game's three ---------------------------------
-		var trBody = ctl( 'Traits' );
-		var trChips = el( 'div', 'ffb-calc-chips ffb-calc-chips-traits' );
-		var trNodes = [];
-		var trNote = el( 'div', 'ffb-base-muted ffb-base-small', 'Up to ' + maxTraits + '.' );
-		trNote.setAttribute( 'aria-live', 'polite' );
-		data.traits.map( function ( t, i ) {
-			return i;
-		} ).sort( function ( a, b ) {
-			return data.traits[ b ].m - data.traits[ a ].m || a - b;
-		} ).forEach( function ( i ) {
-			var t = data.traits[ i ];
-			var tIcon = safeIconUrl( t.i );
-			var b = el( 'button', 'ffb-calc-chip ffb-v2-trait', ( tIcon ? t.n : emojiName( t.e, t.n ) ) + ' +' + t.m.toFixed( 2 ) );
-			if ( tIcon ) {
-				b.insertBefore( mark( null, tIcon ), b.firstChild );
-			}
-			b.type = 'button';
-			b.setAttribute( 'aria-pressed', 'false' );
-			b.addEventListener( 'click', function () {
-				var at = state.traits.indexOf( i );
-				if ( at !== -1 ) {
-					state.traits.splice( at, 1 );
-				} else if ( state.traits.length >= maxTraits ) {
-					trNote.textContent = 'A brainrot can have ' + maxTraits + ' traits at most: take one off first.';
-					return;
-				} else {
-					state.traits.push( i );
-				}
-				trNote.textContent = 'Up to ' + maxTraits + '.';
-				refresh();
-			} );
-			trNodes[ i ] = b;
-			trChips.appendChild( b );
-		} );
-		trBody.appendChild( trChips );
-		trBody.appendChild( trNote );
-
-		// ---- evolution --------------------------------------------------------
-		var evoBody = ctl( 'Evolution' );
-		var evoButtons = el( 'div', 'ffb-calc-chips ffb-v2-seg' );
-		var evoNodes = [];
-		var e;
-		for ( e = 0; e <= data.evolutions.length; e++ ) {
-			( function ( stage ) {
-				var b = el( 'button', 'ffb-calc-chip ffb-v2-evo', stage === 0 ? 'None' : 'E' + stage );
-				var badge = stage > 0 && Array.isArray( data.evoIcons ) ? mark( null, safeIconUrl( data.evoIcons[ stage - 1 ] ) ) : null;
-				if ( badge ) {
-					b.insertBefore( badge, b.firstChild );
+			var mutChips = el( 'div', 'ffb-calc-chips' );
+			var mutChipNodes = [];
+			mutOrder.slice( 0, 6 ).concat( [ 0 ] ).forEach( function ( i ) {
+				var m = data.mutations[ i ];
+				var b = el( 'button', 'ffb-calc-chip ffb-v2-mut', m.n );
+				var mk = mark( safeColor( m.c ), safeIconUrl( m.i ) );
+				if ( mk ) {
+					b.insertBefore( mk, b.firstChild );
 				}
 				b.type = 'button';
-				b.setAttribute( 'aria-pressed', stage === 0 ? 'true' : 'false' );
 				b.addEventListener( 'click', function () {
-					state.evolution = stage;
+					state.mutation = i;
+					mutPicker.set( String( i ) );
 					refresh();
 				} );
-				evoNodes.push( b );
-				evoButtons.appendChild( b );
-			}( e ) );
-		}
-		evoBody.appendChild( evoButtons );
+				mutChipNodes.push( { i: i, b: b } );
+				mutChips.appendChild( b );
+			} );
+			mutBody.appendChild( mutChips );
+			var mutPicker = buildSearchPicker( {
+				id: uid + 'mutation',
+				current: String( state.mutation ),
+				inputClass: 'ffb-calc-select',
+				placeholder: 'Type any mutation',
+				noun: 'mutation',
+				label: function ( v ) {
+					return data.mutations[ Number( v ) ].n;
+				},
+				lead: function ( v ) {
+					var m = data.mutations[ Number( v ) ];
+					var icon = m && safeIconUrl( m.i );
+					var color = m && safeColor( m.c );
+					return icon || color ? { icon: icon, color: color } : null;
+				},
+				search: function ( q ) {
+					var sq = squash( q || '' );
+					return mutOrder.filter( function ( i ) {
+						return sq === '' || squash( data.mutations[ i ].n ).indexOf( sq ) !== -1;
+					} ).map( function ( i ) {
+						return { value: String( i ), color: safeColor( data.mutations[ i ].c ), icon: safeIconUrl( data.mutations[ i ].i ), right: '+' + data.mutations[ i ].m.toFixed( 2 ) };
+					} );
+				},
+				exact: function ( text ) {
+					var t = squash( text );
+					var i;
+					for ( i = 0; i < data.mutations.length; i++ ) {
+						if ( squash( data.mutations[ i ].n ) === t && t !== '' ) {
+							return String( i );
+						}
+					}
+					return null;
+				},
+				onPick: function ( v ) {
+					state.mutation = Number( v );
+					refresh();
+				}
+			} );
+			mutPicker.input.id = uid + 'mutation';
+			mutBody.appendChild( mutPicker.node );
 
-		// ---- level ------------------------------------------------------------
-		var lvlBody = ctl( 'Level', uid + 'level' );
-		var lvlLine = el( 'div', 'ffb-v2-level' );
-		var lvlInput = el( 'input', 'ffb-calc-slider' );
-		lvlInput.type = 'range';
-		lvlInput.id = uid + 'level';
-		lvlInput.min = '1';
-		lvlInput.max = String( data.maxLevel );
-		lvlInput.value = String( state.level );
-		var lvlOut = el( 'output', 'ffb-calc-level-value', String( state.level ) );
-		lvlInput.addEventListener( 'input', function () {
-			state.level = parseInt( lvlInput.value, 10 );
-			refresh();
-		} );
-		lvlLine.appendChild( lvlInput );
-		lvlLine.appendChild( lvlOut );
-		lvlBody.appendChild( lvlLine );
+			// ---- traits: up to the game's three ---------------------------------
+			var trBody = ctl( 'Traits' );
+			var trChips = el( 'div', 'ffb-calc-chips ffb-calc-chips-traits' );
+			var trNodes = [];
+			var trNote = el( 'div', 'ffb-base-muted ffb-base-small', 'Up to ' + maxTraits + '.' );
+			trNote.setAttribute( 'aria-live', 'polite' );
+			data.traits.map( function ( t, i ) {
+				return i;
+			} ).sort( function ( a, b ) {
+				return data.traits[ b ].m - data.traits[ a ].m || a - b;
+			} ).forEach( function ( i ) {
+				var t = data.traits[ i ];
+				var tIcon = safeIconUrl( t.i );
+				var b = el( 'button', 'ffb-calc-chip ffb-v2-trait', ( tIcon ? t.n : emojiName( t.e, t.n ) ) + ' +' + t.m.toFixed( 2 ) );
+				if ( tIcon ) {
+					b.insertBefore( mark( null, tIcon ), b.firstChild );
+				}
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', 'false' );
+				b.addEventListener( 'click', function () {
+					var at = state.traits.indexOf( i );
+					if ( at !== -1 ) {
+						state.traits.splice( at, 1 );
+					} else if ( state.traits.length >= maxTraits ) {
+						trNote.textContent = 'A brainrot can have ' + maxTraits + ' traits at most: take one off first.';
+						return;
+					} else {
+						state.traits.push( i );
+					}
+					trNote.textContent = 'Up to ' + maxTraits + '.';
+					refresh();
+				} );
+				trNodes[ i ] = b;
+				trChips.appendChild( b );
+			} );
+			trBody.appendChild( trChips );
+			trBody.appendChild( trNote );
+
+			// ---- evolution --------------------------------------------------------
+			var evoBody = ctl( 'Evolution' );
+			var evoButtons = el( 'div', 'ffb-calc-chips ffb-v2-seg' );
+			var evoNodes = [];
+			var e;
+			for ( e = 0; e <= data.evolutions.length; e++ ) {
+				( function ( stage ) {
+					var b = el( 'button', 'ffb-calc-chip ffb-v2-evo', stage === 0 ? 'None' : 'E' + stage );
+					var badge = stage > 0 && Array.isArray( data.evoIcons ) ? mark( null, safeIconUrl( data.evoIcons[ stage - 1 ] ) ) : null;
+					if ( badge ) {
+						b.insertBefore( badge, b.firstChild );
+					}
+					b.type = 'button';
+					b.setAttribute( 'aria-pressed', stage === 0 ? 'true' : 'false' );
+					b.addEventListener( 'click', function () {
+						state.evolution = stage;
+						refresh();
+					} );
+					evoNodes.push( b );
+					evoButtons.appendChild( b );
+				}( e ) );
+			}
+			evoBody.appendChild( evoButtons );
+
+			// ---- level ------------------------------------------------------------
+			var lvlBody = ctl( 'Level', uid + 'level' );
+			var lvlLine = el( 'div', 'ffb-v2-level' );
+			var lvlInput = el( 'input', 'ffb-calc-slider' );
+			lvlInput.type = 'range';
+			lvlInput.id = uid + 'level';
+			lvlInput.min = '1';
+			lvlInput.max = String( data.maxLevel );
+			lvlInput.value = String( state.level );
+			var lvlOut = el( 'output', 'ffb-calc-level-value', String( state.level ) );
+			lvlInput.addEventListener( 'input', function () {
+				state.level = parseInt( lvlInput.value, 10 );
+				refresh();
+			} );
+			lvlLine.appendChild( lvlInput );
+			lvlLine.appendChild( lvlOut );
+			lvlBody.appendChild( lvlLine );
+		}
 		var quick = el( 'div', 'ffb-v2-quick' );
 		[ 1, 100, 150, 175, data.maxLevel ].forEach( function ( q ) {
 			var b = el( 'button', 'ffb-calc-reset', 'Lv ' + q );
 			b.type = 'button';
 			b.addEventListener( 'click', function () {
 				state.level = q;
-				lvlInput.value = String( q );
+				syncControls();
 				refresh();
 			} );
 			quick.appendChild( b );
@@ -655,7 +811,7 @@
 		maxBtn.addEventListener( 'click', function () {
 			state.level = data.maxLevel;
 			state.evolution = data.evolutions.length;
-			lvlInput.value = String( data.maxLevel );
+			syncControls();
 			refresh();
 		} );
 		quick.appendChild( maxBtn );
@@ -664,8 +820,7 @@
 		reset.addEventListener( 'click', function () {
 			state = fresh();
 			loaded = null;
-			mutPicker.set( '0' );
-			lvlInput.value = String( data.maxLevel );
+			syncControls();
 			refresh();
 		} );
 		quick.appendChild( reset );
@@ -731,8 +886,7 @@
 				}
 			} );
 			loaded = { at: at, key: savedKey( r ), was: describe( r ) };
-			mutPicker.set( String( state.mutation ) );
-			lvlInput.value = String( state.level );
+			syncControls();
 			clear( toastBox );
 			refresh();
 		}
@@ -922,18 +1076,20 @@
 				data.growth + '^' + ( from - 2 ) + ' × ' + data.highGrowth + '^' + ( state.level - from + 1 );
 			working.textContent = sumText + '  =  ×' + total.toFixed( 2 ) + '   × ' + growthText;
 
-			lvlOut.textContent = String( state.level );
-			evoNodes.forEach( function ( b, i ) {
-				b.setAttribute( 'aria-pressed', i === state.evolution ? 'true' : 'false' );
-			} );
-			mutChipNodes.forEach( function ( x ) {
-				x.b.setAttribute( 'aria-pressed', x.i === state.mutation ? 'true' : 'false' );
-			} );
-			trNodes.forEach( function ( b, i ) {
-				if ( b ) {
-					b.setAttribute( 'aria-pressed', state.traits.indexOf( i ) !== -1 ? 'true' : 'false' );
-				}
-			} );
+			if ( !dd ) {
+				lvlOut.textContent = String( state.level );
+				evoNodes.forEach( function ( b, i ) {
+					b.setAttribute( 'aria-pressed', i === state.evolution ? 'true' : 'false' );
+				} );
+				mutChipNodes.forEach( function ( x ) {
+					x.b.setAttribute( 'aria-pressed', x.i === state.mutation ? 'true' : 'false' );
+				} );
+				trNodes.forEach( function ( b, i ) {
+					if ( b ) {
+						b.setAttribute( 'aria-pressed', state.traits.indexOf( i ) !== -1 ? 'true' : 'false' );
+					}
+				} );
+			}
 			renderStrip();
 			renderSave();
 		}
