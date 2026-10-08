@@ -436,8 +436,10 @@
 		var cat = valueCatalog( data );
 		var uid = 'ffb-calc-' + ( ++valueCount ) + '-';
 		var maxTraits = cat.data.maxTraits;
+		// the phone site starts (and resets) at level 1: the brainrot as
+		// caught (user, 2026-10-08); the wiki's pages start fully levelled
 		var fresh = function () {
-			return { mutation: 0, traits: [], evolution: 0, level: data.maxLevel };
+			return { mutation: mutIndex( 'Default' ), traits: [], evolution: 0, level: env && env.planner ? 1 : data.maxLevel };
 		};
 		var state = fresh();
 		var store = env ? chooseStore( env ) : { kind: 'none', load: function () {

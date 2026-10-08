@@ -25,7 +25,20 @@
 	var catalog = null;
 
 	var params = new URLSearchParams( location.search );
-	var chosen = params.get( 'brainrot' ) || 'Tim Cheese';
+	// with no ?brainrot=, the Value tab opens on the best brainrot (highest
+	// base; user, 2026-10-08). The last one found is remembered, so the
+	// first request usually already asks for the right one.
+	var BEST_KEY = 'ffb-site-best';
+	var asked = params.get( 'brainrot' );
+	var chosen = asked || rememberedBest() || 'Skeleton Dragon';
+
+	function rememberedBest() {
+		try {
+			return localStorage.getItem( BEST_KEY );
+		} catch ( err ) {
+			return null;
+		}
+	}
 
 	// light theme when the phone asks for it; the calculator styles key off
 	// the same class Fandom uses
@@ -77,15 +90,21 @@
 		return WIKI + '/wiki/' + encodeURIComponent( title.replace( / /g, '_' ) ).replace( /%2F/g, '/' );
 	}
 
-	function buildPicker( catalog ) {
-		var pick = document.getElementById( 'pick' );
-		// most valuable first, like the wiki's dropdowns; only brainrots
-		// with a measured base can be calculated
-		var list = catalog.brainrots.filter( function ( b ) {
+	/**
+	 * Brainrots most valuable first, like the wiki's dropdowns (ties A-Z);
+	 * only brainrots with a measured base can be calculated.
+	 */
+	function byValue( catalog ) {
+		return catalog.brainrots.filter( function ( b ) {
 			return b[ 2 ] !== null;
 		} ).sort( function ( x, y ) {
 			return y[ 2 ] - x[ 2 ] || ( x[ 0 ] < y[ 0 ] ? -1 : 1 );
 		} );
+	}
+
+	function buildPicker( catalog ) {
+		var pick = document.getElementById( 'pick' );
+		var list = byValue( catalog );
 		list.forEach( function ( b ) {
 			var o = document.createElement( 'option' );
 			o.value = b[ 0 ];
@@ -131,7 +150,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=1b4d2140d8';
+		s.src = 'calc.js?v=f765acd1af';
 		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
@@ -139,13 +158,69 @@
 		document.body.appendChild( s );
 	}
 
+	function calculatorMount( name ) {
+		return '{{#invoke:Brainrot|calculatorMount|brainrot=' + name.replace( /[|{}\[\]]/g, '' ) + '}}';
+	}
+	function parseUrl( text ) {
+		return WIKI + '/api.php?action=parse&format=json&formatversion=2&origin=*' +
+			'&prop=text&disablelimitreport=1&contentmodel=wikitext&text=' + encodeURIComponent( text );
+	}
+	function getHtml( text ) {
+		return fetch( parseUrl( text ) ).then( function ( r ) {
+			if ( !r.ok ) {
+				throw new Error( 'HTTP ' + r.status );
+			}
+			return r.json();
+		} ).then( function ( res ) {
+			return res.parse.text;
+		} );
+	}
 	var text = '{{#invoke:Brainrot|tradeMount}}\n' +
 		'{{#invoke:Brainrot|eventsJson}}\n' +
 		'{{#invoke:Brainrot|collectionMount}}\n' +
 		'{{#invoke:Brainrot|catchMount}}\n' +
-		'{{#invoke:Brainrot|calculatorMount|brainrot=' + chosen.replace( /[|{}\[\]]/g, '' ) + '}}';
-	var url = WIKI + '/api.php?action=parse&format=json&formatversion=2&origin=*' +
-		'&prop=text&disablelimitreport=1&contentmodel=wikitext&text=' + encodeURIComponent( text );
+		calculatorMount( chosen );
+
+	/**
+	 * With no ?brainrot=, makes sure the Value tab got the best brainrot:
+	 * when the remembered one isn't the best any more, fetches the best
+	 * one's calculator and swaps it in. Resolves to the page's HTML.
+	 */
+	function withBest( html ) {
+		if ( asked ) {
+			return html;
+		}
+		var holder = document.createElement( 'div' );
+		holder.innerHTML = html;
+		var catalogEl = holder.querySelector( '.ffb-trade-data' );
+		var best = catalogEl ? byValue( JSON.parse( catalogEl.textContent ) )[ 0 ] : null;
+		if ( !best ) {
+			return html;
+		}
+		try {
+			localStorage.setItem( BEST_KEY, best[ 0 ] );
+		} catch ( err ) {}
+		if ( best[ 0 ] === chosen ) {
+			return html;
+		}
+		return getHtml( calculatorMount( best[ 0 ] ) ).then( function ( calcHtml ) {
+			var fresh = document.createElement( 'div' );
+			fresh.innerHTML = calcHtml;
+			var old = holder.querySelector( '.brainrot-calculator' );
+			var mount = fresh.querySelector( '.brainrot-calculator' );
+			if ( mount ) {
+				if ( old ) {
+					old.parentNode.replaceChild( mount, old );
+				} else {
+					holder.appendChild( mount );
+				}
+				chosen = best[ 0 ];
+			}
+			return holder.innerHTML;
+		}, function () {
+			return html;
+		} );
+	}
 
 	function useFigures( html, offlineAt ) {
 		var holder = document.createElement( 'div' );
@@ -188,13 +263,7 @@
 		}
 	}
 
-	fetch( url ).then( function ( r ) {
-		if ( !r.ok ) {
-			throw new Error( 'HTTP ' + r.status );
-		}
-		return r.json();
-	} ).then( function ( res ) {
-		var html = res.parse.text;
+	getHtml( text ).then( withBest ).then( function ( html ) {
 		try {
 			localStorage.setItem( SAVED_KEY, JSON.stringify( { at: Date.now(), chosen: chosen, html: html } ) );
 		} catch ( err ) {}
