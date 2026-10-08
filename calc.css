@@ -2799,3 +2799,963 @@
 	font-size: 85%;
 	opacity: 0.8;
 }
+
+/* ---- Brainrot pictures framed in their rarity's colour ----------------
+   Module:Brainrot (rarityPic) wraps each brainrot picture in a span with
+   --rc (and --rc2 for Celestial) from Module:BrainrotData. Eternal and up
+   spin: two bright points on opposite sides fading to almost transparent
+   (Celestial: to its second colour), rotating around the picture. */
+@property --ffb-rar-a {
+	syntax: '<angle>';
+	inherits: false;
+	initial-value: 0deg;
+}
+.ffb-rar {
+	display: inline-block;
+	vertical-align: middle;
+	padding: 2px;
+	border-radius: 7px;
+	line-height: 0;
+	background: var(--rc, #888888);
+}
+.ffb-rar img {
+	display: block;
+	border-radius: 5px;
+	background: rgba(0, 0, 0, 0.55);
+}
+.ffb-rar-big {
+	padding: 4px;
+	border-radius: 12px;
+}
+.ffb-rar-big img {
+	border-radius: 9px;
+}
+.ffb-rar-spin {
+	background: conic-gradient(from var(--ffb-rar-a),
+		var(--rc) 0deg,
+		var(--rc2, color-mix(in srgb, var(--rc) 12%, transparent)) 90deg,
+		var(--rc) 180deg,
+		var(--rc2, color-mix(in srgb, var(--rc) 12%, transparent)) 270deg,
+		var(--rc) 360deg);
+	animation: ffb-rar-spin 3s linear infinite;
+}
+@keyframes ffb-rar-spin {
+	to {
+		--ffb-rar-a: 360deg;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.ffb-rar-spin {
+		animation: none;
+	}
+}
+/* Admin Secret and Eternal frames (user, 2026-10-06): one see-through
+   point, the rarity colour on both sides of it, brightest straight
+   opposite; most of the frame is solid colour. */
+.ffb-rar-admin-secret.ffb-rar-spin,
+.ffb-rar-eternal.ffb-rar-spin {
+	background: conic-gradient(from var(--ffb-rar-a),
+		transparent 0deg,
+		var(--rc) 110deg,
+		var(--rc) 250deg,
+		transparent 360deg);
+}
+
+/* ---------------------------------------------------------------------
+   Brainrot pages, simplified (user approved the design, 2026-10-07):
+   At a glance boxes, income by mutation, full-number tooltips.
+   The figures' layout is inline in Module:Brainrot for the mobile site;
+   this only adds what needs a stylesheet. */
+.ffb-phone-only {
+	display: none !important;
+}
+.client-js .ffb-value-nojs {
+	display: none;
+}
+.ffb-income .ffb-income-mut {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--theme-page-background-color, #1b1e24);
+	white-space: nowrap;
+}
+.ffb-income th.ffb-income-mut {
+	z-index: 2;
+}
+.theme-fandomdesktop-light .ffb-glance-best .ffb-glance-v,
+.theme-fandomdesktop-light .ffb-income .ffb-income-best {
+	color: #94600c !important;
+}
+/* hover (or keyboard focus) for 0.7 s shows the figure in full and its name */
+.ffb-num {
+	position: relative;
+	cursor: help;
+	text-decoration: underline dotted rgba(128, 128, 128, 0.6);
+	text-underline-offset: 3px;
+}
+.ffb-num::after {
+	content: attr(data-full) "\A" attr(data-name);
+	white-space: pre;
+	position: absolute;
+	right: 0;
+	bottom: calc(100% + 6px);
+	z-index: 5;
+	padding: 6px 9px;
+	border-radius: 8px;
+	border: 1px solid var(--theme-border-color, rgba(255, 255, 255, 0.18));
+	background: var(--theme-page-background-color--secondary, #23262d);
+	color: var(--theme-page-text-color, #e6e6e9);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.45;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition: opacity 0.12s ease 0s, visibility 0s linear 0.12s;
+}
+.ffb-num:hover::after,
+.ffb-num:focus::after {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 0.12s ease 0.7s, visibility 0s linear 0.7s;
+}
+/* the first rows' tips open downwards, inside the table's scroll box */
+.ffb-income tr:nth-child(-n+3) .ffb-num::after {
+	bottom: auto;
+	top: calc(100% + 6px);
+}
+.ffb-glance .ffb-num::after {
+	right: auto;
+	left: 0;
+	text-align: left;
+}
+@media (prefers-reduced-motion: reduce) {
+	.ffb-num::after,
+	.ffb-num:hover::after {
+		transition: none;
+	}
+}
+
+/* =======================================================================
+   Calculators, redesigned (the wiki's card and wide layouts; 2026-10)
+   -----------------------------------------------------------------------
+   The card the calculators sit in on the wiki (Trade · Value · My base),
+   the "Coming up" banner, the value calculator's In My base strip and
+   save buttons, the sign-in prompt, Suggest an offer, and the wide
+   layouts of the trade calculator and My base. The card follows the
+   wiki's theme (Fandom's theme variables), gold darkened on light.
+   ======================================================================= */
+.ffb-card {
+	--ffb-accent: #e3a83f;
+	--ffb-line: rgba(128, 128, 128, 0.3);
+	--ffb-panel: rgba(128, 128, 128, 0.08);
+	--ffb-good: #6cc28a;
+	--ffb-bad: #ec7a72;
+	--ffb-mixed: #e3a83f;
+	margin: 14px 0 18px;
+	border-radius: 18px;
+	border: 1px solid rgba(227, 168, 63, 0.35);
+	background: var(--theme-page-background-color, #1b1e24);
+	color: var(--theme-page-text-color, inherit);
+	overflow: hidden;
+	font-size: 15px;
+	line-height: 1.45;
+}
+
+.theme-fandomdesktop-light .ffb-card,
+.theme-fandom-light .ffb-card {
+	--ffb-accent: #a86b00;
+	--ffb-good: #1f7a45;
+	--ffb-bad: #b3342b;
+	--ffb-mixed: #a86b00;
+	border-color: rgba(168, 107, 0, 0.35);
+}
+
+.ffb-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 18px;
+	padding: 10px 20px 0;
+	border-bottom: 1px solid var(--ffb-line);
+}
+
+.ffb-card-title {
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1.15;
+	padding-bottom: 8px;
+}
+
+.ffb-card-sub {
+	display: block;
+	font-size: 12px;
+	font-weight: 500;
+	opacity: 0.72;
+}
+
+.ffb-card-tabs {
+	display: flex;
+	gap: 2px;
+	align-self: flex-end;
+}
+
+.ffb-card-tab {
+	padding: 9px 14px;
+	font-weight: 700;
+	font-size: 15px;
+	margin-bottom: -1px;
+	border-bottom: 3px solid transparent;
+	color: inherit;
+	opacity: 0.72;
+	text-decoration: none;
+}
+
+a.ffb-card-tab:hover {
+	opacity: 1;
+	text-decoration: none;
+}
+
+.ffb-card-tab-on {
+	color: var(--ffb-accent);
+	border-bottom-color: var(--ffb-accent);
+	opacity: 1;
+}
+
+.ffb-card-gap {
+	flex: 1;
+}
+
+.ffb-card-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	padding-bottom: 8px;
+	opacity: 0.85;
+}
+
+.ffb-card-status:empty {
+	display: none;
+}
+
+.ffb-card-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 4px;
+	background: var(--ffb-good);
+}
+
+.ffb-card-dot-off {
+	background: currentColor;
+	opacity: 0.5;
+}
+
+.ffb-card-body {
+	padding: 16px 20px 20px;
+}
+
+/* the calculators inside lose their own frames and margins */
+.ffb-card .ffb-calc {
+	border: 0;
+	padding: 0;
+	margin: 0;
+}
+
+.ffb-card .ffb-t2 {
+	padding-bottom: 0;
+}
+
+/* ---- "Coming up" banner ------------------------------------------------- */
+.ffb-banner-box {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 16px;
+	border-radius: 14px;
+	border: 1px solid rgba(227, 168, 63, 0.35);
+	background: var(--theme-page-background-color--secondary, rgba(128, 128, 128, 0.08));
+	font-size: 15px;
+	min-width: 0;
+}
+
+.ffb-banner-box:hover,
+.ffb-banner-box:focus-within {
+	border-color: var(--ffb-accent, #e3a83f);
+}
+
+.ffb-banner-title {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ffb-accent, #e3a83f);
+	white-space: nowrap;
+}
+
+.ffb-banner-item {
+	flex: 1;
+	min-width: 0;
+	color: inherit !important;
+	text-decoration: none !important;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ffb-banner-live {
+	display: inline-block;
+	padding: 1px 7px;
+	margin-right: 6px;
+	border-radius: 999px;
+	background: #c73b3b;
+	color: #ffffff;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	vertical-align: 1px;
+}
+
+.ffb-banner-count {
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	color: var(--ffb-accent, #e3a83f);
+}
+
+.ffb-banner-when,
+.ffb-banner-n {
+	opacity: 0.72;
+	font-size: 0.9em;
+}
+
+.ffb-banner-n {
+	white-space: nowrap;
+}
+
+.ffb-banner-dots {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.ffb-banner-dot {
+	width: 8px;
+	height: 8px;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: currentColor;
+	opacity: 0.3;
+	cursor: pointer;
+}
+
+.ffb-banner-dot-on {
+	width: 18px;
+	background: var(--ffb-accent, #e3a83f);
+	opacity: 1;
+}
+
+.ffb-banner-all {
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+.ffb-banner-small {
+	padding: 5px 10px;
+	gap: 8px;
+	border-radius: 10px;
+	font-size: 13px;
+	max-width: 440px;
+	margin-bottom: 8px;
+	background: var(--ffb-panel);
+	border-color: var(--ffb-line);
+}
+
+.ffb-banner-small .ffb-banner-dot {
+	width: 6px;
+	height: 6px;
+}
+
+.ffb-banner-small .ffb-banner-dot-on {
+	width: 13px;
+}
+
+.ffb-banner-icon {
+	margin-right: 6px;
+}
+
+.ffb-banner {
+	margin: 14px 0;
+}
+
+.client-js .ffb-banner .ffb-banner-nojs {
+	display: none;
+}
+
+/* ---- value calculator: controls left, the answer right -------------------- */
+.ffb-v2-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+	gap: 22px;
+	align-items: start;
+}
+
+.ffb-v2 .ffb-calc-controls .ffb-calc-row {
+	display: grid;
+	grid-template-columns: 90px minmax(0, 1fr);
+	gap: 12px;
+	align-items: start;
+	padding: 9px 0;
+	margin: 0;
+	border-bottom: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+}
+
+.ffb-v2 .ffb-calc-label {
+	padding-top: 8px;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.ffb-v2-ctl {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.ffb-v2 .ffb-calc-chip {
+	min-height: 34px;
+	padding: 0 10px;
+	font-size: 12.5px;
+	display: inline-flex;
+	align-items: center;
+}
+
+.ffb-v2 .ffb-calc-select {
+	min-height: 36px;
+	max-width: 300px;
+}
+
+.ffb-v2-seg .ffb-calc-chip {
+	flex: 1 0 auto;
+	justify-content: center;
+}
+
+.ffb-v2-level {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.ffb-v2-quick {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.ffb-v2-max {
+	color: var(--ffb-accent, #e3a83f);
+}
+
+.ffb-v2-side {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.ffb-v2 .ffb-calc-result {
+	margin: 0;
+	padding: 14px;
+	border: 1px solid var(--ffb-accent, #e3a83f);
+	border-radius: 16px;
+	background: linear-gradient(135deg, rgba(227, 168, 63, 0.16), rgba(227, 168, 63, 0.03));
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.ffb-v2 .ffb-calc-figure-value {
+	font-size: 20px;
+}
+
+.ffb-v2 .ffb-v2-income .ffb-calc-figure-value {
+	font-size: 30px;
+}
+
+/* what the climb still costs: to level 200, and on to Evo 7 */
+.ffb-v2 .ffb-v2-cost .ffb-calc-figure-value {
+	font-size: 17px;
+}
+
+.ffb-v2 .ffb-v2-cost .ffb-v2-cost-done {
+	opacity: 0.7;
+	font-weight: 700;
+}
+
+.ffb-v2 .ffb-calc-working {
+	padding: 8px 10px;
+	border-radius: 10px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	font-size: 12px;
+	white-space: pre-wrap;
+}
+
+.ffb-v2-strip {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding: 10px 14px;
+	margin-bottom: 14px;
+	border-radius: 14px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: var(--ffb-panel, rgba(128, 128, 128, 0.08));
+}
+
+.ffb-v2-strip-title {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ffb-accent, #e3a83f);
+}
+
+.ffb-v2-mine {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.ffb-v2-mine-on {
+	border: 2px solid var(--ffb-accent, #e3a83f);
+}
+
+.ffb-v2-mine-fig,
+.ffb-v2-mine-tag {
+	font-weight: 700;
+	color: var(--ffb-accent, #e3a83f);
+}
+
+.ffb-v2-mine-tag {
+	font-size: 11px;
+}
+
+.ffb-v2-strip-hint {
+	margin-left: auto;
+}
+
+.ffb-v2-save {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.ffb-v2-save-main {
+	min-height: 42px;
+}
+
+@media (max-width: 760px) {
+	.ffb-v2-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ffb-v2 .ffb-calc-controls .ffb-calc-row {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 4px;
+	}
+}
+
+/* ---- Saved · Undo, and the sign-in prompt -------------------------------- */
+.ffb-toast {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-radius: 12px;
+	background: #120d16;
+	color: #f1eaf3;
+	border: 1px solid #6cc28a;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+	font-size: 13px;
+}
+
+.ffb-toast-tick {
+	color: #6cc28a;
+	font-weight: 900;
+}
+
+.ffb-toast-text {
+	flex: 1;
+}
+
+.ffb-toast-undo {
+	border: 0;
+	background: none;
+	color: #e3a83f;
+	font: inherit;
+	font-weight: 800;
+	cursor: pointer;
+	padding: 0;
+}
+
+.ffb-signin {
+	padding: 12px 14px;
+	border-radius: 14px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: var(--ffb-panel, rgba(128, 128, 128, 0.08));
+}
+
+.ffb-signin-title {
+	font-weight: 800;
+	font-size: 15px;
+}
+
+.ffb-signin-acts {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.ffb-signin-go,
+.ffb-signin-new {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40px;
+	border-radius: 9px;
+	font-weight: 800;
+	font-size: 14px;
+	text-decoration: none !important;
+}
+
+.ffb-signin-go {
+	background: var(--ffb-accent, #e3a83f);
+	color: #1b1320 !important;
+}
+
+.ffb-signin-new {
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	color: inherit !important;
+}
+
+/* ---- the search lists: headings over your brainrots and the catalog ------ */
+.ffb-pick-group {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 8px;
+	padding: 8px 12px 5px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	list-style: none;
+}
+
+.ffb-pick-group-name {
+	color: var(--ffb-accent, #e3a83f);
+	white-space: nowrap;
+}
+
+.ffb-pick-group-hint {
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: 500;
+	opacity: 0.72;
+	text-align: right;
+}
+
+/* ---- trade, wide: the sides side by side, the verdict beside them -------- */
+.ffb-t2-cols {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+	gap: 20px;
+	align-items: start;
+}
+
+.ffb-t2-main,
+.ffb-t2-aside {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+
+.ffb-t2-sides {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	align-items: start;
+}
+
+.ffb-t2-sides > .ffb-base-h,
+.ffb-t2-sides > p,
+.ffb-t2-sides > .ffb-base-note {
+	grid-column: 1 / -1;
+}
+
+.ffb-t2-details {
+	padding: 10px 14px;
+	border-radius: 14px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: var(--ffb-panel, rgba(128, 128, 128, 0.08));
+}
+
+.ffb-t2-details-sum {
+	cursor: pointer;
+	font-weight: 700;
+}
+
+/* the long-term answer under the verdict title: which way the trade goes
+   once everything is fully upgraded, even when the gap is small */
+.ffb-t2-longterm {
+	margin: 2px 0 10px;
+	padding: 8px 10px;
+	border-radius: 10px;
+	border: 1px solid var(--ffb-line);
+	border-left-width: 4px;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.45;
+}
+
+.ffb-t2-longterm-good {
+	border-color: var(--ffb-good);
+	color: var(--ffb-good);
+}
+
+.ffb-t2-longterm-bad {
+	border-color: var(--ffb-bad);
+	color: var(--ffb-bad);
+}
+
+.ffb-t2-verdict-small .ffb-t2-longterm {
+	margin: 8px 0 0;
+}
+
+.ffb-t2-verdict-wait {
+	padding: 14px;
+	border-radius: 14px;
+	border: 1px dashed var(--ffb-line, rgba(128, 128, 128, 0.3));
+	opacity: 0.8;
+}
+
+.ffb-t2-suggest {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 10px;
+}
+
+.ffb-t2-offer {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: var(--ffb-panel, rgba(128, 128, 128, 0.08));
+}
+
+.ffb-t2-offer > .ffb-t2-chip {
+	align-self: flex-start;
+}
+
+@media (max-width: 900px) {
+	.ffb-t2-cols {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 620px) {
+	.ffb-t2-sides {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* ---- My base, wide: figures along the top, the list and the plans -------- */
+.ffb-base-stats {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.ffb-base-stat {
+	padding: 10px 14px;
+	border-radius: 12px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+	background: var(--ffb-panel, rgba(128, 128, 128, 0.08));
+	min-width: 0;
+}
+
+.ffb-base-stat-v {
+	font-size: 18px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+}
+
+.ffb-base-cols {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+	gap: 20px;
+	align-items: start;
+}
+
+.ffb-base-side {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	padding: 10px 14px 14px;
+	border-radius: 14px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+}
+
+.ffb-base-out {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
+	gap: 22px;
+	align-items: start;
+}
+
+.ffb-base-offer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.ffb-base-offer p {
+	flex: 1 1 100%;
+	margin: 0;
+}
+
+@media (max-width: 900px) {
+	.ffb-base-stats {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.ffb-base-cols,
+	.ffb-base-out {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* figures a reader can tap or tab to: no focus ring box, the tip shows instead */
+.ffb-num[tabindex]:focus {
+	outline: 2px solid var(--ffb-accent, #e3a83f);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* ---- the hub's calculators card (desktop only: hidden inline, shown here) */
+.ffb-hub-card {
+	display: block !important;
+	margin: 16px 0;
+	padding: 16px 18px;
+	border-radius: 18px;
+	border: 1px solid rgba(227, 168, 63, 0.35);
+	background: var(--theme-page-background-color, #1b1e24);
+}
+
+.ffb-hub-top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 12px;
+	font-size: 18px;
+}
+
+.ffb-hub-sub {
+	font-size: 13px;
+	opacity: 0.72;
+}
+
+.ffb-hub-phone {
+	margin-left: auto;
+	font-size: 13px;
+}
+
+.ffb-hub-tiles {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.ffb-hub-tile {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 14px 16px;
+	border-radius: 14px;
+	border: 1px solid rgba(128, 128, 128, 0.3);
+	background: rgba(128, 128, 128, 0.08);
+	min-width: 0;
+}
+
+.ffb-hub-tile-main {
+	border-color: #e3a83f;
+}
+
+.ffb-hub-tab {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #e3a83f;
+}
+
+.theme-fandomdesktop-light .ffb-hub-tab,
+.theme-fandom-light .ffb-hub-tab {
+	color: #a86b00;
+}
+
+.ffb-hub-head {
+	font-size: 17px;
+	font-weight: 800;
+}
+
+.ffb-hub-desc {
+	font-size: 13px;
+	opacity: 0.8;
+}
+
+@media (max-width: 760px) {
+	.ffb-hub-tiles {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* hidden parts of the calculators stay hidden (display rules above would show them) */
+.ffb-card [hidden],
+.ffb-calc [hidden],
+.ffb-base [hidden],
+.ffb-t2 [hidden] {
+	display: none !important;
+}
+
+.ffb-v2-save-main {
+	background: var(--ffb-accent, #e3a83f);
+	border: 1px solid var(--ffb-accent, #e3a83f);
+	border-style: solid;
+	color: #1b1320;
+	font-weight: 800;
+}

@@ -18,7 +18,7 @@ css = open(os.path.join(WIKI, 'Common.css')).read()
 # Top-level sections start with a "/* ===..." banner whose first text line
 # names them. Keep the calculator ones, drop the rest (brainrot page layout,
 # home page, Updates chips, navbox, Fandom gallery helpers).
-WANTED = ('Value calculator', 'Trade calculator', 'My collection', 'My base', 'Catch calculator')
+WANTED = ('Value calculator', 'Trade calculator', 'My collection', 'My base', 'Catch calculator', 'Calculators, redesigned')
 parts = re.split(r'(?m)^(?=/\* =+\s*$)', css)
 kept = []
 for part in parts:
