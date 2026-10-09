@@ -3326,7 +3326,8 @@ a.ffb-card-tab:hover {
 	margin: 10px 0;
 }
 
-/* cost to reach any evolution and level, under the two cost figures */
+/* the upgrade costs and Cost to reach each start under a line */
+.ffb-v2 .ffb-v2-ceil + .ffb-v2-cost,
 .ffb-v2 .ffb-v2-target {
 	margin-top: 4px;
 	padding-top: 12px;
