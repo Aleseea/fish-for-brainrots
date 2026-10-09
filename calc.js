@@ -2175,11 +2175,53 @@
 				// the level-199 cost is verified in game (see the plan)
 				pass.push( 'What you get still needs ' + lv + ' levels of upgrades to reach its max.' );
 			}
-			if ( getRows.length > giveRows.length ) {
-				take.push( 'You get ' + getRows.length + ' brainrots for ' + giveRows.length + '.' );
+			// base space is limited, so the counts matter by how the
+			// brainrots compare one by one, $/s today (user, 2026-10-09):
+			// fewer for more is a pro when what you get beats your best
+			// one (a great one when it beats them all put together) and a con
+			// when it doesn't; more for fewer is a con when every one you
+			// get is worse than your best one, else only good to know
+			var extra = Math.abs( giveRows.length - getRows.length );
+			var slotsText = plural( extra, 'base slot', 'base slots' );
+			var bestName = function ( it ) {
+				return ( isDefault( it.row.mutation ) ? '' : it.row.mutation + ' ' ) + it.row.name;
+			};
+			if ( giveRows.length > getRows.length && judge && !give.partial && !get.partial ) {
+				if ( get.best.now > give.now ) {
+					take.push( ( getRows.length === 1 ? bestName( get.best ) + ' alone' : 'Your strongest new one, ' + bestName( get.best ) + ', alone' ) +
+						' earns more than all ' + giveRows.length + ' you give put together (' + say( get.best.now ) + '/s against ' +
+						say( give.now ) + '/s), and it frees ' + slotsText + '. A great trade when space is tight.' );
+				} else if ( get.best.now > give.best.now ) {
+					take.push( bestName( get.best ) + ' earns more than any one brainrot you give (' + say( get.best.now ) + '/s against ' +
+						bestName( give.best ) + '’s ' + say( give.best.now ) + '/s), and it frees ' + slotsText + '.' );
+				} else {
+					pass.push( 'You give ' + giveRows.length + ' brainrots for ' + getRows.length + ', but nothing you get earns more than your ' +
+						bestName( give.best ) + ' alone (' + say( give.best.now ) + '/s). Fewer brainrots, and none of them better.' );
+				}
 			}
-			if ( giveRows.length > getRows.length ) {
-				pass.push( 'You give ' + giveRows.length + ' brainrots for ' + getRows.length + '.' );
+			if ( getRows.length > giveRows.length && judge && !give.partial && !get.partial ) {
+				if ( get.best.now < give.best.now ) {
+					pass.push( 'You get ' + getRows.length + ' brainrots for ' + giveRows.length + ', and each earns less than ' +
+						( giveRows.length === 1 ? '' : 'your best one, ' ) + bestName( give.best ) + ' (' + say( give.best.now ) +
+						'/s): they’d fill ' + plural( getRows.length, 'base slot', 'base slots' ) + ' with weaker brainrots.' );
+				} else {
+					notes.push( 'Takes ' + plural( extra, 'more base slot', 'more base slots' ) + ': you get ' +
+						getRows.length + ' brainrots for ' + giveRows.length + '. That helps if they out-earn what they push out of your base, and hurts if your base is already full of stronger ones.' );
+				}
+			}
+			// with My base saved: what the trade does to the brainrots that
+			// actually earn, your strongest `slots` (as Suggest an offer counts)
+			if ( judge && trade.slots && trade.owned && trade.owned.length ) {
+				var base = baseAfterTrade( cat, trade.owned, giveRows, getRows, trade.slots );
+				if ( !base ) {
+					notes.push( 'Something you give isn’t in My base, so what this trade does to your strongest ' + trade.slots +
+						' can’t be worked out. Add it to My base to see.' );
+				} else if ( base.before > 0 && sameSize( base.after / base.before ) ) {
+					notes.push( 'Your base: your strongest ' + base.slots + ' earn the same after this trade, ' + say( base.after ) + '/s.' );
+				} else if ( base.before > 0 ) {
+					( base.after > base.before ? take : pass ).push( 'Your base: your strongest ' + base.slots + ' earn ' + say( base.before ) +
+						'/s now and ' + say( base.after ) + '/s after this trade (' + pctText( base.after / base.before ) + ').' );
+				}
 			}
 			if ( bg && bt ) {
 				gf = bg.f;
@@ -3982,6 +4024,46 @@
 	}
 
 	/**
+	 * What a trade does to a base whose space is limited (user, 2026-10-09):
+	 * before, the strongest `slots` of the saved list earn; after, each
+	 * brainrot given comes off (its first exact match) and each one received
+	 * goes on, and the strongest `slots` earn again. Null when something
+	 * given isn't in the list (its income was never part of "before").
+	 * Returns { before, after, slots }.
+	 */
+	function baseAfterTrade( cat, saved, give, get, slots ) {
+		var left = saved.slice();
+		var i, k, at;
+		function top( rows ) {
+			return rows.map( function ( r ) {
+				return collectionStats( cat, r );
+			} ).filter( function ( st ) {
+				return st.measured;
+			} ).map( function ( st ) {
+				return st.now;
+			} ).sort( function ( a, b ) {
+				return b - a;
+			} ).slice( 0, slots ).reduce( function ( a, b ) {
+				return a + b;
+			}, 0 );
+		}
+		for ( i = 0; i < give.length; i++ ) {
+			k = savedKey( give[ i ] );
+			at = -1;
+			left.forEach( function ( r, j ) {
+				if ( at === -1 && savedKey( r ) === k ) {
+					at = j;
+				}
+			} );
+			if ( at === -1 ) {
+				return null;
+			}
+			left.splice( at, 1 );
+		}
+		return { before: top( saved ), after: top( left.concat( get ) ), slots: slots };
+	}
+
+	/**
 	 * A finished trade applied to the saved list: each brainrot given away
 	 * comes off (the first exact match: name, mutation, traits, evolution,
 	 * level), each one received goes on. A received brainrot takes the base
@@ -4330,7 +4412,9 @@
 				items: { give: text( 'give' ), get: text( 'get' ) },
 				myIncome: state.myIncome,
 				collectionIncome: saved.length ? collectionIncome( cat, inBase.length ? inBase : saved ) : null,
-				owned: saved
+				owned: saved,
+				// base slots from My base's profile, for the slot-aware reason
+				slots: saved.length ? readProfile( cat, chooseStore( env, 'profile' ).load() ).slots : null
 			} );
 		}
 
@@ -7299,6 +7383,7 @@
 			buildTrade2: buildTrade2,
 			plainChange: plainChange,
 			climbCost: climbCost,
+			baseAfterTrade: baseAfterTrade,
 			targetCost: targetCost,
 			changeText: changeText,
 			pctText: pctText,
