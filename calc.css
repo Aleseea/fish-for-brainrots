@@ -3326,6 +3326,31 @@ a.ffb-card-tab:hover {
 	margin: 10px 0;
 }
 
+/* cost to reach any evolution and level, under the two cost figures */
+.ffb-v2 .ffb-v2-target {
+	margin-top: 4px;
+	padding-top: 12px;
+	border-top: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+}
+
+.ffb-v2 .ffb-v2-target-fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+	gap: 8px;
+	margin: 6px 0 8px;
+}
+
+.ffb-v2 .ffb-v2-target-fields .ffb-trade-input,
+.ffb-v2 .ffb-v2-target-fields .ffb-pick {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.ffb-v2 .ffb-v2-target-out .ffb-calc-figure-value {
+	font-size: 20px;
+	color: var(--ffb-gold, #e3a83f);
+}
+
 /* what the climb still costs: to level 200, and on to Evo 7 */
 .ffb-v2 .ffb-v2-cost .ffb-calc-figure-value {
 	font-size: 17px;

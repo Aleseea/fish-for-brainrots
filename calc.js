@@ -841,6 +841,97 @@
 		result.appendChild( ceilOut );
 		result.appendChild( costOut );
 		result.appendChild( fullCostOut );
+
+		// ---- cost to reach any evolution and level, from where this is set;
+		// the last target is remembered (user, 2026-10-09)
+		var TARGET_KEY = 'ffb-value-target';
+		var storage = env && env.storage;
+		var target = ( function () {
+			var t = null;
+			try {
+				t = JSON.parse( readStorage( storage, TARGET_KEY ) || 'null' );
+			} catch ( err ) {}
+			return t && t.e >= 0 && t.e <= data.maxEvolution && t.l >= 1 && t.l <= data.maxLevel ?
+				{ e: Math.floor( t.e ), l: Math.floor( t.l ) } : { e: 1, l: data.maxLevel };
+		}() );
+		var targetBox = el( 'div', 'ffb-calc-figure ffb-v2-target' );
+		targetBox.appendChild( el( 'span', 'ffb-calc-figure-label', 'Cost to reach' ) );
+		var targetFields = el( 'div', 'ffb-v2-target-fields' );
+		var targetEvo = buildListPicker( uid + 'te', evolutionOptions( cat ), String( target.e ),
+			'ffb-trade-input ffb-trade-select-evo', function ( v ) {
+				target.e = parseInt( v, 10 );
+				keepTarget();
+			} );
+		var targetLvl = el( 'input', 'ffb-trade-input ffb-trade-input-level' );
+		targetLvl.type = 'number';
+		targetLvl.min = '1';
+		targetLvl.max = String( data.maxLevel );
+		targetLvl.step = '1';
+		targetLvl.setAttribute( 'inputmode', 'numeric' );
+		targetLvl.value = String( target.l );
+		targetLvl.addEventListener( 'input', function () {
+			var n = parseInt( targetLvl.value, 10 );
+			if ( n >= 1 && n <= data.maxLevel ) {
+				target.l = n;
+				keepTarget();
+			}
+		} );
+		targetLvl.addEventListener( 'change', function () {
+			targetLvl.value = String( target.l );
+		} );
+		targetFields.appendChild( pickerField( uid + 'te', 'Evolution', targetEvo, 'ffb-trade-field-evo' ).node );
+		targetFields.appendChild( field( uid + 'tl', 'Level', targetLvl, 'ffb-trade-field-level' ).node );
+		targetBox.appendChild( targetFields );
+		var targetOut = el( 'div', 'ffb-v2-target-out' );
+		targetBox.appendChild( targetOut );
+		result.appendChild( targetBox );
+
+		function keepTarget() {
+			if ( storage ) {
+				writeStorage( storage, TARGET_KEY, JSON.stringify( target ) );
+			}
+			renderTarget();
+		}
+
+		function evoOf( e ) {
+			return e > 0 ? data.evolutions[ e - 1 ] : 1;
+		}
+
+		/** "unevolved, level 200", "Evo 3, level 150" */
+		function where( evolution, level ) {
+			return ( evolution ? 'Evo ' + evolution : 'unevolved' ) + ', level ' + level;
+		}
+
+		function renderTarget() {
+			var tc = data.base === null || data.base === undefined ? null :
+				targetCost( data, data.base * totalFor( 0 ), state.evolution, state.level, target.e, target.l, evoOf );
+			var steps;
+			clear( targetOut );
+			if ( !tc || tc.there || tc.behind ) {
+				targetOut.appendChild( el( 'strong', 'ffb-calc-figure-value ffb-v2-cost-done',
+					!tc ? 'Not known yet' : tc.there ? 'Already there' : 'Already past it' ) );
+				if ( tc ) {
+					targetOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', tc.there ?
+						'The calculator is set to ' + where( target.e, target.l ) + ' already.' :
+						'This ' + data.name + ' is at ' + where( state.evolution, state.level ) + ', beyond ' +
+							where( target.e, target.l ) + '. Pick a later evolution or a higher level.' ) );
+				}
+				return;
+			}
+			targetOut.appendChild( fullTip( el( 'strong', 'ffb-calc-figure-value', money( tc.cost ) ), tc.cost, false, true ) );
+			if ( !tc.evolves ) {
+				steps = 'levels ' + state.level + ' → ' + target.l + ', no evolving.';
+			} else {
+				steps = ( tc.finish ? 'levels ' + state.level + ' → ' + data.maxLevel + ', ' : '' ) +
+					'evolve ' + ( tc.evolves === 1 ? 'once' : tc.evolves + ' times' ) + ' (free), ' +
+					( tc.between.length ? 'a full climb at ' + joinNames( tc.between.map( function ( e ) {
+						return 'Evo ' + e;
+					} ) ) + ', ' : '' ) +
+					'then level 1 → ' + target.l + ' at Evo ' + target.e + '.';
+			}
+			targetOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block',
+				'From ' + where( state.evolution, state.level ) + ': ' + steps ) );
+		}
 		result.appendChild( working );
 		result.appendChild( suffixLegend() );
 		side.appendChild( result );
@@ -1050,21 +1141,31 @@
 			figure( valueOut, 'Value', saleValue( rate, data.valueMult ), money( saleValue( rate, data.valueMult ) ) );
 			figure( ceilOut, 'Fully upgraded (level ' + data.maxLevel + ', Evo ' + data.evolutions.length + ')', ceil, money( ceil ) + '/sec' );
 
-			// what the climb still costs: to level 200 at this evolution, and all the way to Evo 7
+			// what the climb still costs: the next step (to level 200, or at
+			// level 200 the next evolution), and all the way to Evo 7
 			var cc = data.base === null || data.base === undefined ? null :
-				climbCost( data, data.base * totalFor( 0 ), state.evolution, state.level, function ( e ) {
-					return e > 0 ? data.evolutions[ e - 1 ] : 1;
-				} );
-			var atMax = state.level >= data.maxLevel;
+				climbCost( data, data.base * totalFor( 0 ), state.evolution, state.level, evoOf );
 			var estimate = 'An estimate: some upgrade prices are fitted to a few readings, not read level by level.';
-			costFigure( costOut, 'Upgrade cost to level ' + data.maxLevel + ' (' + ( state.evolution ? 'Evo ' + state.evolution : 'unevolved' ) + ')',
-				cc && cc.toMax, cc ? ( atMax ? 'Already level ' + data.maxLevel : null ) : 'Not known yet',
-				cc && !atMax ? 'From level ' + state.level + '. ' + estimate : '' );
-			costFigure( fullCostOut, 'Upgrade cost to Evo ' + data.maxEvolution + ', level ' + data.maxLevel,
-				cc && cc.toFull, cc ? ( atMax && !cc.climbsLeft ? 'Already fully upgraded' : null ) : 'Not known yet',
-				cc && cc.climbsLeft ? ( atMax ? 'Evolve next (free), then ' : 'This climb, then ' ) + cc.climbsLeft + ' more climb' + ( cc.climbsLeft === 1 ? '' : 's' ) +
-					' from level 1 to ' + data.maxLevel + ': evolving is free but resets the level.' +
-					( atMax ? ' ' + estimate : '' ) : '' );
+			var evolving = cc && cc.next.evolution > state.evolution;
+			var done = cc && state.level >= data.maxLevel && !cc.climbsLeft;
+			var after = cc ? data.maxEvolution - cc.next.evolution : 0;
+			costFigure( costOut, evolving || done ?
+				'Upgrade cost to Evo ' + ( done ? state.evolution : cc.next.evolution ) + ', level ' + data.maxLevel :
+				'Upgrade cost to level ' + data.maxLevel + ' (' + ( state.evolution ? 'Evo ' + state.evolution : 'unevolved' ) + ')',
+				cc && cc.next.cost, cc ? ( done ? 'Already fully upgraded' : null ) : 'Not known yet',
+				cc && !done ? ( evolving ? 'Evolve (free), then level 1 → ' + data.maxLevel + ' at Evo ' + cc.next.evolution + '. ' :
+					'From level ' + state.level + '. ' ) + estimate : '' );
+			renderTarget();
+			// once the next step already ends at Evo 7, level 200, the same figure twice says nothing
+			fullCostOut.hidden = !!( cc && ( done || cc.next.evolution >= data.maxEvolution ) );
+			if ( fullCostOut.hidden ) {
+				clear( fullCostOut );
+			} else {
+				costFigure( fullCostOut, 'Upgrade cost to Evo ' + data.maxEvolution + ', level ' + data.maxLevel,
+					cc && cc.toFull, cc ? null : 'Not known yet',
+					cc ? 'The step above, then ' + after + ' more climb' + ( after === 1 ? '' : 's' ) +
+						' from level 1 to ' + data.maxLevel + ': evolving is free but resets the level.' : '' );
+			}
 
 			// e.g. "(Ruby 7.00  +  Evil 5.00)  ×  Evolution 7 5.01  =  ×60.12   × 1.3^174 × 1.03^25"
 			var sumText = terms.length ? terms.join( '  +  ' ) : 'nothing applied';
@@ -2818,7 +2919,51 @@
 		for ( e = evolution + 1; e <= d.maxEvolution; e++ ) {
 			full += climb( e, 1 );
 		}
-		return { toMax: toMax, toFull: full, climbsLeft: d.maxEvolution - evolution };
+		// the next step: this climb, or once at maxLevel the next evolution's
+		// whole climb (user, 2026-10-08); nothing after the last one
+		var next = level < d.maxLevel || evolution >= d.maxEvolution ?
+			{ evolution: evolution, cost: toMax } : { evolution: evolution + 1, cost: climb( evolution + 1, 1 ) };
+		return { toMax: toMax, toFull: full, climbsLeft: d.maxEvolution - evolution, next: next };
+	}
+
+	/**
+	 * What getting from (evolution, level) to (toEvo, toLevel) costs, for the
+	 * value calculator's "Cost to reach" (user, 2026-10-09): the rest of this
+	 * climb, a full climb at every evolution in between, then level 1 to
+	 * toLevel at toEvo; each climb priced as climbCost prices it. Returns
+	 * { cost, evolves, between: [ stages ], finish } or { there } / { behind }
+	 * for a target already reached; null when prices aren't known.
+	 */
+	function targetCost( d, strength, evolution, level, toEvo, toLevel, evoMult ) {
+		var cost, between, e;
+		if ( typeof strength !== 'number' || !isFinite( strength ) || ( d.costKnownTo || d.maxLevel ) < d.maxLevel - 1 ) {
+			return null;
+		}
+		if ( toEvo === evolution && toLevel === level ) {
+			return { there: true };
+		}
+		if ( toEvo < evolution || ( toEvo === evolution && toLevel < level ) ) {
+			return { behind: true };
+		}
+		function climb( stage, from, to ) {
+			var sum = 0;
+			var L;
+			for ( L = from; L < to; L++ ) {
+				sum += priceCurve( d, L );
+			}
+			return strength * Math.sqrt( evoMult( stage ) ) * sum;
+		}
+		if ( toEvo === evolution ) {
+			return { cost: climb( evolution, level, toLevel ), evolves: 0, between: [], finish: false };
+		}
+		cost = climb( evolution, level, d.maxLevel );
+		between = [];
+		for ( e = evolution + 1; e < toEvo; e++ ) {
+			cost += climb( e, 1, d.maxLevel );
+			between.push( e );
+		}
+		cost += climb( toEvo, 1, toLevel );
+		return { cost: cost, evolves: toEvo - evolution, between: between, finish: level < d.maxLevel };
 	}
 
 	/**
@@ -7154,6 +7299,7 @@
 			buildTrade2: buildTrade2,
 			plainChange: plainChange,
 			climbCost: climbCost,
+			targetCost: targetCost,
 			changeText: changeText,
 			pctText: pctText,
 			sameSize: sameSize,
