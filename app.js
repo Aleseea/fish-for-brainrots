@@ -231,6 +231,12 @@
 		}
 		catalog = JSON.parse( catalogEl.textContent );
 		var eventsEl = holder.querySelector( '.ffb-events-data' );
+		var miniEl = holder.querySelector( '.ffb-mini-data' );
+		if ( miniEl ) {
+			try {
+				miniRotation = JSON.parse( miniEl.textContent );
+			} catch ( err ) {}
+		}
 		if ( eventsEl ) {
 			try {
 				showUpcoming( JSON.parse( eventsEl.textContent ) );
@@ -307,6 +313,34 @@
 		return m ? [ +m[ 1 ], +m[ 2 ], +m[ 3 ] ] : null;
 	}
 
+	/**
+	 * The mini events (data.miniEvents on the wiki): a fixed rotation that
+	 * runs all day, the same for everyone. order[0] started at anchor; one
+	 * starts every `every` minutes and runs for `runs`. Returns the one on
+	 * now, if any, and the next one.
+	 */
+	var miniRotation = null;
+	function miniTimes( mini, now ) {
+		if ( !mini || !Array.isArray( mini.order ) || !mini.order.length || !( mini.every > 0 ) || !( mini.runs > 0 ) ) {
+			return [];
+		}
+		var anchor = Date.parse( mini.anchor );
+		if ( isNaN( anchor ) ) {
+			return [];
+		}
+		var slot = mini.every * 60000, n = mini.order.length;
+		var k = Math.floor( ( now.getTime() - anchor ) / slot );
+		var out = [];
+		for ( var i = k; i <= k + 2 && out.length < 2; i++ ) {
+			var start = new Date( anchor + i * slot ), ends = new Date( start.getTime() + mini.runs * 60000 );
+			if ( ends > now ) {
+				out.push( { name: mini.order[ ( ( i % n ) + n ) % n ] + ' mini event', when: start, ends: ends,
+					note: mini.runs + ' min', mini: true } );
+			}
+		}
+		return out;
+	}
+
 	/** The start times to show, soonest first: { name, when (Date), note }. */
 	function upcomingTimes( events, now ) {
 		var out = [];
@@ -356,6 +390,7 @@
 				}
 			}
 		} );
+		out = out.concat( miniTimes( miniRotation, now ) );
 		return out.filter( function ( x ) {
 			if ( x.ends ) {
 				return x.ends.getTime() > now.getTime();
@@ -439,7 +474,7 @@
 		box.appendChild( more );
 		var already = seen();
 		var fresh = items.filter( function ( x ) {
-			return already.indexOf( itemKey( x ) ) === -1;
+			return !x.mini && already.indexOf( itemKey( x ) ) === -1;
 		} ).length;
 		bell.hidden = false;
 		document.getElementById( 'bell-count' ).textContent = fresh ? String( fresh ) : '';
