@@ -466,6 +466,9 @@
 			} else if ( x.when ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', countdown( x.when, now ) ) );
 			}
+			if ( isPond( x ) ) {
+				li.appendChild( pondLine( x, now ) );
+			}
 			list.appendChild( li );
 		} );
 		box.appendChild( list );
@@ -490,6 +493,12 @@
 			txt.appendChild( document.createTextNode( ' ' ) );
 		}
 		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
+		if ( isPond( x ) && pondTraits( x, now ).length ) {
+			txt.appendChild( document.createTextNode( ' ' ) );
+			pondTraits( x, now ).forEach( function ( t ) {
+				txt.appendChild( traitMark( t, false ) );
+			} );
+		}
 		txt.appendChild( document.createTextNode( ' ' + ( x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
 		banner.appendChild( txt );
 		banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
@@ -526,12 +535,121 @@
 			openUpcoming( false );
 		}
 	} );
+	// ---- Admin Pond traits, reported by players on a wiki page -------------
+	// The traits over the Admin Pond change every 30 minutes: up to 3, picked
+	// at random (user, 2026-10-14). Anyone with a wiki account can report the
+	// current ones by editing one short wiki page; the page's last save time
+	// says how fresh they are. Only real trait names count, and a report
+	// shows only while it's from this pond and under 30 minutes old.
+	var POND_PAGE = HUB + ' - Admin Pond traits';
+	var POND_FRESH = 30 * 60000;
+	var pondReport = null;
+	function pondEditUrl() {
+		return WIKI + '/wiki/' + encodeURIComponent( POND_PAGE.replace( / /g, '_' ) ) + '?action=edit';
+	}
+	function pondTraitNames( text ) {
+		var known = {}, out = [];
+		( catalog && Array.isArray( catalog.traits ) ? catalog.traits : [] ).forEach( function ( t ) {
+			known[ String( t[ 0 ] ).toLowerCase() ] = t[ 0 ];
+		} );
+		String( text ).replace( /<!--[\s\S]*?-->/g, '' ).split( /[,;\n]+/ ).forEach( function ( w ) {
+			var n = known[ w.replace( /[*#'\[\]]/g, '' ).trim().toLowerCase() ];
+			if ( n && out.indexOf( n ) === -1 && out.length < 3 ) {
+				out.push( n );
+			}
+		} );
+		return out;
+	}
+	function fetchPondTraits() {
+		fetch( WIKI + '/api.php?action=query&format=json&formatversion=2&origin=*&prop=revisions&rvprop=content|timestamp&rvslots=main&titles=' +
+			encodeURIComponent( POND_PAGE ) ).then( function ( r ) {
+			if ( !r.ok ) {
+				throw new Error( 'HTTP ' + r.status );
+			}
+			return r.json();
+		} ).then( function ( res ) {
+			var page = res.query.pages[ 0 ], rev = page && page.revisions && page.revisions[ 0 ];
+			pondReport = rev ? { traits: pondTraitNames( rev.slots.main.content ), at: new Date( rev.timestamp ) } : null;
+			renderUpcoming();
+		} ).catch( function () {} );
+	}
+	/** The live Admin Pond's current traits, or [] when none were reported in the last 30 minutes. */
+	function pondTraits( pond, now ) {
+		var r = pondReport;
+		return r && r.traits.length && !isNaN( r.at ) && r.at >= pond.when && now - r.at < POND_FRESH ? r.traits : [];
+	}
+	function pondLive( now ) {
+		return upcomingTimes( upcomingEvents, now ).some( isPond );
+	}
+	function isPond( x ) {
+		return x.live && /^Admin Pond/.test( x.name );
+	}
+	/** A trait's game icon (or its emoji, or nothing) and its name. */
+	function traitMark( name, withName ) {
+		var span = el( 'span', 'site-pond-trait' );
+		var path = catalog && catalog.traitIcons && catalog.traitIcons[ name ];
+		if ( typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ) {
+			var img = el( 'img', 'site-pond-icon' );
+			// Fandom serves a placeholder picture instead unless no referrer is sent (as in calc.js)
+			img.referrerPolicy = 'no-referrer';
+			img.setAttribute( 'referrerpolicy', 'no-referrer' );
+			img.src = 'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=1';
+			img.alt = withName ? '' : name;
+			img.title = name;
+			span.appendChild( img );
+		} else if ( catalog && catalog.traitEmoji && catalog.traitEmoji[ name ] ) {
+			span.appendChild( document.createTextNode( catalog.traitEmoji[ name ] + ' ' ) );
+		}
+		if ( withName ) {
+			span.appendChild( document.createTextNode( name ) );
+		}
+		return span;
+	}
+	function minsAgo( at, now ) {
+		var m = Math.max( 0, Math.round( ( now - at ) / 60000 ) );
+		return m < 1 ? 'just now' : m + ' min ago';
+	}
+	/** The traits line under the live Admin Pond in the bell's list. */
+	function pondLine( pond, now ) {
+		var box = el( 'div', 'site-pond' );
+		var traits = pondTraits( pond, now );
+		box.appendChild( el( 'span', 'site-pond-label', 'Traits over the pond:' ) );
+		if ( traits.length ) {
+			traits.forEach( function ( t ) {
+				box.appendChild( traitMark( t, true ) );
+			} );
+			box.appendChild( el( 'span', 'site-pond-age', 'reported ' + minsAgo( pondReport.at, now ) + ' · they change every 30 min' ) );
+		} else {
+			box.appendChild( el( 'span', 'site-pond-age', 'nobody has reported the current ones yet (they change every 30 min)' ) );
+		}
+		var a = el( 'a', 'site-pond-edit', traits.length ? 'Changed? Update them on the wiki' : 'Seen them? Add them on the wiki' );
+		a.href = pondEditUrl();
+		a.target = '_blank';
+		a.rel = 'noopener';
+		box.appendChild( a );
+		return box;
+	}
+
 	function showUpcoming( events ) {
 		upcomingEvents = Array.isArray( events ) ? events.filter( function ( e ) {
 			return e && typeof e.name === 'string';
 		} ) : [];
 		renderUpcoming();
 		setInterval( renderUpcoming, 60000 );
+		// while an Admin Pond is on, check for newly reported traits every 2 minutes
+		if ( pondLive( new Date() ) ) {
+			fetchPondTraits();
+		}
+		setInterval( function () {
+			if ( !document.hidden && pondLive( new Date() ) ) {
+				fetchPondTraits();
+			}
+		}, 120000 );
+		document.addEventListener( 'visibilitychange', function () {
+			if ( !document.hidden && pondLive( new Date() ) ) {
+				fetchPondTraits();
+			}
+		} );
 		// the banner steps to the next announcement every 6 seconds
 		setInterval( function () {
 			bannerAt++;

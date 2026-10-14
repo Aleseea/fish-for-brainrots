@@ -2,8 +2,8 @@
 // Keeps the calculator page itself working without a signal. The figures
 // come from the wiki; app.js keeps the last ones it got for offline use.
 'use strict';
-var CACHE = 'ffb-calc-3292223cb3';
-var SHELL = ["./", "index.html", "app.js?v=ef711b449a", "calc.js?v=b139826248", "calc.css?v=b139826248", "site.css?v=b4f21b745b", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
+var CACHE = 'ffb-calc-9c2350c7d1';
+var SHELL = ["./", "index.html", "app.js?v=f510ddaf4c", "calc.js?v=b139826248", "calc.css?v=b139826248", "site.css?v=e207968727", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener( 'install', function ( e ) {
 	e.waitUntil( caches.open( CACHE ).then( function ( c ) {

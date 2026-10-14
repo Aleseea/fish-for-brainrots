@@ -412,3 +412,40 @@ main {
 .site-upcoming-live .site-upcoming-name {
 	font-weight: 700;
 }
+
+/* the Admin Pond's current traits (players report them on a wiki page) */
+.site-pond {
+	flex: 1 1 100%;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	margin-top: 2px;
+	font-size: 13px;
+}
+.site-pond-label {
+	font-weight: 600;
+}
+.site-pond-trait {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-weight: 600;
+}
+.site-pond-icon {
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+	vertical-align: -4px;
+}
+.site-banner .site-pond-trait + .site-pond-trait {
+	margin-left: 2px;
+}
+.site-pond-age {
+	color: var(--muted);
+	font-size: 12px;
+}
+.site-pond-edit {
+	flex: 1 1 100%;
+	font-size: 12.5px;
+}
