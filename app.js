@@ -493,11 +493,17 @@
 			txt.appendChild( document.createTextNode( ' ' ) );
 		}
 		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
+		banner.removeAttribute( 'data-pond-ask' );
 		if ( isPond( x ) && pondTraits( x, now ).length ) {
 			txt.appendChild( document.createTextNode( ' ' ) );
 			pondTraits( x, now ).forEach( function ( t ) {
 				txt.appendChild( traitMark( t, false ) );
 			} );
+		} else if ( isPond( x ) ) {
+			// nobody has reported this half hour's traits: ask (tapping opens the form)
+			banner.setAttribute( 'data-pond-ask', '1' );
+			txt.appendChild( document.createTextNode( ' ' ) );
+			txt.appendChild( el( 'span', 'site-banner-ask', 'Traits? Tap to add them' ) );
 		}
 		txt.appendChild( document.createTextNode( ' ' + ( x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
 		banner.appendChild( txt );
@@ -522,6 +528,10 @@
 	} );
 	document.getElementById( 'banner' ).addEventListener( 'click', function ( e ) {
 		e.stopPropagation();
+		if ( this.getAttribute( 'data-pond-ask' ) === '1' ) {
+			pondFormOpen = true;
+			renderUpcoming();
+		}
 		openUpcoming( true );
 	} );
 	document.addEventListener( 'click', function ( e ) {
@@ -540,19 +550,37 @@
 	// at random (user, 2026-10-14). Anyone with a wiki account can report the
 	// current ones by editing one short wiki page; the page's last save time
 	// says how fresh they are. Only real trait names count, and a report
-	// shows only while it's from this pond and under 30 minutes old.
+	// shows only while it's from this pond and from the current 30 minutes.
 	var POND_PAGE = HUB + ' - Admin Pond traits';
-	var POND_FRESH = 30 * 60000;
+	// the traits change on the clock, at :00 and :30 (user, 2026-10-14), so a
+	// report counts until the next change and no longer
+	var POND_SLOT = 30 * 60000;
+	function slotStart( now ) {
+		return new Date( Math.floor( now.getTime() / POND_SLOT ) * POND_SLOT );
+	}
 	var pondReport = null;
-	function pondEditUrl() {
-		return WIKI + '/wiki/' + encodeURIComponent( POND_PAGE.replace( / /g, '_' ) ) + '?action=edit';
+	/**
+	 * The wiki's "new section" editor with the picked traits already in as
+	 * its heading, so reporting is one tap on Save. (A normal edit can't be
+	 * pre-filled from another site: a cross-site POST arrives logged out.)
+	 */
+	function pondReportUrl( traits ) {
+		return WIKI + '/index.php?title=' + encodeURIComponent( POND_PAGE.replace( / /g, '_' ) ) +
+			'&action=edit&section=new&preloadtitle=' + encodeURIComponent( traits.join( ', ' ) );
 	}
 	function pondTraitNames( text ) {
 		var known = {}, out = [];
 		( catalog && Array.isArray( catalog.traits ) ? catalog.traits : [] ).forEach( function ( t ) {
 			known[ String( t[ 0 ] ).toLowerCase() ] = t[ 0 ];
 		} );
-		String( text ).replace( /<!--[\s\S]*?-->/g, '' ).split( /[,;\n]+/ ).forEach( function ( w ) {
+		text = String( text ).replace( /<!--[\s\S]*?-->/g, '' );
+		// each report is a new section whose heading is the list; the newest is
+		// last. A page edited by hand (a plain list, no headings) still works.
+		var heads = text.match( /^=+[^=\n].*?=+\s*$/gm );
+		if ( heads ) {
+			text = heads[ heads.length - 1 ].replace( /^=+|=+\s*$/g, '' );
+		}
+		text.split( /[,;\n]+/ ).forEach( function ( w ) {
 			var n = known[ w.replace( /[*#'\[\]]/g, '' ).trim().toLowerCase() ];
 			if ( n && out.indexOf( n ) === -1 && out.length < 3 ) {
 				out.push( n );
@@ -573,10 +601,10 @@
 			renderUpcoming();
 		} ).catch( function () {} );
 	}
-	/** The live Admin Pond's current traits, or [] when none were reported in the last 30 minutes. */
+	/** The live Admin Pond's current traits, or [] when nobody has reported them since the last change. */
 	function pondTraits( pond, now ) {
 		var r = pondReport;
-		return r && r.traits.length && !isNaN( r.at ) && r.at >= pond.when && now - r.at < POND_FRESH ? r.traits : [];
+		return r && r.traits.length && !isNaN( r.at ) && r.at >= pond.when && r.at >= slotStart( now ) ? r.traits : [];
 	}
 	function pondLive( now ) {
 		return upcomingTimes( upcomingEvents, now ).some( isPond );
@@ -605,6 +633,9 @@
 		}
 		return span;
 	}
+	function nextChange( now ) {
+		return new Date( slotStart( now ).getTime() + POND_SLOT ).toLocaleTimeString( [], { hour: 'numeric', minute: '2-digit' } );
+	}
 	function minsAgo( at, now ) {
 		var m = Math.max( 0, Math.round( ( now - at ) / 60000 ) );
 		return m < 1 ? 'just now' : m + ' min ago';
@@ -618,16 +649,87 @@
 			traits.forEach( function ( t ) {
 				box.appendChild( traitMark( t, true ) );
 			} );
-			box.appendChild( el( 'span', 'site-pond-age', 'reported ' + minsAgo( pondReport.at, now ) + ' · they change every 30 min' ) );
+			box.appendChild( el( 'span', 'site-pond-age', 'reported ' + minsAgo( pondReport.at, now ) + ' · they change at ' + nextChange( now ) ) );
 		} else {
-			box.appendChild( el( 'span', 'site-pond-age', 'nobody has reported the current ones yet (they change every 30 min)' ) );
+			box.appendChild( el( 'span', 'site-pond-age', 'nobody has reported them since they changed at ' + slotStart( now ).toLocaleTimeString( [], { hour: 'numeric', minute: '2-digit' } ) ) );
 		}
-		var a = el( 'a', 'site-pond-edit', traits.length ? 'Changed? Update them on the wiki' : 'Seen them? Add them on the wiki' );
-		a.href = pondEditUrl();
-		a.target = '_blank';
-		a.rel = 'noopener';
-		box.appendChild( a );
+		if ( pondSent && now - pondSent < 5 * 60000 && !( traits.length && pondReport.at >= pondSent - 60000 ) ) {
+			box.appendChild( el( 'span', 'site-pond-note', 'Thanks! Tap Save on the wiki page; your report shows here within 2 minutes.' ) );
+		}
+		if ( pondFormOpen ) {
+			box.appendChild( pondForm() );
+		} else {
+			var b = el( 'button', 'site-pond-open', traits.length ? 'Changed? Report the new traits' : 'Seen them? Report the traits' );
+			b.type = 'button';
+			b.addEventListener( 'click', function ( e ) {
+				e.stopPropagation();
+				pondFormOpen = true;
+				renderUpcoming();
+			} );
+			box.appendChild( b );
+		}
 		return box;
+	}
+
+	// the report form: tap up to 3 traits, then send them to the wiki
+	var pondFormOpen = false, pondPick = [], pondSent = 0, pondFormNode = null;
+	function pondForm() {
+		if ( !pondFormNode ) {
+			pondFormNode = el( 'div', 'site-pond-form' );
+		}
+		var f = pondFormNode;
+		f.textContent = '';
+		f.appendChild( el( 'div', 'site-pond-form-title', 'Which traits are over the pond now? Pick up to 3.' ) );
+		var chips = el( 'div', 'site-pond-chips' );
+		( catalog && Array.isArray( catalog.traits ) ? catalog.traits.slice() : [] ).sort( function ( a, b ) {
+			return b[ 1 ] - a[ 1 ];
+		} ).forEach( function ( t ) {
+			var on = pondPick.indexOf( t[ 0 ] ) !== -1;
+			var c = el( 'button', 'site-pond-chip' );
+			c.type = 'button';
+			c.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
+			c.disabled = !on && pondPick.length >= 3;
+			c.appendChild( traitMark( t[ 0 ], true ) );
+			c.addEventListener( 'click', function ( e ) {
+				e.stopPropagation();
+				var i = pondPick.indexOf( t[ 0 ] );
+				if ( i === -1 ) {
+					if ( pondPick.length < 3 ) {
+						pondPick.push( t[ 0 ] );
+					}
+				} else {
+					pondPick.splice( i, 1 );
+				}
+				pondForm();
+			} );
+			chips.appendChild( c );
+		} );
+		f.appendChild( chips );
+		var row = el( 'div', 'site-pond-actions' );
+		var send = el( 'button', 'site-pond-send', pondPick.length ? 'Send ' + pondPick.length + ' to the wiki' : 'Send to the wiki' );
+		send.type = 'button';
+		send.disabled = !pondPick.length;
+		send.addEventListener( 'click', function ( e ) {
+			e.stopPropagation();
+			window.open( pondReportUrl( pondPick ), '_blank', 'noopener' );
+			pondSent = Date.now();
+			pondPick = [];
+			pondFormOpen = false;
+			renderUpcoming();
+		} );
+		var cancel = el( 'button', 'site-pond-cancel', 'Cancel' );
+		cancel.type = 'button';
+		cancel.addEventListener( 'click', function ( e ) {
+			e.stopPropagation();
+			pondPick = [];
+			pondFormOpen = false;
+			renderUpcoming();
+		} );
+		row.appendChild( send );
+		row.appendChild( cancel );
+		f.appendChild( row );
+		f.appendChild( el( 'div', 'site-pond-form-note', 'The wiki opens with your traits filled in: tap Save there. You need a free Fandom account, logged in.' ) );
+		return f;
 	}
 
 	function showUpcoming( events ) {
