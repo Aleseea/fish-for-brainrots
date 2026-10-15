@@ -150,7 +150,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=b139826248';
+		s.src = 'calc.js?v=cfd6c012bf';
 		s.onload = usePicker;
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
@@ -621,7 +621,7 @@
 			// Fandom serves a placeholder picture instead unless no referrer is sent (as in calc.js)
 			img.referrerPolicy = 'no-referrer';
 			img.setAttribute( 'referrerpolicy', 'no-referrer' );
-			img.src = 'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=1';
+			img.src = 'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=2'; // as calc.js: past the year-long cached black-backed icons
 			img.alt = withName ? '' : name;
 			img.title = name;
 			span.appendChild( img );

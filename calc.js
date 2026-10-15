@@ -3361,13 +3361,14 @@
 
 	/**
 	 * A picture on this wiki from where it sits under images/ ("e/e9/Name.png",
-	 * see generate_modules.py), 40px wide; null for anything else. (The ?nr=1
-	 * keeps browsers off a placeholder they may have cached for the bare
-	 * address before the no-referrer fix.)
+	 * see generate_modules.py), 40px wide; null for anything else. (The ?nr=2
+	 * keeps browsers off old copies they may have cached for a year: the
+	 * placeholder from before the no-referrer fix, and the black-backed trait
+	 * and mutation icons replaced on Oct 4-6, 2026 under the same names.)
 	 */
 	function safeIconUrl( path ) {
 		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ?
-			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=1' : null;
+			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=2' : null;
 	}
 
 	/**
