@@ -2883,7 +2883,7 @@
 		}
 		if ( Array.isArray( p.indexes ) ) {
 			out.indexes = p.indexes.filter( function ( m, i ) {
-				return typeof m === 'string' && has( cat.mutations, m ) && !isDefault( m ) && p.indexes.indexOf( m ) === i;
+				return typeof m === 'string' && has( cat.mutations, m ) && p.indexes.indexOf( m ) === i;
 			} );
 		}
 		if ( p.price && typeof p.price === 'object' && typeof p.price.cost === 'number' && p.price.cost > 0 &&
@@ -6340,10 +6340,8 @@
 			idx.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Tap the ones you’ve completed.' ) );
 			var grid = el( 'div', 'ffb-base-idx' );
 			data.mutations.forEach( function ( m ) {
+				// Default has an index too, worth the same +0.5x (Index page)
 				var name = m[ 0 ];
-				if ( isDefault( name ) ) {
-					return;
-				}
 				var on = profile.indexes.indexOf( name ) !== -1;
 				var b = el( 'button', 'ffb-base-idx-btn' + ( on ? ' ffb-base-idx-on' : '' ) );
 				b.type = 'button';
