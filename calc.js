@@ -2865,11 +2865,16 @@
 
 	var PROFILE_KEY = 'ffb-profile';
 	var REBIRTH_MAX = 45;
+	// a server holds 4 players, so up to 3 friends (user, 2026-10-12)
+	var FRIENDS_MAX = 3;
+	// play sessions the Your base card can count earnings over; brainrots
+	// only earn while you play (user, 2026-10-19)
+	var PLAY_HOURS = [ 0.25, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12 ];
 
-	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], vip, price }. */
+	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], vip, friends, hours, price }. */
 	function readProfile( cat, text ) {
 		var p = {};
-		var out = { slots: BASE_SLOTS_DEFAULT, rebirth: 0, indexes: [], vip: false, price: null };
+		var out = { slots: BASE_SLOTS_DEFAULT, rebirth: 0, indexes: [], vip: false, friends: 0, hours: 1, price: null };
 		try {
 			p = JSON.parse( String( text || '' ) ) || {};
 		} catch ( err ) {
@@ -2887,6 +2892,12 @@
 			} );
 		}
 		out.vip = p.vip === true;
+		if ( wholeNumber( p.friends, 0, FRIENDS_MAX ) ) {
+			out.friends = p.friends;
+		}
+		if ( PLAY_HOURS.indexOf( p.hours ) !== -1 ) {
+			out.hours = p.hours;
+		}
 		if ( p.price && typeof p.price === 'object' && typeof p.price.cost === 'number' && p.price.cost > 0 &&
 			typeof p.price.strength === 'number' && p.price.strength > 0 && wholeNumber( p.price.level, 1, cat.data.maxLevel ) ) {
 			out.price = { cost: p.price.cost, strength: p.price.strength, level: p.price.level,
@@ -2897,14 +2908,32 @@
 
 	/**
 	 * Your base's cash multiplier: rebirths 1-35 add +0.5x each and 36-45
-	 * +0.25x each (rebirth 45 is 21x), and each finished mutation index +0.5x.
-	 * VIP doubles the total (user, 2026-10-19: rebirth 45 + 4 indexes + VIP
-	 * shows x46 on the base).
+	 * +0.25x each (rebirth 45 is 21x), each finished mutation index +0.5x and
+	 * each friend in your server +0.5x (user, 2026-10-12). VIP doubles the
+	 * total (user, 2026-10-19: rebirth 45 + 4 indexes + VIP shows x46 on the
+	 * base). ASSUMED: friends are inside what VIP doubles.
 	 */
 	function baseMultiplier( profile ) {
 		var r = profile.rebirth;
 		var fromRebirth = r <= 35 ? 1 + 0.5 * r : 18.5 + 0.25 * ( r - 35 );
-		return ( fromRebirth + 0.5 * profile.indexes.length ) * ( profile.vip ? 2 : 1 );
+		return ( fromRebirth + 0.5 * profile.indexes.length + 0.5 * ( profile.friends || 0 ) ) * ( profile.vip ? 2 : 1 );
+	}
+
+	/** "rebirth ×21 + indexes +2x + friends +1x, then ×2 VIP" */
+	function multiplierParts( profile ) {
+		var bits = [ 'rebirth ×' + rebirthMultiplier( profile.rebirth ) ];
+		if ( profile.indexes.length ) {
+			bits.push( 'indexes +' + 0.5 * profile.indexes.length + 'x' );
+		}
+		if ( profile.friends ) {
+			bits.push( 'friends +' + 0.5 * profile.friends + 'x' );
+		}
+		return bits.join( ' + ' ) + ( profile.vip ? ', then ×2 VIP' : '' );
+	}
+
+	/** "15 min", "1 hour", "3 hours" */
+	function hoursLabel( h ) {
+		return h < 1 ? Math.round( h * 60 ) + ' min' : h + ( h === 1 ? ' hour' : ' hours' );
 	}
 
 	function rebirthMultiplier( r ) {
@@ -5534,6 +5563,9 @@
 			root.insertBefore( stats, status );
 			root.appendChild( cols );
 		}
+		var summary = el( 'div', 'ffb-base-sum' );
+		summary.hidden = true;
+		root.insertBefore( summary, root.firstChild );
 		var offer = browserListOffer( store, rows, storage, cat );
 		if ( offer ) {
 			var offerBox = el( 'div', 'ffb-base-note ffb-base-offer' );
@@ -5643,16 +5675,114 @@
 			clear( stats );
 			stats.hidden = !rows.length;
 			stat( 'Brainrots', String( rows.length ), inBase + ' in base · ' + ( rows.length - inBase ) + ' in Storage' );
-			stat( 'Base income', money( up.income ) + '/s', 'card figures, before your multiplier', up.income );
-			stat( 'With your multiplier', money( up.perSecond ) + '/s', '×' + up.multiplier + ': rebirth ' + profile.rebirth + ' + ' +
-				plural( profile.indexes.length, 'index', 'indexes' ) + ( profile.vip ? ', ×2 VIP' : '' ), up.perSecond );
 			stat( 'Next upgrade', next && next.cost > 0 ? money( next.cost ) : '—', next ? next.row.name + ' to level ' + view.goal +
 				( next.seconds !== null ? ' · ≈ ' + roughTime( next.seconds ) : '' ) : 'everything is at level ' + view.goal, next ? next.cost : null );
 			stat( 'Ready to evolve', String( ready ), 'at level ' + data.maxLevel );
 		}
+		/**
+		 * The Your base card above the tabs: what the base earns now, over a
+		 * play session (brainrots only earn while you play), and a few checks.
+		 */
+		function renderSummary() {
+			clear( summary );
+			var plan = planBase( cat, rows, profile.slots );
+			var up = upgradePlan( cat, rows, profile, view.goal );
+			summary.hidden = !plan.ranked.length;
+			if ( summary.hidden ) {
+				return;
+			}
+			var mult = up.multiplier;
+			var ticked = rows.filter( function ( r ) {
+				return r.inBase && rowStrength( cat, r ) !== null;
+			} );
+			var earning = ticked.length ? ticked : plan.ranked.slice( 0, profile.slots ).map( function ( k ) {
+				return k.row;
+			} );
+			var sumOf = function ( list, key ) {
+				return list.reduce( function ( t, r ) {
+					return t + ( collectionStats( cat, r )[ key ] || 0 );
+				}, 0 );
+			};
+			summary.appendChild( el( 'div', 'ffb-trade-label', 'Your base' ) );
+			var top = el( 'div', 'ffb-base-sum-top' );
+			top.appendChild( fullTip( el( 'span', 'ffb-base-sum-big', money( up.perSecond ) + '/s' ), up.perSecond, true, true ) );
+			top.appendChild( el( 'span', 'ffb-base-sum-mult', '×' + mult ) );
+			summary.appendChild( top );
+			summary.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', money( up.income ) + '/s from your brainrots × ' + mult +
+				' (' + multiplierParts( profile ) + ')' ) );
+
+			// over a play session
+			var hours = profile.hours;
+			var at = PLAY_HOURS.indexOf( hours );
+			var sess = el( 'div', 'ffb-base-sum-session' );
+			var setHours = function ( h ) {
+				profile.hours = h;
+				saveProfile();
+				renderSummary();
+			};
+			var step = function ( label, to, name ) {
+				var b = el( 'button', 'ffb-base-sum-step', label );
+				b.type = 'button';
+				b.setAttribute( 'aria-label', name );
+				b.disabled = to === undefined;
+				b.addEventListener( 'click', function () {
+					setHours( to );
+				} );
+				return b;
+			};
+			sess.appendChild( el( 'span', null, 'In ' ) );
+			sess.appendChild( step( '−', PLAY_HOURS[ at - 1 ], 'Fewer hours' ) );
+			sess.appendChild( el( 'span', 'ffb-base-sum-hours', hoursLabel( hours ) ) );
+			sess.appendChild( step( '+', PLAY_HOURS[ at + 1 ], 'More hours' ) );
+			sess.appendChild( el( 'span', null, ' of play: ' ) );
+			var earned = up.perSecond * 3600 * hours;
+			sess.appendChild( fullTip( el( 'strong', 'ffb-base-sum-earned', money( earned ) ), earned, false, true ) );
+			summary.appendChild( sess );
+			var picks = el( 'div', 'ffb-base-sum-picks' );
+			[ 0.5, 1, 3, 8 ].forEach( function ( h ) {
+				var b = el( 'button', 'ffb-base-sum-pick' + ( h === hours ? ' ffb-base-sum-pick-on' : '' ), hoursLabel( h ) );
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', h === hours ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					setHours( h );
+				} );
+				picks.appendChild( b );
+			} );
+			summary.appendChild( picks );
+
+			// what it counts, and the checks
+			var facts = el( 'ul', 'ffb-base-sum-facts' );
+			var fact = function ( text ) {
+				facts.appendChild( el( 'li', null, text ) );
+			};
+			fact( ticked.length ?
+				'Counting the ' + plural( ticked.length, 'brainrot', 'brainrots' ) + ' you ticked “In my base”.' :
+				'Counting your best ' + plural( earning.length, 'brainrot', 'brainrots' ) + '. Tick “In my base” on the ones on your base for an exact figure.' );
+			if ( ticked.length ) {
+				var empty = profile.slots - ticked.length;
+				fact( 'Slots used: ' + Math.min( ticked.length, profile.slots ) + ' / ' + profile.slots +
+					( empty > 0 ? ' · ' + plural( empty, 'empty slot', 'empty slots' ) + ' earning nothing' : '' ) );
+				var gain = ( sumOf( plan.moveIn, 'now' ) - sumOf( plan.swapOut, 'now' ) ) * mult;
+				if ( plan.moveIn.length && gain > 0 ) {
+					fact( ( plan.swapOut.length ? 'Swapping in ' + plural( plan.moveIn.length, 'stronger one', 'stronger ones' ) :
+						'Putting ' + plural( plan.moveIn.length, 'brainrot', 'brainrots' ) + ' on your base' ) + ' from Storage would add +' +
+						money( gain ) + '/s (see ' + ( plan.over ? 'Keep or swap' : 'Brainrots' ) + ').' );
+				}
+			} else {
+				fact( 'Slots: ' + profile.slots + ' (set in Profile)' );
+			}
+			var atMax = sumOf( earning, 'max' ) * mult;
+			var atCeil = sumOf( earning, 'ceil' ) * mult;
+			if ( atMax > up.perSecond || atCeil > up.perSecond ) {
+				fact( 'Fully upgraded: ' + money( atMax ) + '/s at level ' + data.maxLevel +
+					( atCeil > atMax ? ', ' + money( atCeil ) + '/s at Evo ' + data.maxEvolution + ', level ' + data.maxLevel : '' ) + '.' );
+			}
+			summary.appendChild( facts );
+		}
 		var renderers = { list: renderList, plan: renderPlan, swap: renderSwap, level: renderLevel, profile: renderProfile };
 		function render() {
 			var list;
+			renderSummary();
 			if ( wide ) {
 				tabButtons( sideTabs() );
 				renderStats();
@@ -5904,6 +6034,7 @@
 
 		function renderNavOnly() {
 			var t = view.tab;
+			renderSummary();
 			if ( wide ) {
 				tabButtons( sideTabs() );
 				renderStats();
@@ -5936,7 +6067,7 @@
 					( store.kind === 'account' ? 'It’s saved to your Fandom account, so it’s there on any device.' : 'It all stays on this device.' ) ) );
 				var steps = el( 'ol', 'ffb-base-steps' );
 				[ [ 'Add your brainrots', 'The ones on your base, and any in Storage you might use.' ],
-					[ 'Tell us about your base (optional)', 'Slots, rebirth, finished indexes and VIP, in Profile, make the time estimates real.' ],
+					[ 'Tell us about your base (optional)', 'Slots, rebirth, finished indexes, friends and VIP, in Profile, make the time estimates real.' ],
 					[ 'Get your plan', 'New tabs appear as soon as they have something to tell you.' ] ].forEach( function ( s, k ) {
 					var li = el( 'li', 'ffb-base-step' + ( k === 0 ? ' ffb-base-step-on' : '' ) );
 					li.appendChild( el( 'span', 'ffb-base-step-n', String( k + 1 ) ) );
@@ -6335,6 +6466,9 @@
 			numberRow( 'Rebirth', 'Your rebirth multiplier: ×' + rebirthMultiplier( profile.rebirth ), profile.rebirth, 0, REBIRTH_MAX, function ( n ) {
 				profile.rebirth = n;
 			} );
+			numberRow( 'Friends in your server', 'In-game friends you’re playing with: +0.5x each', profile.friends, 0, FRIENDS_MAX, function ( n ) {
+				profile.friends = n;
+			} );
 			var idx = el( 'div', 'ffb-base-row ffb-base-row-block' );
 			var idxHead = el( 'div', 'ffb-base-row-head' );
 			idxHead.appendChild( el( 'span', 'ffb-base-row-label', 'Finished mutation indexes' ) );
@@ -6388,8 +6522,7 @@
 			var sum = el( 'div', 'ffb-base-mult' );
 			var sumText = el( 'span' );
 			sumText.appendChild( el( 'span', 'ffb-trade-label', 'Your base multiplier' ) );
-			sumText.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', 'rebirth ×' + rebirthMultiplier( profile.rebirth ) +
-				' + indexes +' + ( 0.5 * profile.indexes.length ) + 'x' + ( profile.vip ? ', then ×2 VIP' : '' ) ) );
+			sumText.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', multiplierParts( profile ) ) );
 			sum.appendChild( sumText );
 			sum.appendChild( el( 'span', 'ffb-base-mult-value', '×' + baseMultiplier( profile ) ) );
 			panel.appendChild( sum );
@@ -7413,6 +7546,8 @@
 			applyTrade: applyTrade,
 			readProfile: readProfile,
 			baseMultiplier: baseMultiplier,
+			multiplierParts: multiplierParts,
+			hoursLabel: hoursLabel,
 			upgradePrice: upgradePrice,
 			upgradePlan: upgradePlan,
 			rarityLesson: rarityLesson,

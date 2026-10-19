@@ -2214,6 +2214,109 @@
 	color: var(--ffb-accent);
 }
 
+/* Your base: what the base earns, now and over a play session */
+.ffb-base-sum {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+	padding: 12px;
+	border-radius: 12px;
+	border: 1px solid var(--ffb-accent);
+	background: var(--ffb-panel);
+}
+
+.ffb-base-sum[hidden] {
+	display: none;
+}
+
+.ffb-base-sum-top {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.ffb-base-sum-big {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 26px;
+	font-weight: 800;
+}
+
+.ffb-base-sum-mult {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 18px;
+	font-weight: 800;
+	color: var(--ffb-accent);
+}
+
+.ffb-base-sum-session {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.ffb-base-sum-hours {
+	min-width: 64px;
+	text-align: center;
+	font-weight: 700;
+}
+
+.ffb-base-sum-step {
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	border: 1px solid var(--ffb-line);
+	background: var(--ffb-panel);
+	color: inherit;
+	font-size: 18px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.ffb-base-sum-step:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.ffb-base-sum-earned {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 18px;
+}
+
+.ffb-base-sum-picks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.ffb-base-sum-pick {
+	min-height: 32px;
+	padding: 0 12px;
+	border-radius: 16px;
+	border: 1px solid var(--ffb-line);
+	background: var(--ffb-panel);
+	color: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.ffb-base-sum-pick-on {
+	border-color: var(--ffb-accent);
+	color: var(--ffb-accent);
+	font-weight: 700;
+}
+
+.ffb-base-sum-facts {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
 .ffb-base-price,
 .ffb-base-card {
 	display: flex;
