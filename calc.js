@@ -2866,10 +2866,10 @@
 	var PROFILE_KEY = 'ffb-profile';
 	var REBIRTH_MAX = 45;
 
-	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], price }. */
+	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], vip, price }. */
 	function readProfile( cat, text ) {
 		var p = {};
-		var out = { slots: BASE_SLOTS_DEFAULT, rebirth: 0, indexes: [], price: null };
+		var out = { slots: BASE_SLOTS_DEFAULT, rebirth: 0, indexes: [], vip: false, price: null };
 		try {
 			p = JSON.parse( String( text || '' ) ) || {};
 		} catch ( err ) {
@@ -2886,6 +2886,7 @@
 				return typeof m === 'string' && has( cat.mutations, m ) && p.indexes.indexOf( m ) === i;
 			} );
 		}
+		out.vip = p.vip === true;
 		if ( p.price && typeof p.price === 'object' && typeof p.price.cost === 'number' && p.price.cost > 0 &&
 			typeof p.price.strength === 'number' && p.price.strength > 0 && wholeNumber( p.price.level, 1, cat.data.maxLevel ) ) {
 			out.price = { cost: p.price.cost, strength: p.price.strength, level: p.price.level,
@@ -2897,11 +2898,13 @@
 	/**
 	 * Your base's cash multiplier: rebirths 1-35 add +0.5x each and 36-45
 	 * +0.25x each (rebirth 45 is 21x), and each finished mutation index +0.5x.
+	 * VIP doubles the total (user, 2026-10-19: rebirth 45 + 4 indexes + VIP
+	 * shows x46 on the base).
 	 */
 	function baseMultiplier( profile ) {
 		var r = profile.rebirth;
 		var fromRebirth = r <= 35 ? 1 + 0.5 * r : 18.5 + 0.25 * ( r - 35 );
-		return fromRebirth + 0.5 * profile.indexes.length;
+		return ( fromRebirth + 0.5 * profile.indexes.length ) * ( profile.vip ? 2 : 1 );
 	}
 
 	function rebirthMultiplier( r ) {
@@ -5642,7 +5645,7 @@
 			stat( 'Brainrots', String( rows.length ), inBase + ' in base · ' + ( rows.length - inBase ) + ' in Storage' );
 			stat( 'Base income', money( up.income ) + '/s', 'card figures, before your multiplier', up.income );
 			stat( 'With your multiplier', money( up.perSecond ) + '/s', '×' + up.multiplier + ': rebirth ' + profile.rebirth + ' + ' +
-				plural( profile.indexes.length, 'index', 'indexes' ), up.perSecond );
+				plural( profile.indexes.length, 'index', 'indexes' ) + ( profile.vip ? ', ×2 VIP' : '' ), up.perSecond );
 			stat( 'Next upgrade', next && next.cost > 0 ? money( next.cost ) : '—', next ? next.row.name + ' to level ' + view.goal +
 				( next.seconds !== null ? ' · ≈ ' + roughTime( next.seconds ) : '' ) : 'everything is at level ' + view.goal, next ? next.cost : null );
 			stat( 'Ready to evolve', String( ready ), 'at level ' + data.maxLevel );
@@ -5933,7 +5936,7 @@
 					( store.kind === 'account' ? 'It’s saved to your Fandom account, so it’s there on any device.' : 'It all stays on this device.' ) ) );
 				var steps = el( 'ol', 'ffb-base-steps' );
 				[ [ 'Add your brainrots', 'The ones on your base, and any in Storage you might use.' ],
-					[ 'Tell us about your base (optional)', 'Slots, rebirth and finished indexes, in Profile, make the time estimates real.' ],
+					[ 'Tell us about your base (optional)', 'Slots, rebirth, finished indexes and VIP, in Profile, make the time estimates real.' ],
 					[ 'Get your plan', 'New tabs appear as soon as they have something to tell you.' ] ].forEach( function ( s, k ) {
 					var li = el( 'li', 'ffb-base-step' + ( k === 0 ? ' ffb-base-step-on' : '' ) );
 					li.appendChild( el( 'span', 'ffb-base-step-n', String( k + 1 ) ) );
@@ -6364,11 +6367,29 @@
 			} );
 			idx.appendChild( grid );
 			panel.appendChild( idx );
+			var vipRow = el( 'div', 'ffb-base-row' );
+			var vipText = el( 'div' );
+			vipText.appendChild( el( 'div', 'ffb-base-row-label', 'VIP' ) );
+			vipText.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'VIP doubles your base multiplier' ) );
+			var vipLab = el( 'label', 'ffb-base-check' );
+			var vipBox = el( 'input' );
+			vipBox.type = 'checkbox';
+			vipBox.checked = !!profile.vip;
+			vipBox.addEventListener( 'change', function () {
+				profile.vip = !!vipBox.checked;
+				saveProfile();
+				render();
+			} );
+			vipLab.appendChild( vipBox );
+			vipLab.appendChild( el( 'span', null, ' I have VIP' ) );
+			vipRow.appendChild( vipText );
+			vipRow.appendChild( vipLab );
+			panel.appendChild( vipRow );
 			var sum = el( 'div', 'ffb-base-mult' );
 			var sumText = el( 'span' );
 			sumText.appendChild( el( 'span', 'ffb-trade-label', 'Your base multiplier' ) );
 			sumText.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', 'rebirth ×' + rebirthMultiplier( profile.rebirth ) +
-				' + indexes +' + ( 0.5 * profile.indexes.length ) + 'x' ) );
+				' + indexes +' + ( 0.5 * profile.indexes.length ) + 'x' + ( profile.vip ? ', then ×2 VIP' : '' ) ) );
 			sum.appendChild( sumText );
 			sum.appendChild( el( 'span', 'ffb-base-mult-value', '×' + baseMultiplier( profile ) ) );
 			panel.appendChild( sum );
