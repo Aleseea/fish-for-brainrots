@@ -7091,8 +7091,32 @@
 		if ( !isFinite( s ) || s < 0 ) {
 			s = 0;
 		}
+		// past the highest skill (only a rod's level boost gets there): an
+		// estimate that carries on each rarity's straight line from the
+		// highest measured level below the top to the top (user, 2026-10-20)
 		if ( s > max ) {
-			s = max;
+			// rods add at most a few levels: no reading carries a trend further
+			s = Math.min( s, max + 10 );
+			var top = baseCatchOdds( data, max );
+			var from = null;
+			levels.forEach( function ( r ) {
+				if ( r[ 0 ] < max && ( from === null || r[ 0 ] > from ) ) {
+					from = r[ 0 ];
+				}
+			} );
+			if ( from === null ) {
+				return top;
+			}
+			var low = baseCatchOdds( data, from );
+			var est = top.odds.map( function ( v, j ) {
+				return Math.max( 0, v + ( v - low.odds[ j ] ) / ( max - from ) * ( s - max ) );
+			} );
+			var total = est.reduce( function ( t, v ) {
+				return t + v;
+			}, 0 );
+			return { odds: total > 0 ? est.map( function ( v ) {
+				return v * 100 / total;
+			} ) : top.odds, exact: false, between: [ max, null ], skill: s, beyond: true, trendFrom: from };
 		}
 		for ( k = 0; k < levels.length; k++ ) {
 			row = levels[ k ];
@@ -7423,7 +7447,7 @@
 				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' · skill ' ) );
 				luckLine.appendChild( el( 'strong', 'ffb-catch-luck-value', String( skill ) ) );
 				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' (' + state.skill + ' + ' + lv + ' from the ' + rods[ state.rod ].n + ')' +
-					( skill > max ? '; chances above ' + max + ' aren’t known, so these are skill ' + max + '’s' : '' ) ) );
+					( skill > max ? '; an estimate past ' + max : '' ) ) );
 			}
 
 			clear( bars );
@@ -7468,6 +7492,10 @@
 			if ( base.exact ) {
 				note.textContent = 'Base chances measured in game at skill ' + base.skill + '.';
 				note.className = 'ffb-catch-note';
+			} else if ( base.beyond ) {
+				note.textContent = 'Estimate: past skill ' + max + ' (only a rod’s level boost gets there), each rarity carries on its trend from skill ' +
+					base.trendFrom + ' to ' + max + '.';
+				note.className = 'ffb-catch-note ffb-catch-approx';
 			} else if ( base.between[ 1 ] === null ) {
 				note.textContent = 'Approximate: above the highest measured level (' + base.between[ 0 ] + '), worked out from the game’s schedule to level ' + max + '.';
 				note.className = 'ffb-catch-note ffb-catch-approx';
