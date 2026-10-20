@@ -7213,9 +7213,11 @@
 		return String( Number( p.toFixed( p >= 10 ? 1 : 2 ) ) ) + '%';
 	}
 
-	/** "2x luck" / "no luck" for the rod and potion lists. */
-	function luckLabel( x ) {
-		return luckPart( x ) ? String( Number( x ) ) + 'x luck' : 'no luck';
+	/** "2x luck" / "no luck" for the rod and potion lists, plus a rod's
+	 * Fishing Skill boost: "2x luck, +2 skill". */
+	function luckLabel( x, lv ) {
+		return ( luckPart( x ) ? String( Number( x ) ) + 'x luck' : 'no luck' ) +
+			( Number( lv ) > 0 ? ', +' + Number( lv ) + ' skill' : '' );
 	}
 
 	/** Luck shown as a number: 37, 7.5, 1.25. */
@@ -7304,7 +7306,7 @@
 				},
 				search: function () {
 					return list.map( function ( it, i ) {
-						return { value: String( i ), name: it.n, icon: safeIconUrl( it.i ), right: luckLabel( it.luck ) };
+						return { value: String( i ), name: it.n, icon: safeIconUrl( it.i ), right: luckLabel( it.luck, it.lv ) };
 					} );
 				},
 				exact: function ( text ) {
@@ -7389,7 +7391,7 @@
 				b.node.setAttribute( 'aria-pressed', b.key === state.boost ? 'true' : 'false' );
 			} );
 			goldenField.node.hidden = !server;
-			rodField.note.textContent = luckLabel( rods[ state.rod ].luck );
+			rodField.note.textContent = luckLabel( rods[ state.rod ].luck, rods[ state.rod ].lv );
 			potionField.note.textContent = luckLabel( potions[ state.potion ].luck );
 
 			luck = catchLuck( {
@@ -7402,7 +7404,11 @@
 				golden: state.golden
 			} );
 			t = catchTilt( luck );
-			base = baseCatchOdds( data, state.skill );
+			// a rod's "level boost" fishes as if your Fishing Skill were that
+			// much higher: King's Rod at 500 = skill 502 (user, 2026-10-20)
+			var lv = Number( rods[ state.rod ].lv ) || 0;
+			var skill = state.skill + lv;
+			base = baseCatchOdds( data, skill );
 			odds = applyLuck( base.odds, t );
 
 			clear( luckLine );
@@ -7412,6 +7418,12 @@
 			luckLine.appendChild( el( 'strong', 'ffb-catch-tilt-value', Math.round( t * 100 ) + '%' ) );
 			if ( server && luck < 1 ) {
 				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' (counts as 1)' ) );
+			}
+			if ( lv ) {
+				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' · skill ' ) );
+				luckLine.appendChild( el( 'strong', 'ffb-catch-luck-value', String( skill ) ) );
+				luckLine.appendChild( el( 'span', 'ffb-catch-luck-label', ' (' + state.skill + ' + ' + lv + ' from the ' + rods[ state.rod ].n + ')' +
+					( skill > max ? '; chances above ' + max + ' aren’t known, so these are skill ' + max + '’s' : '' ) ) );
 			}
 
 			clear( bars );
