@@ -432,6 +432,47 @@
 
 	var valueCount = 0;
 
+	/**
+	 * Every mutation + trait version a brainrot can have, grouped by the
+	 * multiplier it earns (mutation and traits add up; Default adds nothing;
+	 * nothing at all is x1). The same for every brainrot in the game: level
+	 * and evolution only scale the $/s. Returns { vals: [sorted multipliers],
+	 * by: { multiplier: [ { m: mutation index, t: [trait indexes] } ] } }.
+	 */
+	function incomeTies( data ) {
+		var sets = [ [] ], by = {}, vals = [];
+		function grow( from, picked ) {
+			var i, next;
+			for ( i = from; i < data.traits.length; i++ ) {
+				next = picked.concat( [ i ] );
+				sets.push( next );
+				if ( next.length < data.maxTraits ) {
+					grow( i + 1, next );
+				}
+			}
+		}
+		grow( 0, [] );
+		data.mutations.forEach( function ( m, mi ) {
+			var base = isDefault( m.n ) ? 0 : m.m;
+			sets.forEach( function ( t ) {
+				var v = base;
+				t.forEach( function ( i ) {
+					v += data.traits[ i ].m;
+				} );
+				v = Math.round( ( v || 1 ) * 100 ) / 100;
+				if ( !by[ v ] ) {
+					by[ v ] = [];
+					vals.push( v );
+				}
+				by[ v ].push( { m: mi, t: t } );
+			} );
+		} );
+		vals.sort( function ( a, b ) {
+			return a - b;
+		} );
+		return { vals: vals, by: by };
+	}
+
 	function buildValueCalculator( container, data, env ) {
 		var cat = valueCatalog( data );
 		var uid = 'ffb-calc-' + ( ++valueCount ) + '-';
@@ -1195,11 +1236,305 @@
 			}
 			renderStrip();
 			renderSave();
+			// a change in the calculator moves the Same income view with it
+			tiePicked = null;
+			renderSameLine();
+			renderSame();
 		}
 
+		// ---- Same income: which versions earn exactly what this one does --
+		// (user, 2026-10-20). A switch above the calculator; no inputs of its
+		// own, it follows whatever the calculator is set to.
+		var ties = incomeTies( data );
+		var tieMax = 0;
+		ties.vals.forEach( function ( v ) {
+			tieMax = Math.max( tieMax, ties.by[ v ].length );
+		} );
+		var sameView = el( 'div', 'ffb-calc ffb-same' );
+		sameView.hidden = true;
+		var sameLine = el( 'p', 'ffb-same-line' );
+		var sw = el( 'div', 'ffb-same-switch' );
+		sw.setAttribute( 'role', 'tablist' );
+		sw.setAttribute( 'aria-label', 'Value calculator views' );
+		var swValue = el( 'button', 'ffb-calc-chip', 'Value' );
+		var swSame = el( 'button', 'ffb-calc-chip', 'Same income' );
+		swSame.appendChild( el( 'span', 'ffb-same-new', 'new' ) );
+		var tiePicked = null, tieAll = false;
+		[ swValue, swSame ].forEach( function ( b ) {
+			b.type = 'button';
+			b.setAttribute( 'role', 'tab' );
+			sw.appendChild( b );
+		} );
+		function showSame( on ) {
+			swValue.setAttribute( 'aria-selected', on ? 'false' : 'true' );
+			swValue.setAttribute( 'aria-pressed', on ? 'false' : 'true' );
+			swSame.setAttribute( 'aria-selected', on ? 'true' : 'false' );
+			swSame.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
+			root.hidden = on;
+			sameView.hidden = !on;
+			if ( on ) {
+				renderSame();
+			}
+		}
+		swValue.addEventListener( 'click', function () {
+			showSame( false );
+		} );
+		swSame.addEventListener( 'click', function () {
+			showSame( true );
+		} );
+		function myTotal() {
+			var mut = data.mutations[ state.mutation ];
+			var v = mut && !isDefault( mut.n ) ? mut.m : 0;
+			state.traits.forEach( function ( i ) {
+				v += data.traits[ i ].m;
+			} );
+			return Math.round( ( v || 1 ) * 100 ) / 100;
+		}
+		function tieRate( v ) {
+			if ( data.base === null || data.base === undefined ) {
+				return null;
+			}
+			var evo = state.evolution > 0 ? data.evolutions[ state.evolution - 1 ] : 1;
+			return data.base * v * evo * growthFactor( state.level, data );
+		}
+		function tieRateText( v ) {
+			var r = tieRate( v );
+			return r === null ? '' : money( r ) + '/s';
+		}
+		function versions( n ) {
+			return n.toLocaleString() + ( n === 1 ? ' version' : ' versions' );
+		}
+		function renderSameLine() {
+			// refresh() can run while the calculator is still being built
+			if ( !sameLine ) {
+				return;
+			}
+			var n = ties.by[ myTotal() ].length;
+			clear( sameLine );
+			sameLine.appendChild( document.createTextNode( n > 1 ?
+				( n - 1 ).toLocaleString() + ' other mutation and trait ' + ( n === 2 ? 'version earns' : 'versions earn' ) + ' exactly the same as this one. ' :
+				'No other mutation and trait version earns exactly this. ' ) );
+			var go = el( 'button', 'ffb-same-link', 'See who earns the same' );
+			go.type = 'button';
+			go.addEventListener( 'click', function () {
+				showSame( true );
+			} );
+			sameLine.appendChild( go );
+		}
+		var SVGNS = 'http://www.w3.org/2000/svg';
+		function svgEl( tag, attrs, parent ) {
+			var n = document.createElementNS( SVGNS, tag ), k;
+			for ( k in attrs ) {
+				n.setAttribute( k, attrs[ k ] );
+			}
+			parent.appendChild( n );
+			return n;
+		}
+		function tieChart( mine, shown, tip ) {
+			var W = 760, H = 290, L = 40, R = 10, T = 10, B = 44;
+			var lo = ties.vals[ 0 ], hi = ties.vals[ ties.vals.length - 1 ];
+			var pw = W - L - R, ph = H - T - B, step = pw / ( ( hi - lo ) / 0.25 + 1 ), bw = Math.max( 2, step - 1.5 );
+			var svg = document.createElementNS( SVGNS, 'svg' );
+			svg.setAttribute( 'viewBox', '0 0 ' + W + ' ' + H );
+			svg.setAttribute( 'role', 'img' );
+			svg.setAttribute( 'aria-label', 'How many mutation and trait versions earn each multiplier' );
+			function xOf( v ) {
+				return L + ( v - lo ) / 0.25 * step;
+			}
+			function yOf( n ) {
+				return T + ph - n / tieMax * ph;
+			}
+			var axis = svgEl( 'g', { 'class': 'ffb-same-axis' }, svg );
+			[ 0, 100, 200, 300 ].forEach( function ( n ) {
+				if ( n > tieMax ) {
+					return;
+				}
+				svgEl( 'line', { x1: L, x2: W - R, y1: yOf( n ), y2: yOf( n ) }, axis );
+				svgEl( 'text', { x: L - 6, y: yOf( n ) + 4, 'text-anchor': 'end' }, axis ).textContent = String( n );
+			} );
+			[ 1, 4, 7, 10, 13, 16, 19, 22 ].forEach( function ( v ) {
+				if ( v > hi ) {
+					return;
+				}
+				var x = xOf( v ) + bw / 2;
+				svgEl( 'text', { x: x, y: T + ph + 16, 'text-anchor': 'middle' }, axis ).textContent = '×' + v;
+				svgEl( 'text', { x: x, y: T + ph + 31, 'text-anchor': 'middle' }, axis ).textContent = tieRate( v ) === null ? '' : money( tieRate( v ) );
+			} );
+			ties.vals.forEach( function ( v ) {
+				var list = ties.by[ v ], counts = [ 0, 0, 0, 0 ], y = T + ph;
+				list.forEach( function ( c ) {
+					counts[ Math.min( 3, c.t.length ) ]++;
+				} );
+				var g = svgEl( 'g', { 'class': 'ffb-same-bar', tabindex: '0', role: 'button',
+					'aria-label': '×' + v.toFixed( 2 ) + ', ' + versions( list.length ) }, svg );
+				counts.forEach( function ( n, k ) {
+					if ( !n ) {
+						return;
+					}
+					var h = n / tieMax * ph;
+					y -= h;
+					svgEl( 'rect', { x: xOf( v ), y: y, width: bw, height: h,
+						'class': v === mine ? 'ffb-same-mine' : 'ffb-same-t' + k + ( v !== shown && tiePicked !== null ? ' ffb-same-dim' : '' ) }, g );
+				} );
+				if ( v === shown && v !== mine ) {
+					svgEl( 'rect', { x: xOf( v ) - 1, y: yOf( list.length ) - 1, width: bw + 2, height: list.length / tieMax * ph + 2, 'class': 'ffb-same-ring' }, g );
+				}
+				svgEl( 'rect', { x: xOf( v ), y: T, width: Math.max( bw, step ), height: ph, 'class': 'ffb-same-hit' }, g );
+				function pick() {
+					tiePicked = v === mine ? null : v;
+					tieAll = false;
+					renderSame();
+				}
+				g.addEventListener( 'click', pick );
+				g.addEventListener( 'keydown', function ( e ) {
+					if ( e.key === 'Enter' || e.key === ' ' ) {
+						e.preventDefault();
+						pick();
+					}
+				} );
+				g.addEventListener( 'mouseenter', function () {
+					tip( v );
+				} );
+			} );
+			svgEl( 'line', { x1: L, x2: W - R, y1: T + ph, y2: T + ph, 'class': 'ffb-same-base' }, svg );
+			return svg;
+		}
+		function tieSet( c, mine ) {
+			var span = el( 'span', 'ffb-same-set' + ( c.t.length ? '' : ' ffb-same-none' ) + ( mine ? ' ffb-same-yours' : '' ) );
+			var names = c.t.map( function ( i ) {
+				return data.traits[ i ].n;
+			} );
+			span.title = names.length ? names.join( ', ' ) : 'no traits';
+			if ( !c.t.length ) {
+				span.textContent = 'no traits';
+			}
+			names.forEach( function ( n ) {
+				var url = cat.traitIcon[ n ];
+				if ( url ) {
+					var img = el( 'img', 'ffb-icon' );
+					img.src = url;
+					img.alt = n;
+					img.referrerPolicy = 'no-referrer';
+					img.setAttribute( 'referrerpolicy', 'no-referrer' );
+					span.appendChild( img );
+				} else {
+					span.appendChild( el( 'span', 'ffb-same-tname', traitLabel( cat, n ) ) );
+				}
+			} );
+			return span;
+		}
+		function renderSame() {
+			if ( !sameView || sameView.hidden ) {
+				return;
+			}
+			var mine = myTotal(), shown = tiePicked !== null ? tiePicked : mine, list = ties.by[ shown ];
+			var mut = data.mutations[ state.mutation ];
+			var mineKey = state.traits.slice().sort( function ( a, b ) {
+				return a - b;
+			} ).join();
+			clear( sameView );
+			var sum = el( 'p', 'ffb-same-sum' );
+			var names = state.traits.map( function ( i ) {
+				return data.traits[ i ].n;
+			} );
+			sum.appendChild( document.createTextNode( ( mut ? mut.n : 'Default' ) + ( names.length ? ' + ' + names.join( ', ' ) : '' ) + ' ' + data.name + ', ' +
+				( state.evolution ? 'Evo ' + state.evolution + ', ' : '' ) + 'level ' + state.level + ': ' ) );
+			sum.appendChild( el( 'b', null, '×' + mine.toFixed( 2 ) + ( tieRate( mine ) === null ? '' : ' · ' + tieRateText( mine ) ) ) );
+			var n = ties.by[ mine ].length;
+			sum.appendChild( document.createTextNode( n > 1 ? '. ' + ( n - 1 ).toLocaleString() + ' other ' + ( n === 2 ? 'version earns' : 'versions earn' ) + ' exactly the same.' : '. No other version earns exactly this.' ) );
+			sameView.appendChild( sum );
+			sameView.appendChild( el( 'p', 'ffb-same-note', 'Every brainrot has the same ' + Object.keys( ties.by ).reduce( function ( t, k ) {
+				return t + ties.by[ k ].length;
+			}, 0 ).toLocaleString() + ' mutation and trait versions. Each bar is one income; its height is how many versions earn it. The gold bar is the brainrot above, and the $/s under the bars are for it at its level and evolution.' ) );
+			var legend = el( 'div', 'ffb-same-legend' );
+			legend.setAttribute( 'aria-hidden', 'true' );
+			[ [ 't0', 'no traits' ], [ 't1', '1 trait' ], [ 't2', '2 traits' ], [ 't3', '3 traits' ], [ 'mine', 'this one' ] ].forEach( function ( x ) {
+				var s = el( 'span' );
+				s.appendChild( el( 'i', 'ffb-same-key ffb-same-key-' + x[ 0 ] ) );
+				s.appendChild( document.createTextNode( x[ 1 ] ) );
+				legend.appendChild( s );
+			} );
+			sameView.appendChild( legend );
+			var tipBox = el( 'p', 'ffb-same-tip' );
+			tipBox.setAttribute( 'aria-live', 'polite' );
+			function tip( v ) {
+				clear( tipBox );
+				tipBox.appendChild( el( 'strong', null, '×' + v.toFixed( 2 ) + ( tieRate( v ) === null ? '' : ' · ' + tieRateText( v ) ) ) );
+				tipBox.appendChild( document.createTextNode( ' · ' + versions( ties.by[ v ].length ) + ( v === mine ? ' (this one)' : '' ) + '. Tap a bar to list them.' ) );
+			}
+			var chart = el( 'div', 'ffb-same-chart' );
+			chart.appendChild( tieChart( mine, shown, tip ) );
+			sameView.appendChild( chart );
+			tip( shown );
+			sameView.appendChild( tipBox );
+			sameView.appendChild( el( 'h3', 'ffb-same-h', tiePicked !== null ?
+				'Every version at ×' + shown.toFixed( 2 ) + ( tieRate( shown ) === null ? '' : ' (' + tieRateText( shown ) + ')' ) + ': ' + list.length :
+				'Earns the same as this one: ' + versions( list.length ) ) );
+			var groups = {}, order = [];
+			list.forEach( function ( c ) {
+				if ( !groups[ c.m ] ) {
+					groups[ c.m ] = [];
+					order.push( c.m );
+				}
+				groups[ c.m ].push( c );
+			} );
+			order.sort( function ( a, b ) {
+				return data.mutations[ b ].m - data.mutations[ a ].m;
+			} );
+			var box = el( 'div', 'ffb-same-ties' );
+			( tieAll ? order : order.slice( 0, 5 ) ).forEach( function ( mi ) {
+				var row = el( 'div', 'ffb-same-row' );
+				var head = el( 'div', 'ffb-same-mut' );
+				var mn = data.mutations[ mi ].n;
+				var mk = isDefault( mn ) ? null : mark( cat.mutationColor[ mn ] || null, cat.mutationIcon[ mn ] || null );
+				if ( mk ) {
+					head.appendChild( mk );
+				}
+				head.appendChild( el( 'span', null, mn ) );
+				var sets = el( 'div', 'ffb-same-sets' );
+				groups[ mi ].forEach( function ( c ) {
+					sets.appendChild( tieSet( c, c.m === state.mutation && c.t.join() === mineKey ) );
+				} );
+				row.appendChild( head );
+				row.appendChild( sets );
+				box.appendChild( row );
+			} );
+			if ( order.length > 5 ) {
+				var more = el( 'button', 'ffb-same-link', tieAll ? 'Show fewer' : 'Show all ' + order.length + ' mutations' );
+				more.type = 'button';
+				more.addEventListener( 'click', function () {
+					tieAll = !tieAll;
+					renderSame();
+				} );
+				box.appendChild( more );
+			}
+			sameView.appendChild( box );
+			var links = el( 'div', 'ffb-same-links' );
+			if ( tiePicked !== null ) {
+				var back = el( 'button', 'ffb-same-link', 'Back to this brainrot' );
+				back.type = 'button';
+				back.addEventListener( 'click', function () {
+					tiePicked = null;
+					renderSame();
+				} );
+				links.appendChild( back );
+			}
+			var edit = el( 'button', 'ffb-same-link', 'Change mutation, traits, evolution or level' );
+			edit.type = 'button';
+			edit.addEventListener( 'click', function () {
+				showSame( false );
+			} );
+			links.appendChild( edit );
+			sameView.appendChild( links );
+		}
+
+		root.appendChild( sameLine );
 		refresh();
 		clear( container );
+		container.appendChild( sw );
 		container.appendChild( root );
+		container.appendChild( sameView );
+		showSame( false );
 	}
 
 	/* ================================================================
@@ -7546,6 +7881,7 @@
 			applyTrade: applyTrade,
 			readProfile: readProfile,
 			baseMultiplier: baseMultiplier,
+			incomeTies: incomeTies,
 			multiplierParts: multiplierParts,
 			hoursLabel: hoursLabel,
 			upgradePrice: upgradePrice,
