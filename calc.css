@@ -2330,17 +2330,28 @@
 	font-weight: 600;
 }
 
-.ffb-same-new {
-	margin-left: 6px;
-	font-size: 10px;
-	font-weight: 700;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--ffb-accent, #e3a83f);
+/* a "new" badge on the tab's corner, like the bell's count, so it doesn't
+   read as part of the tab's name */
+.ffb-same-switch .ffb-calc-chip {
+	position: relative;
+	overflow: visible;
 }
 
-.ffb-same-switch [aria-pressed="true"] .ffb-same-new {
-	color: inherit;
+.ffb-same-new {
+	position: absolute;
+	top: -8px;
+	right: -8px;
+	padding: 1px 6px;
+	border-radius: 9px;
+	background: #e5534b;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 800;
+	line-height: 14px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	box-shadow: 0 0 0 2px var(--ffb-panel, #1b1320);
+	pointer-events: none;
 }
 
 .ffb-same-line {
@@ -4143,4 +4154,83 @@ a.ffb-card-tab:hover {
 	border-style: solid;
 	color: #1b1320;
 	font-weight: 800;
+}
+
+/* Brainrot Variation Comparison (Module:Brainrot variationChart). The chart's
+   layout is inline (the mobile skin loads no site CSS); this only adds the
+   desktop extras: the clicked column's breakdown, hover, and the list layout. */
+.ffb-var-cols a:hover .ffb-var-col,
+.ffb-var-cols a:focus-visible .ffb-var-col {
+	filter: brightness(1.2);
+	box-shadow: 0 0 0 1px var(--theme-link-color, #e3a83f);
+}
+
+.ffb-var-detail:target {
+	display: block !important;
+	scroll-margin-top: 70px;
+}
+
+.ffb-var-hint {
+	display: block !important;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border: 1px dashed rgba(128, 128, 128, 0.5);
+	border-radius: 8px;
+}
+
+.ffb-var-details:has(.ffb-var-detail:target) .ffb-var-hint,
+.ffb-var-mobile {
+	display: none !important;
+}
+
+.ffb-var-dhead {
+	margin: 14px 0 6px;
+	font-size: 15px;
+}
+
+.ffb-var-row {
+	display: grid;
+	grid-template-columns: 150px minmax(0, 1fr);
+	gap: 8px;
+	padding: 6px 0;
+	border-top: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.ffb-var-mut {
+	font-weight: 600;
+}
+
+.ffb-var-mut i {
+	display: inline-block;
+	width: 11px;
+	height: 11px;
+	border-radius: 3px;
+	margin-right: 6px;
+	vertical-align: -1px;
+	box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.7);
+}
+
+.ffb-var-mut small {
+	font-weight: 400;
+	opacity: 0.75;
+}
+
+.ffb-var-sets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 6px;
+}
+
+.ffb-var-sets > span {
+	border: 1px solid rgba(128, 128, 128, 0.4);
+	border-radius: 6px;
+	padding: 1px 6px;
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.ffb-var-row {
+		grid-template-columns: 1fr;
+	}
 }
