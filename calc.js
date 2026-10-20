@@ -7066,6 +7066,141 @@
 	}
 
 	/**
+	 * A smooth curve through (xs, ys) that never overshoots the points
+	 * (monotone cubic, Fritsch-Carlson): a hump stays a hump, a rise stays a
+	 * rise. xs ascending. Outside the points: the end value.
+	 */
+	function monotoneAt( xs, ys, x ) {
+		var n = xs.length;
+		var h = [], dl = [], m = [];
+		var i, k, t, t2, t3, w1, w2;
+		if ( !n ) {
+			return 0;
+		}
+		if ( n === 1 || x <= xs[ 0 ] ) {
+			return ys[ 0 ];
+		}
+		if ( x >= xs[ n - 1 ] ) {
+			return ys[ n - 1 ];
+		}
+		for ( i = 0; i < n - 1; i++ ) {
+			h.push( xs[ i + 1 ] - xs[ i ] );
+			dl.push( ( ys[ i + 1 ] - ys[ i ] ) / h[ i ] );
+		}
+		m[ 0 ] = dl[ 0 ];
+		m[ n - 1 ] = dl[ n - 2 ];
+		for ( i = 1; i < n - 1; i++ ) {
+			if ( dl[ i - 1 ] * dl[ i ] <= 0 ) {
+				m[ i ] = 0;
+			} else {
+				w1 = 2 * h[ i ] + h[ i - 1 ];
+				w2 = h[ i ] + 2 * h[ i - 1 ];
+				m[ i ] = ( w1 + w2 ) / ( w1 / dl[ i - 1 ] + w2 / dl[ i ] );
+			}
+		}
+		k = 0;
+		while ( xs[ k + 1 ] < x ) {
+			k++;
+		}
+		t = ( x - xs[ k ] ) / h[ k ];
+		t2 = t * t;
+		t3 = t2 * t;
+		return ( 2 * t3 - 3 * t2 + 1 ) * ys[ k ] + ( t3 - 2 * t2 + t ) * h[ k ] * m[ k ] +
+			( -2 * t3 + 3 * t2 ) * ys[ k + 1 ] + ( t3 - t2 ) * h[ k ] * m[ k + 1 ];
+	}
+
+	// up to this Fishing Skill the game draws a rarity from a bell curve over
+	// the rarity ladder: the next rarity up is always e^(B - 2j) times as
+	// likely (j = how far up the ladder), with one number B that grows with
+	// skill. Fitted to the readings, it predicts each hidden one within 1
+	// point (user's readings, 2026-10-20). Past it the game changes rules.
+	var BELL_TOP = 300;
+	// a chance under this is too rounded to fit with
+	var BELL_MIN = 0.5;
+
+	/** The bell curve fitted to data.levels up to BELL_TOP: { gaps, xs, tilt } or null. */
+	function bellFit( data ) {
+		if ( has( data, '_bell' ) ) {
+			return data._bell;
+		}
+		var rows = ( data.levels || [] ).filter( function ( r ) {
+			return r[ 0 ] <= BELL_TOP;
+		} ).slice().sort( function ( a, b ) {
+			return a[ 0 ] - b[ 0 ];
+		} );
+		var n = ( data.rarities || [] ).length;
+		var gaps = [], tilt = {}, it, j, sum, cnt;
+		for ( j = 0; j < n - 1; j++ ) {
+			gaps.push( 0 );
+		}
+		function ratio( r, j ) {
+			var a = Number( r[ 1 ][ j ] ), b = Number( r[ 1 ][ j + 1 ] );
+			return a >= BELL_MIN && b >= BELL_MIN ? Math.log( b / a ) : null;
+		}
+		// each neighbouring pair's log ratio = its fixed gap + the level's tilt;
+		// the first gap is 0, so tilt and gaps are found by turns
+		for ( it = 0; it < 50; it++ ) {
+			tilt = {};
+			rows.forEach( function ( r ) {
+				var t = 0, c = 0, k, q;
+				for ( k = 0; k < n - 1; k++ ) {
+					q = ratio( r, k );
+					if ( q !== null ) {
+						t += q - gaps[ k ];
+						c++;
+					}
+				}
+				if ( c ) {
+					tilt[ r[ 0 ] ] = t / c;
+				}
+			} );
+			for ( j = 1; j < n - 1; j++ ) {
+				sum = 0;
+				cnt = 0;
+				rows.forEach( function ( r ) {
+					var q = ratio( r, j );
+					if ( q !== null && has( tilt, r[ 0 ] ) ) {
+						sum += q - tilt[ r[ 0 ] ];
+						cnt++;
+					}
+				} );
+				if ( cnt ) {
+					gaps[ j ] = sum / cnt;
+				} else if ( j > 1 ) {
+					// never seen together below the top: carry the ladder's step on
+					gaps[ j ] = gaps[ j - 1 ] + ( gaps[ j - 1 ] - gaps[ j - 2 ] );
+				}
+			}
+		}
+		var xs = Object.keys( tilt ).map( Number ).sort( function ( a, b ) {
+			return a - b;
+		} );
+		data._bell = xs.length >= 3 ? { gaps: gaps, xs: xs, tilt: xs.map( function ( x ) {
+			return tilt[ x ];
+		} ) } : null;
+		return data._bell;
+	}
+
+	/** Base chances at skill s from the bell curve, or null past BELL_TOP / without a fit. */
+	function bellOdds( data, s ) {
+		var fit = bellFit( data );
+		if ( !fit || s > BELL_TOP || s < fit.xs[ 0 ] ) {
+			return null;
+		}
+		var b = monotoneAt( fit.xs, fit.tilt, s );
+		var rar = data.rarities || [];
+		var lw = 0;
+		var w = rar.map( function ( r, j ) {
+			if ( j > 0 ) {
+				lw += fit.gaps[ j - 1 ] + b;
+			}
+			var unlock = r[ 2 ];
+			return unlock === null || unlock === undefined || s < unlock ? 0 : Math.exp( lw );
+		} );
+		return toHundred( w );
+	}
+
+	/**
 	 * Base chances (%) at a Fishing Skill level, before luck, one per rarity
 	 * in data.rarities order: { odds, exact, between: [lo, hi] }.
 	 * exact: the level was measured, and its chances are passed through as
@@ -7132,6 +7267,10 @@
 				hi = row[ 0 ];
 			}
 		}
+		var bell = bellOdds( data, s );
+		if ( bell ) {
+			return { odds: bell, exact: false, between: [ lo, hi ], skill: s, bell: true };
+		}
 		for ( i = 0; i < rar.length; i++ ) {
 			var unlock = rar[ i ][ 2 ];
 			if ( unlock === null || unlock === undefined || s < unlock ) {
@@ -7173,7 +7312,13 @@
 			} else if ( after === null || after === before ) {
 				p = pts[ before ];
 			} else {
-				p = pts[ before ] + ( pts[ after ] - pts[ before ] ) * ( s - before ) / ( after - before );
+				// a smooth curve through every known point (user, 2026-10-20)
+				var pxs = Object.keys( pts ).map( Number ).sort( function ( x, y ) {
+					return x - y;
+				} );
+				p = monotoneAt( pxs, pxs.map( function ( x ) {
+					return pts[ x ];
+				} ), s );
 			}
 			odds.push( Math.max( 0, p ) );
 			pinned.push( before === s );
@@ -7500,7 +7645,8 @@
 				note.textContent = 'Approximate: above the highest measured level (' + base.between[ 0 ] + '), worked out from the game’s schedule to level ' + max + '.';
 				note.className = 'ffb-catch-note ffb-catch-approx';
 			} else {
-				note.textContent = 'Approximate: between measured levels ' + base.between[ 0 ] + ' and ' + base.between[ 1 ] + '.';
+				note.textContent = 'Approximate: between measured levels ' + base.between[ 0 ] + ' and ' + base.between[ 1 ] +
+					( base.bell ? ', from the game’s bell curve over the rarities.' : '.' );
 				note.className = 'ffb-catch-note ffb-catch-approx';
 			}
 		}
@@ -7925,6 +8071,8 @@
 			applyTrade: applyTrade,
 			readProfile: readProfile,
 			baseMultiplier: baseMultiplier,
+			bellFit: bellFit,
+			monotoneAt: monotoneAt,
 			incomeTies: incomeTies,
 			multiplierParts: multiplierParts,
 			hoursLabel: hoursLabel,
