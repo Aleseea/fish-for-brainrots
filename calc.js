@@ -2665,6 +2665,9 @@
 	// traits renamed after lists and links were saved with the old name:
 	// Snow Flake became Snow on 2026-09-25 (the name the game uses)
 	var RENAMED_TRAITS = { 'Snow Flake': 'Snow' };
+	// brainrots renamed the same way: Los Tralalalitos became Los Tralaleritos
+	// on 2026-10-20 (the Index's spelling)
+	var RENAMED_BRAINROTS = { 'Los Tralalalitos': 'Los Tralaleritos' };
 	var MAX_NAME_CHARS = 60;
 	var COLLECTION_OPTION_KEY = 'userjs-ffb-collection';
 	var PROFILE_OPTION_KEY = 'userjs-ffb-profile';
@@ -2709,7 +2712,7 @@
 			return null;
 		}
 		row = {
-			name: item[ 0 ].trim(),
+			name: has( RENAMED_BRAINROTS, item[ 0 ].trim() ) ? RENAMED_BRAINROTS[ item[ 0 ].trim() ] : item[ 0 ].trim(),
 			mutation: typeof item[ 1 ] === 'string' && item[ 1 ] !== '' && item[ 1 ].length <= MAX_NAME_CHARS ?
 				item[ 1 ] : cat.defaultMutation,
 			traits: [],
@@ -3728,15 +3731,16 @@
 
 	/**
 	 * A picture on this wiki from where it sits under images/ ("e/e9/Name.png",
-	 * see generate_modules.py), 40px wide; null for anything else. (The ?nr=3
+	 * see generate_modules.py), 40px wide; null for anything else. (The ?nr=4
 	 * keeps browsers off old copies they may have cached for a year: the
 	 * placeholder from before the no-referrer fix, the black-backed trait and
 	 * mutation icons replaced on Oct 4-6, 2026, and the small trait icons
-	 * replaced on Oct 15. Bump it whenever pictures go up under the same names.)
+	 * replaced on Oct 15, and the mutation icons replaced with the Index's on
+	 * Oct 20. Bump it whenever pictures go up under the same names.)
 	 */
 	function safeIconUrl( path ) {
 		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ?
-			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=3' : null;
+			'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/40?nr=4' : null;
 	}
 
 	/**
