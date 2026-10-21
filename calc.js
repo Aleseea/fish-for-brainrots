@@ -7071,11 +7071,15 @@
 			inp.setAttribute( 'inputmode', 'decimal' );
 			inp.value = readStorage( storage, PLAN_CASH_KEY ) || '';
 			row.appendChild( field( uid + 'pc', 'Cash to spend', inp, 'ffb-base-cash-field' ).node );
-			var opts = [ { value: 'base', label: 'My base, following the plan' } ].concat( keepers.map( function ( r, i ) {
+			// nothing to buy on a brainrot that's fully upgraded (user, 2026-10-21)
+			var open = keepers.filter( function ( r ) {
+				return r.level < data.maxLevel || r.evolution < data.maxEvolution;
+			} );
+			var opts = [ { value: 'base', label: 'My base, following the plan' } ].concat( open.map( function ( r, i ) {
 				return { value: String( i ), label: r.name + ' (' + ( isDefault( r.mutation ) ? '' : r.mutation + ', ' ) +
 					( r.evolution ? 'Evo ' + r.evolution + ', ' : '' ) + 'level ' + r.level + ')' };
 			} ) );
-			if ( view.cashOn !== 'base' && !keepers[ Number( view.cashOn ) ] ) {
+			if ( view.cashOn !== 'base' && !open[ Number( view.cashOn ) ] ) {
 				view.cashOn = 'base';
 			}
 			var on = buildListPicker( uid + 'po', opts, view.cashOn, 'ffb-trade-input', function ( v ) {
@@ -7094,7 +7098,7 @@
 					return;
 				}
 				var whole = view.cashOn === 'base';
-				var list = whole ? keepers : [ keepers[ Number( view.cashOn ) ] ];
+				var list = whole ? keepers : [ open[ Number( view.cashOn ) ] ];
 				var r = spendPlan( cat, m, list, whole ? goal : data.maxLevel, cash );
 				var changed = r.items.filter( function ( it ) {
 					return it.level !== it.row.level || it.evo !== it.row.evolution;
