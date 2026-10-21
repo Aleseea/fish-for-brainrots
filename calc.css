@@ -2005,6 +2005,11 @@
 	border-color: var(--ffb-good);
 }
 
+.ffb-base-tag-max {
+	color: var(--ffb-accent);
+	border-color: var(--ffb-accent);
+}
+
 .ffb-base-tag-movein {
 	color: #1b1320;
 	background: var(--ffb-good);
@@ -2083,6 +2088,46 @@
 	list-style: none;
 	margin: 0;
 	padding: 0;
+}
+
+/* the best-value plan: a heading per step, and What can my cash do? */
+.ffb-base-plan-head {
+	margin-bottom: 0;
+}
+
+.ffb-base-cash {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+	border-color: var(--ffb-accent);
+}
+
+.ffb-base-cash-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.ffb-base-cash-field {
+	flex: 1 1 160px;
+	min-width: 0;
+}
+
+.ffb-base-cash-head {
+	margin: 0 0 4px;
+}
+
+.ffb-base-cash-list {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.ffb-base-cash-totals {
+	margin-top: 8px;
+	font-weight: 600;
 }
 
 .ffb-base-note {
@@ -4233,4 +4278,29 @@ a.ffb-card-tab:hover {
 	.ffb-var-row {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* the value calculator's What can my cash do? (2026-10-20) */
+.ffb-v2-cash {
+	flex: 1 1 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.ffb-v2 .ffb-v2-cash {
+	margin-top: 4px;
+	padding-top: 12px;
+	border-top: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.3));
+}
+
+.ffb-v2-cash-field {
+	max-width: 260px;
+}
+
+.ffb-v2-cash-facts {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	font-size: 13px;
+	line-height: 1.5;
 }
