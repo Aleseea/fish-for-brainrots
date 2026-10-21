@@ -6907,7 +6907,17 @@
 		function payRange( a, b ) {
 			var x = playTime( a );
 			var y = playTime( b );
-			return x === y || b < a * 1.25 ? '~' + y : x + ' to ' + y;
+			return x === y || b < a * 1.25 ? about( b ) : x + ' to ' + y;
+		}
+
+		/** "~54 min", but "under a minute" without the ~ */
+		function about( sec ) {
+			return sec < 60 ? playTime( sec ) : '~' + playTime( sec );
+		}
+
+		/** "your base earns it in ~54 min": the cost at what the whole base earns now (user, 2026-10-21) */
+		function baseTime( cost, now ) {
+			return now > 0 ? 'your base earns it in ' + about( cost / now ) : '';
 		}
 
 		function partWhat( p, evolve ) {
@@ -6917,7 +6927,7 @@
 		/** Why a part sits where it does, as a tag, or null. */
 		function partTag( p, evolve ) {
 			if ( evolve ) {
-				return { kind: 'movein', text: 'pays back in ~' + playTime( p.lastPay ) };
+				return { kind: 'movein', text: 'pays back in ' + about( p.lastPay ) };
 			}
 			if ( p.lastPay > PLAN_SLOW_HOURS * 3600 ) {
 				return { kind: 'out', text: 'slow: a better catch may beat this' };
@@ -7000,7 +7010,8 @@
 						first.jumps && first.evo > 0 ? 'Evolved brainrots’ upgrades pay back faster, so these beat your lower-level brainrots’ next levels. ' :
 							'These pay for themselves faster than any other upgrade in your base. ';
 				card.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', why + '+' + money( first.gain ) + '/s · ' +
-					( st0.evolve ? 'pays back in ~' + playTime( first.lastPay ) : 'each pays back in ' + payRange( st0.firstPay, first.lastPay ) ) + ' of play.' ) );
+					( st0.evolve ? 'pays back in ' + about( first.lastPay ) : 'each pays back in ' + payRange( st0.firstPay, first.lastPay ) ) + ' of play' +
+					( now > 0 ? '; ' + baseTime( first.cost, now ) + ' of play.' : '.' ) ) );
 				panel.appendChild( card );
 
 				var rest = st0.parts.length > 1 ? [ { parts: st0.parts.slice( 1 ), evolve: false, firstPay: st0.firstPay,
@@ -7008,11 +7019,12 @@
 				rest.concat( steps.slice( 1, PLAN_SHOW ) ).forEach( function ( st ) {
 					panel.appendChild( el( 'div', 'ffb-base-muted ffb-base-small ffb-base-gap ffb-base-plan-head',
 						( st.alongside ? 'Alongside it' : st.evolve ? 'Then evolve' : 'Then' ) + ' · ' + money( st.cost ) +
+						( now > 0 ? ' · ' + baseTime( st.cost, now ) : '' ) +
 						( st.evolve ? '' : ' · each pays back in ' + payRange( st.firstPay, st.lastPay ) ) ) );
 					var list = el( 'ol', 'ffb-base-plan' );
 					st.parts.forEach( function ( p ) {
 						var li = el( 'li', 'ffb-base-plan-step' );
-						var note = '+' + money( p.gain ) + '/s';
+						var note = '+' + money( p.gain ) + '/s' + ( now > 0 ? ' · ' + baseTime( p.cost, now ) : '' );
 						if ( st.evolve ) {
 							note = 'Save ' + money( p.cost ) + ' first, then evolve and buy it straight back to level ' + data.maxLevel + '. ' + note;
 						}
@@ -7042,14 +7054,16 @@
 				if ( ready && !shownEvo && climb !== null ) {
 					panel.appendChild( el( 'p', 'ffb-base-note', ready.name + ' is at level ' + data.maxLevel + '. For income, evolving it to Evo ' +
 						( ready.evolution + 1 ) + ' comes after the upgrades above, since they pay back faster. When you get there, save ' +
-						money( climb ) + ' first so you can buy it straight back to level ' + data.maxLevel + '.' ) );
+						money( climb ) + ' first so you can buy it straight back to level ' + data.maxLevel +
+						( now > 0 ? ' (' + baseTime( climb, now ) + ' of play)' : '' ) + '.' ) );
 				}
 			}
 			var notes = [ goal > 175 ? 'Goal 200: levels above 175 add only 3% each, so they come late.' :
 				'Stops at level 175: after that each level adds only 3%.' ];
 			notes.push( 'Evolving starts again at level 1; for income it comes last, your best brainrot first, all the way to Evo ' +
 				data.maxEvolution + '. Evolved brainrots are also worth more in trades.' );
-			notes.push( 'Payback times are hours of play at your base’s income, ' + money( now ) + '/s with your ×' + mult + ' multiplier.' );
+			notes.push( '“Pays back” is how long an upgrade’s own extra income takes to repay it; “your base earns it” is how long your whole base takes to earn its cost, at ' +
+				money( now ) + '/s with your ×' + mult + ' multiplier. Both count hours of play.' );
 			if ( !profile.rebirth && !profile.indexes.length ) {
 				notes.push( 'Add your rebirth and finished indexes in Profile for real times.' );
 			}
@@ -7139,9 +7153,14 @@
 				tot.appendChild( el( 'li', null, ( whole ? 'Your base earns ' : 'It earns ' ) + money( before ) + '/s now → ' +
 					money( after ) + '/s (+' + money( after - before ) + '/s)' ) );
 				if ( r.stop ) {
-					tot.appendChild( el( 'li', 'ffb-base-muted', r.stop.kind === 'evo' ? 'Next: evolving ' + r.stop.it.row.name + '. Save ' +
-						money( r.stop.cost ) + ' for the climb back first.' :
-						'Next: ' + r.stop.it.row.name + ' level ' + r.stop.from + ' → ' + ( r.stop.from + 1 ) + ' for ' + money( r.stop.cost ) + '.' ) );
+					var baseNow = planEarning( keepers ).reduce( function ( t, row ) {
+						return t + ( m.income( row, row.evolution, row.level ) || 0 );
+					}, 0 );
+					var short = r.stop.cost - r.left;
+					tot.appendChild( el( 'li', 'ffb-base-muted', ( r.stop.kind === 'evo' ? 'Next: evolving ' + r.stop.it.row.name + '. Save ' +
+						money( r.stop.cost ) + ' for the climb back first' :
+						'Next: ' + r.stop.it.row.name + ' level ' + r.stop.from + ' → ' + ( r.stop.from + 1 ) + ' for ' + money( r.stop.cost ) ) +
+						( baseNow > 0 ? '; with what’s left over, your base earns the rest in ' + about( short / baseNow ) + ' of play.' : '.' ) ) );
 				}
 				out.appendChild( tot );
 			}
