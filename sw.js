@@ -33,8 +33,11 @@ self.addEventListener( 'fetch', function ( e ) {
 		return;
 	}
 	if ( req.mode === 'navigate' ) {
-		// the page: fresh when online, the saved copy when not
-		e.respondWith( fetch( req ).then( function ( res ) {
+		// the page: fresh when online, the saved copy when not. no-cache makes
+		// the browser check with GitHub every time instead of reusing its own
+		// copy for up to 10 minutes (Pages sends max-age=600), so an update
+		// shows on the first refresh (2026-10-21)
+		e.respondWith( fetch( req.url, { cache: 'no-cache', credentials: 'same-origin' } ).then( function ( res ) {
 			var copy = res.clone();
 			caches.open( CACHE ).then( function ( c ) {
 				c.put( 'index.html', copy );
