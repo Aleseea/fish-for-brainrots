@@ -3224,10 +3224,19 @@
 		return s === null ? null : s / Math.sqrt( evo );
 	}
 
-	/** Base slots, as the collection page remembers them. */
-	var BASE_SLOTS_KEY = 'ffb-base-slots';
-	var BASE_SLOTS_DEFAULT = 24;
-	var BASE_SLOTS_MAX = 60;
+	/**
+	 * Base slots come from rebirths (user, 2026-10-21; the Rebirths page):
+	 * 8 to start, one more at each of these rebirths, 24 at rebirth 35.
+	 */
+	var BASE_SLOTS_START = 8;
+	var BASE_SLOT_REBIRTHS = [ 5, 8, 12, 15, 19, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35 ];
+	var BASE_SLOTS_DEFAULT = BASE_SLOTS_START;
+
+	function baseSlots( rebirth ) {
+		return BASE_SLOTS_START + BASE_SLOT_REBIRTHS.filter( function ( r ) {
+			return r <= rebirth;
+		} ).length;
+	}
 
 	/**
 	 * Which saved brainrots belong in a base of `slots`: the strongest ones.
@@ -3296,9 +3305,6 @@
 		} catch ( err ) {
 			p = {};
 		}
-		if ( wholeNumber( p.slots, 1, BASE_SLOTS_MAX ) ) {
-			out.slots = p.slots;
-		}
 		if ( wholeNumber( p.rebirth, 0, REBIRTH_MAX ) ) {
 			out.rebirth = p.rebirth;
 		}
@@ -3307,6 +3313,8 @@
 				return typeof m === 'string' && has( cat.mutations, m ) && p.indexes.indexOf( m ) === i;
 			} );
 		}
+		// slots aren't asked any more: they follow the rebirth
+		out.slots = baseSlots( out.rebirth );
 		out.vip = p.vip === true;
 		if ( wholeNumber( p.friends, 0, FRIENDS_MAX ) ) {
 			out.friends = p.friends;
@@ -6195,14 +6203,9 @@
 		var nextId = 1;
 		var savedProfile = profileStore.load();
 		var profile = readProfile( cat, savedProfile );
-		var oldSlots = parseInt( readStorage( storage, BASE_SLOTS_KEY ) || '', 10 );
 		var view = { tab: 'list', filter: 'all', sort: 'strength', editing: null, level: 175, check: 1, goal: 175, adding: false, cashOn: 'base' };
 		var lastInBase = false;
 
-		// the slots set on the old My collection page carry over
-		if ( !savedProfile && oldSlots >= 1 && oldSlots <= BASE_SLOTS_MAX ) {
-			profile.slots = oldSlots;
-		}
 		function withId( row ) {
 			row.id = nextId++;
 			return row;
@@ -7337,12 +7340,11 @@
 				r.appendChild( inp );
 				panel.appendChild( r );
 			}
-			numberRow( 'Slots in your base', 'How many brainrots your base holds', profile.slots, 1, BASE_SLOTS_MAX, function ( n ) {
-				profile.slots = n;
-			} );
-			numberRow( 'Rebirth', 'Your rebirth multiplier: ×' + rebirthMultiplier( profile.rebirth ), profile.rebirth, 0, REBIRTH_MAX, function ( n ) {
-				profile.rebirth = n;
-			} );
+			numberRow( 'Rebirth', 'Your rebirth multiplier: ×' + rebirthMultiplier( profile.rebirth ) + ' · ' + profile.slots + ' base slots',
+				profile.rebirth, 0, REBIRTH_MAX, function ( n ) {
+					profile.rebirth = n;
+					profile.slots = baseSlots( n );
+				} );
 			numberRow( 'Friends in your server', 'In-game friends you’re playing with: +0.5x each', profile.friends, 0, FRIENDS_MAX, function ( n ) {
 				profile.friends = n;
 			} );
@@ -8631,6 +8633,7 @@
 			rarityFrame: rarityFrame,
 			priceCurve: priceCurve,
 			BASE_SLOTS_DEFAULT: BASE_SLOTS_DEFAULT,
+			baseSlots: baseSlots,
 			traitOptions: traitOptions,
 			matchItem: matchItem,
 			brainrotOptions: brainrotOptions,
