@@ -123,6 +123,39 @@ window.ffbFuzeStart = function () {
 	pool.forEach( function ( b ) { byName[ b.name ] = b; } );
 	var MUTS = D.mutations.map( function ( m ) { return m[ 0 ]; } );
 	var TRAITS = D.traits.map( function ( t ) { return t[ 0 ]; } );
+	var TRAIT_MULT = {};
+	D.traits.forEach( function ( t ) { TRAIT_MULT[ t[ 0 ] ] = t[ 1 ]; } );
+	/**
+	 * Each trait's chance to come through, as the machine works it out
+	 * (fitted 2026-10-23 to all 81 machine screens, Admin Fuse included;
+	 * Fuze Odds/trait_fit.py): every input that has a trait adds 44.5% x
+	 * (its base / the 4 inputs' average base)^0.77 to a total, and that is
+	 * shared over every trait on the inputs, weighted (multiplier)^-1.1 x
+	 * (holder's base)^0.84. A trait on several inputs adds up. Within a point
+	 * nearly always; a trait that gets very high can be a few points off.
+	 */
+	function traitOdds( slots ) {
+		var bases = slots.map( function ( s ) { return byName[ s.name ].base; } );
+		var mean = bases.reduce( function ( a, b ) { return a + b; }, 0 ) / bases.length;
+		var total = 0, w = {}, sum = 0;
+		slots.forEach( function ( s, i ) {
+			var ts = s.traits.filter( function ( t ) { return t && TRAIT_MULT[ t ]; } );
+			if ( !ts.length ) { return; }
+			total += 44.5 * Math.pow( bases[ i ] / mean, 0.77 );
+			ts.forEach( function ( t ) {
+				var x = Math.pow( TRAIT_MULT[ t ], -1.1 ) * Math.pow( bases[ i ] / 1e6, 0.84 );
+				w[ t ] = ( w[ t ] || 0 ) + x;
+				sum += x;
+			} );
+		} );
+		var out = {};
+		Object.keys( w ).forEach( function ( t ) { out[ t ] = Math.min( 100, total * w[ t ] / sum ); } );
+		return out;
+	}
+	// typed-in % only count for the 4 inputs they were typed for
+	function slotsKey( slots ) {
+		return slots.map( function ( s ) { return s.name + ':' + s.traits.filter( Boolean ).slice().sort().join( '+' ); } ).sort().join( '|' );
+	}
 	// pictures come from the wiki, like the calculators' (calc.js safeIconUrl)
 	var ICONS = {
 		get: function ( path ) {
@@ -321,7 +354,8 @@ window.ffbFuzeStart = function () {
 			{ name: 'Mewerty', mut: 'Storm', traits: [ 'Atomic' ] }
 		],
 		want: saved.want || { rot: 'Spin Ferno', mut: 'Storm', traits: [] },
-		traitPct: saved.traitPct || { 'Golden Dice': 35.1, 'Heart': 37.24, 'Snow': 40.04, 'Bat': 15.15, 'Purple Star': 15.15, 'Atomic': 29.92 }
+		// { key: slotsKey, pct: { trait: % } }: what the machine showed, typed in
+		traitPct: saved.traitPct && saved.traitPct.pct ? saved.traitPct : { key: '', pct: {} }
 	};
 	if ( state.f.must ) { state.marks[ state.f.must ] = 'must'; }
 	if ( state.f.skip ) { state.marks[ state.f.skip ] = 'no'; }
@@ -1004,18 +1038,23 @@ window.ffbFuzeStart = function () {
 		mcard.appendChild( mch );
 		vTry.appendChild( mcard );
 
-		// traits: the chance per trait is copied from the machine screen
+		// traits: each one's chance, worked out (a % typed in from the machine wins)
 		var torder = [];
 		state.slots.forEach( function ( s ) {
 			s.traits.forEach( function ( t ) { if ( t && torder.indexOf( t ) === -1 ) { torder.push( t ); } } );
 		} );
 		state.want.traits = state.want.traits.filter( function ( t ) { return torder.indexOf( t ) !== -1; } );
+		var key = slotsKey( state.slots );
+		if ( state.traitPct.key !== key ) { state.traitPct = { key: key, pct: {} }; }
+		var est = traitOdds( state.slots );
+		var typed = state.traitPct.pct;
+		function tpct( t ) { return typed[ t ] !== undefined ? typed[ t ] : est[ t ]; }
 		var tcard = el( 'div', 'ffz-card' );
 		tcard.appendChild( el( 'h3', 'ffz-h', 'Possible traits' ) );
 		if ( !torder.length ) {
 			tcard.appendChild( el( 'p', 'ffz-note', 'None of the 4 has a trait, so the result won\'t have one.' ) );
 		} else {
-			tcard.appendChild( el( 'p', 'ffz-note', 'Tap the traits you want. Type in the % the machine shows for each one: we can\'t work trait chances out yet.' ) );
+			tcard.appendChild( el( 'p', 'ffz-note', 'Tap the traits you want. The chances are worked out from 81 machine screens and are nearly always within a point of the machine; a trait that gets very high can be a few points off. If the machine shows something different, type its % in.' ) );
 			var rows = el( 'div', 'ffz-traitrows' );
 			torder.forEach( function ( t ) {
 				var r = el( 'div', 'ffz-traitrow' );
@@ -1028,7 +1067,10 @@ window.ffbFuzeStart = function () {
 					drawTry();
 				} );
 				r.appendChild( c );
+				var big = el( 'b', 'ffz-tpct', tpct( t ).toFixed( 2 ) + '%' );
+				r.appendChild( big );
 				var w = el( 'label', 'ffz-pctwrap' );
+				w.appendChild( el( 'span', 'ffz-pctsrc', 'Machine shows' ) );
 				var inp = el( 'input', 'ffz-pct' );
 				inp.type = 'number';
 				inp.inputMode = 'decimal';
@@ -1036,12 +1078,13 @@ window.ffbFuzeStart = function () {
 				inp.max = '100';
 				inp.step = '0.01';
 				inp.id = 'ffz-tp-' + t.replace( /\W+/g, '-' );
-				inp.placeholder = '?';
-				inp.setAttribute( 'aria-label', 'Chance of ' + t + ' in %' );
-				if ( state.traitPct[ t ] !== undefined ) { inp.value = state.traitPct[ t ]; }
+				inp.placeholder = '–';
+				inp.setAttribute( 'aria-label', 'Chance of ' + t + ' in %, worked out as ' + est[ t ].toFixed( 2 ) + '; type the machine\'s % to use it instead' );
+				if ( typed[ t ] !== undefined ) { inp.value = typed[ t ]; }
 				inp.addEventListener( 'change', function () {
 					var v = parseFloat( inp.value );
-					if ( isNaN( v ) ) { delete state.traitPct[ t ]; } else { state.traitPct[ t ] = Math.min( 100, Math.max( 0, v ) ); }
+					if ( isNaN( v ) ) { delete typed[ t ]; } else { typed[ t ] = Math.min( 100, Math.max( 0, v ) ); }
+					big.textContent = tpct( t ).toFixed( 2 ) + '%';
 					save();
 					drawGoal();
 				} );
@@ -1069,16 +1112,10 @@ window.ffbFuzeStart = function () {
 			var k = outs.map( function ( o ) { return o.name; } ).indexOf( w.rot );
 			var parts = [ [ w.rot, ps[ k ] / 100 ] ];
 			if ( w.mut ) { parts.push( [ w.mut + ' mutation', mc[ w.mut ] / 100 ] ); }
-			var missing = [];
-			w.traits.forEach( function ( t ) {
-				if ( state.traitPct[ t ] === undefined ) { missing.push( t ); } else { parts.push( [ t, state.traitPct[ t ] / 100 ] ); }
-			} );
+			w.traits.forEach( function ( t ) { parts.push( [ t, tpct( t ) / 100 ] ); } );
 			var line = el( 'div', 'ffz-goal-want' );
 			line.textContent = [ w.rot, w.mut ? 'with ' + w.mut : 'any mutation' ].concat( w.traits.length ? [ 'with ' + w.traits.join( ' + ' ) ] : [] ).join( ', ' );
 			goal.appendChild( line );
-			if ( missing.length ) {
-				goal.appendChild( el( 'p', 'ffz-warn', 'Type in the % for ' + missing.join( ' and ' ) + ' (from the machine screen) to count ' + ( missing.length > 1 ? 'them' : 'it' ) + '.' ) );
-			}
 			if ( w.traits.length > 3 ) {
 				goal.appendChild( el( 'p', 'ffz-warn', 'A brainrot holds at most 3 traits, so 4 or more can\'t all come through.' ) );
 				return;

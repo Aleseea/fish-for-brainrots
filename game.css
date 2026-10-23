@@ -2662,3 +2662,6 @@ html.game .site-title .mk-tagline {
 .site-mutbtn-abuse .site-mutbtn-when { background: #8a3ad8; }
 .site-float-hot .site-pond-icon { width: 38px; height: 38px; }
 .site-tz-note { font-style: italic; }
+/* worked-out trait chance (user, 2026-10-23), with an optional box for the machine's own % */
+.ffz-tpct { min-width: 64px; font-size: 16px; text-align: right; }
+.ffz-pctsrc { color: var(--muted); font-size: 12px; }
