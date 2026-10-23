@@ -440,6 +440,24 @@
 			x.when.toLocaleString( [], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' } ) :
 			x.day.toLocaleDateString( [], { weekday: 'short', month: 'short', day: 'numeric' } ) + ' · time not announced';
 	}
+	/** The reader's time zone, short ("MDT"), or its region when there's no short name. */
+	function zoneName( now ) {
+		try {
+			var tz = '';
+			new Intl.DateTimeFormat( [], { timeZoneName: 'short' } ).formatToParts( now ).forEach( function ( p ) {
+				if ( p.type === 'timeZoneName' ) {
+					tz = p.value;
+				}
+			} );
+			if ( /^(GMT|UTC)[+-]/.test( tz ) ) {
+				var region = Intl.DateTimeFormat().resolvedOptions().timeZone;
+				tz = region ? region.replace( /^.*\//, '' ).replace( /_/g, ' ' ) + ' time, ' + tz : tz;
+			}
+			return tz;
+		} catch ( err ) {
+			return '';
+		}
+	}
 	function clock( d ) {
 		return d.toLocaleTimeString( [], { hour: 'numeric', minute: '2-digit' } );
 	}
@@ -472,7 +490,7 @@
 			box.hidden = true;
 			return;
 		}
-		var head = el( 'div', 'site-upcoming-title', ( items[ 0 ].live ? 'On now and coming up' : 'Coming up' ) + ' · your time' );
+		var head = el( 'div', 'site-upcoming-title', ( items[ 0 ].live ? 'On now and coming up' : 'Coming up' ) + ' · ' + ( zoneName( now ) || 'your time' ) );
 		box.appendChild( head );
 		var list = el( 'ul', 'site-upcoming-list' );
 		items.forEach( function ( x ) {
@@ -613,6 +631,7 @@
 				card.appendChild( el( 'p', 'site-mut-note', 'New mutation: its multiplier isn\'t known yet.' ) );
 			}
 			card.appendChild( el( 'p', 'site-mut-note', 'Most traits are active during the Admin Abuse. Mini events pause until it ends.' ) );
+			card.appendChild( tzNote( now ) );
 			return;
 		}
 		var nx = minis[ 1 ];
@@ -625,8 +644,13 @@
 		}
 		if ( miniRotation && miniRotation.runs > 0 && miniRotation.every > 0 ) {
 			card.appendChild( el( 'p', 'site-mut-note', 'Mini events run all day, the same for everyone: each lasts ' + miniRotation.runs +
-				' minutes and a new one starts every ' + miniRotation.every + '. Times are yours.' ) );
+				' minutes and a new one starts every ' + miniRotation.every + '.' ) );
 		}
+		card.appendChild( tzNote( now ) );
+	}
+	function tzNote( now ) {
+		var z = zoneName( now );
+		return el( 'p', 'site-mut-note site-tz-note', 'Times are in your time zone' + ( z ? ' (' + z + ')' : '' ) + '.' );
 	}
 
 	/**

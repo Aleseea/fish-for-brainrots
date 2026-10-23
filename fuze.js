@@ -649,9 +649,15 @@ window.ffbFuzeStart = function () {
 				ul.appendChild( el( 'div', 'ffz-empty', all.length ? 'No mix matches these filters. Try turning one off, or mark more brainrots as Have.' :
 					'Nothing fuses into ' + t.name + ': it\'s the weakest ' + t.rarity + ', so no mix can give it.' ) );
 			}
+			// in a group, the cheapest way first (user, 2026-10-23): the mixes
+			// differ in what they cost far more than in their chance
+			var inGroup = {
+				cheap: sorts.cheap,
+				kinds: function ( a, b ) { return a.combo.nKinds - b.combo.nKinds || sorts.cheap( a, b ); }
+			};
 			groups.slice( 0, state.shown ).forEach( function ( g, i ) {
-				g.mixes.sort( sorts[ state.sort ] || sorts.chance );
-				ul.appendChild( groupCard( g, i + 1, t, own ) );
+				g.mixes.sort( inGroup[ state.sort ] || inGroup.cheap );
+				ul.appendChild( groupCard( g, i + 1, t, own, req ) );
 			} );
 			res.appendChild( ul );
 			if ( groups.length > state.shown ) {
@@ -801,15 +807,27 @@ window.ffbFuzeStart = function () {
 		showView( 'try' );
 		root.scrollIntoView( { block: 'start' } );
 	}
-	// one mix as a short row: small pictures, names, chance, Try
-	function mixRow( e, t, own ) {
+	// a mix's brainrots in the order to show them (user, 2026-10-23): the
+	// required ones first (in every recipe, or marked Must use), then Admin
+	// Secrets, then the rest, most expensive first
+	function inOrder( c, req ) {
+		function rank( b ) { return req[ b.name ] || state.marks[ b.name ] === 'must' ? 0 : b.rarity === 'Admin Secret' ? 1 : 2; }
+		return c.ins.slice().sort( function ( a, b ) {
+			return rank( a ) - rank( b ) || b.base - a.base || ( a.name < b.name ? -1 : a.name > b.name ? 1 : 0 );
+		} );
+	}
+	// one mix as a short row: small pictures, names (in the pictures' order), chance, Try
+	function mixRow( e, t, own, req ) {
 		var c = e.combo, row = el( 'div', 'ffz-mix' );
+		var ins = inOrder( c, req );
 		var pics = el( 'span', 'ffz-mix-pics' );
-		c.ins.forEach( function ( b ) { pics.appendChild( pic( b ) ); } );
+		ins.forEach( function ( b ) { pics.appendChild( pic( b ) ); } );
 		row.appendChild( pics );
-		var names = Object.keys( c.kinds ).map( function ( n ) { return byName[ n ]; } ).sort( function ( a, b ) {
-			return c.kinds[ b.name ] - c.kinds[ a.name ] || a.base - b.base;
-		} ).map( function ( b ) { return ( c.kinds[ b.name ] > 1 ? c.kinds[ b.name ] + '× ' : '' ) + b.name; } );
+		var names = [];
+		ins.forEach( function ( b, i ) {
+			if ( i && ins[ i - 1 ] === b ) { return; }
+			names.push( ( c.kinds[ b.name ] > 1 ? c.kinds[ b.name ] + '× ' : '' ) + b.name );
+		} );
 		var tx = el( 'span', 'ffz-mix-names' );
 		tx.textContent = names.join( ' + ' );
 		if ( haveAll( c, own ) ) {
@@ -821,13 +839,15 @@ window.ffbFuzeStart = function () {
 		var go = el( 'button', 'ffz-btn ffz-btn-small', 'Try' );
 		go.type = 'button';
 		go.setAttribute( 'aria-label', 'Try ' + names.join( ' + ' ) + ' in the machine' );
-		go.addEventListener( 'click', function () { tryMix( c, t ); } );
+		go.addEventListener( 'click', function () { tryMix( { ins: ins }, t ); } );
 		row.appendChild( go );
 		return row;
 	}
 	// a group: the shared results, the chance range and the best mixes
-	function groupCard( g, rank, t, own ) {
-		var best = g.mixes[ 0 ], c = best.combo, card = el( 'div', 'ffz-recipe' );
+	function groupCard( g, rank, t, own, req ) {
+		// the results' odds come from the group's best-chance mix (the first
+		// mix shown is its cheapest)
+		var best = g.mixes.reduce( function ( a, e ) { return e.p > a.p ? e : a; } ), c = best.combo, card = el( 'div', 'ffz-recipe' );
 		var head = el( 'div' );
 		head.appendChild( el( 'div', 'ffz-rank', '#' + rank + ' · ' + g.mixes.length.toLocaleString() + ( g.mixes.length === 1 ? ' mix' : ' mixes' ) ) );
 		var res = el( 'div', 'ffz-also' );
@@ -849,7 +869,7 @@ window.ffbFuzeStart = function () {
 		var mixes = el( 'div', 'ffz-mixes' );
 		var shown = 0;
 		function more( n ) {
-			g.mixes.slice( shown, shown + n ).forEach( function ( e ) { mixes.appendChild( mixRow( e, t, own ) ); } );
+			g.mixes.slice( shown, shown + n ).forEach( function ( e ) { mixes.appendChild( mixRow( e, t, own, req ) ); } );
 			shown = Math.min( g.mixes.length, shown + n );
 			if ( shown >= g.mixes.length ) { btn.hidden = true; } else { btn.textContent = 'Show ' + Math.min( 20, g.mixes.length - shown ) + ' more of ' + ( g.mixes.length - shown ).toLocaleString(); }
 		}

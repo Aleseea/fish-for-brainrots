@@ -1,3 +1,10 @@
+/* hidden means hidden, even on elements that set their own display (the
+   Fuze page's "also happy with" chips, the header's pond label and mutation
+   button; user, 2026-10-23) */
+[hidden] {
+	display: none !important;
+}
+
 /* Page shell for the standalone calculators. The calculators themselves are
    styled by calc.css (generated from the wiki's Common.css). */
 
