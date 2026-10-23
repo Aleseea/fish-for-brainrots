@@ -359,7 +359,7 @@
 				if ( to ) {
 					ends = new Date( Date.UTC( to[ 0 ], to[ 1 ] - 1, to[ 2 ], st.getUTCHours(), st.getUTCMinutes() ) );
 				}
-				out.push( { name: e.name, when: st, ends: ends && ends > st ? ends : null, note: '' } );
+				out.push( { name: e.name, when: st, ends: ends && ends > st ? ends : null, note: '', abuse: e.type === 'abuse', mutation: e.mutation } );
 				return;
 			}
 			if ( !d ) {
@@ -368,8 +368,8 @@
 			if ( e.type === 'abuse' && new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] ) ).getUTCDay() === 6 ) {
 				// each run lasts 45 minutes (admins join 15 minutes before)
 				var main = zoned( d[ 0 ], d[ 1 ], d[ 2 ], 21, 0, ET ), rerun = zoned( d[ 0 ], d[ 1 ], d[ 2 ] + 1, 11, 0, ET );
-				out.push( { name: e.name, when: main, ends: new Date( main.getTime() + 45 * 60000 ), note: 'main run' } );
-				out.push( { name: e.name, when: rerun, ends: new Date( rerun.getTime() + 45 * 60000 ), note: 'rerun' } );
+				out.push( { name: e.name, when: main, ends: new Date( main.getTime() + 45 * 60000 ), note: 'main run', abuse: true, mutation: e.mutation } );
+				out.push( { name: e.name, when: rerun, ends: new Date( rerun.getTime() + 45 * 60000 ), note: 'rerun', abuse: true, mutation: e.mutation } );
 			} else {
 				// no known start time (a weekend Admin Pond, a mini event): the day only
 				out.push( { name: e.name, day: new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ], 12 ) ), note: '' } );
@@ -397,7 +397,15 @@
 				}
 			}
 		} );
-		out = out.concat( miniTimes( miniRotation, now ) );
+		// the mini events don't run during an Admin Abuse (user, 2026-10-23)
+		var runs = out.filter( function ( x ) {
+			return x.abuse && x.when && x.ends;
+		} );
+		out = out.concat( miniTimes( miniRotation, now ).filter( function ( m ) {
+			return !runs.some( function ( r ) {
+				return m.when < r.ends && m.ends > r.when;
+			} );
+		} ) );
 		return out.filter( function ( x ) {
 			if ( x.ends ) {
 				return x.ends.getTime() > now.getTime();
@@ -448,12 +456,15 @@
 		var banner = document.getElementById( 'banner' );
 		var now = new Date();
 		var all = upcomingTimes( upcomingEvents, now );
+		var abuse = all.filter( function ( x ) {
+			return x.abuse && x.live;
+		} )[ 0 ] || null;
 		renderMutation( all.filter( function ( x ) {
 			return x.mini;
-		} ), now );
-		renderPond( all.filter( isPond )[ 0 ] || null, now );
+		} ), abuse, now );
+		renderPond( all.filter( isPond )[ 0 ] || null, abuse, now );
 		var items = all.filter( function ( x ) {
-			return !x.mini && !isPond( x );
+			return !x.mini && !isPond( x ) && x !== abuse;
 		} );
 		box.textContent = '';
 		if ( !items.length ) {
@@ -497,10 +508,31 @@
 		}
 	}
 
+	function mutationIconPath( name ) {
+		var path = catalog && catalog.mutationIcons && catalog.mutationIcons[ name ];
+		return typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ? path : null;
+	}
+	/**
+	 * A mutation with no game icon yet (a new one at its Admin Abuse): its
+	 * name on a tile in its colour, or the admin purple, with NEW when the
+	 * wiki doesn't have it yet.
+	 */
+	function mutationNameTile( name, cls ) {
+		var t = el( 'span', cls + ' site-mut-nametile' );
+		t.appendChild( el( 'span', 'site-mut-nametile-name', name ) );
+		var c = catalog && catalog.mutationColors && catalog.mutationColors[ name ];
+		if ( typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test( c ) ) {
+			t.style.background = c;
+		}
+		if ( mutationMult( name ) === null ) {
+			t.appendChild( el( 'span', 'site-mut-new', 'New' ) );
+		}
+		return t;
+	}
 	/** A mutation's game icon, or a square in its colour with its first letter. */
 	function mutationMark( name, cls ) {
-		var path = catalog && catalog.mutationIcons && catalog.mutationIcons[ name ];
-		if ( typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ) {
+		var path = mutationIconPath( name );
+		if ( path ) {
 			var img = el( 'img', cls );
 			img.referrerPolicy = 'no-referrer';
 			img.setAttribute( 'referrerpolicy', 'no-referrer' );
@@ -524,15 +556,28 @@
 		} );
 		return mult;
 	}
+	/** The mutation an Admin Abuse is for: the wiki's field, else read off its name. */
+	function abuseMutation( x ) {
+		if ( typeof x.mutation === 'string' && x.mutation ) {
+			return x.mutation;
+		}
+		var best = '';
+		( catalog && Array.isArray( catalog.mutations ) ? catalog.mutations : [] ).forEach( function ( m ) {
+			if ( String( m[ 0 ] ).length > best.length && x.name.indexOf( m[ 0 ] ) === 0 ) {
+				best = m[ 0 ];
+			}
+		} );
+		return best || x.name.replace( /\s*\(.*?\)/g, '' ).replace( /\s*Admin Abuse.*$/, '' ).trim() || x.name;
+	}
 	/**
 	 * The mutation mini event beside the site name: the one on now with the
 	 * time left under it, or between them the next one, faded, with when it
 	 * starts. Tapping it opens a card with the name, multiplier and times.
 	 */
-	function renderMutation( minis, now ) {
+	function renderMutation( minis, abuse, now ) {
 		var btn = document.getElementById( 'mut-btn' );
 		var card = document.getElementById( 'mut-card' );
-		var x = minis[ 0 ];
+		var x = abuse || minis[ 0 ];
 		btn.hidden = !x;
 		if ( !x ) {
 			card.hidden = true;
@@ -540,24 +585,36 @@
 		}
 		// within half a minute of its start counts as on (countdown would say 'on now')
 		var live = x.when.getTime() <= now.getTime() + 30000;
-		var name = x.name.replace( / mini event$/, '' ), mult = mutationMult( name );
+		var name = abuse ? abuseMutation( abuse ) : x.name.replace( / mini event$/, '' ), mult = mutationMult( name );
 		var left = live ? countdown( x.ends, now ).replace( /^in /, '' ) : countdown( x.when, now );
-		btn.className = 'site-mutbtn' + ( live ? '' : ' site-mutbtn-next' );
+		var icon = !!mutationIconPath( name );
+		btn.className = 'site-mutbtn' + ( live ? '' : ' site-mutbtn-next' ) + ( abuse ? ' site-mutbtn-abuse' : '' ) + ( icon ? '' : ' site-mutbtn-wide' );
 		btn.textContent = '';
-		btn.appendChild( mutationMark( name, 'site-mutbtn-icon' ) );
-		btn.appendChild( el( 'span', 'site-mutbtn-when', live ? left : left.replace( /^in /, '' ) ) );
-		btn.setAttribute( 'aria-label', ( live ? 'Mutation now: ' + name + ', ' + left + ' left' : 'Next mutation: ' + name + ', ' + left ) );
+		btn.appendChild( icon ? mutationMark( name, 'site-mutbtn-icon' ) : mutationNameTile( name, 'site-mutbtn-tile' ) );
+		btn.appendChild( el( 'span', 'site-mutbtn-when', left.replace( /^in /, '' ) ) );
+		btn.setAttribute( 'aria-label', abuse ? name + ' Admin Abuse, ' + left + ' left' :
+			live ? 'Mutation now: ' + name + ', ' + left + ' left' : 'Next mutation: ' + name + ', ' + left );
 		card.textContent = '';
-		card.appendChild( el( 'div', 'site-upcoming-title', live ? 'Mutation mini event · on now' : 'Next mutation mini event' ) );
+		card.appendChild( el( 'div', 'site-upcoming-title', abuse ? 'Admin Abuse · on now' : live ? 'Mutation mini event · on now' : 'Next mutation mini event' ) );
 		var row = el( 'div', 'site-mut-row' );
-		row.appendChild( mutationMark( name, 'site-mut-big' ) );
+		row.appendChild( icon ? mutationMark( name, 'site-mut-big' ) : mutationNameTile( name, 'site-mut-bigtile' ) );
 		var t = el( 'div', 'site-mut-text' );
 		t.appendChild( el( 'strong', null, name + ( mult ? ' ×' + mult : '' ) ) );
+		if ( abuse ) {
+			t.appendChild( el( 'span', 'site-upcoming-when', abuse.name + ( abuse.note ? ' (' + abuse.note + ')' : '' ) ) );
+		}
 		t.appendChild( el( 'span', 'site-upcoming-when', live ?
 			clock( x.when ) + ' to ' + clock( x.ends ) + ' · ' + left + ' left' :
 			'starts ' + clock( x.when ) + ' · ' + left ) );
 		row.appendChild( t );
 		card.appendChild( row );
+		if ( abuse ) {
+			if ( mult === null ) {
+				card.appendChild( el( 'p', 'site-mut-note', 'New mutation: its multiplier isn\'t known yet.' ) );
+			}
+			card.appendChild( el( 'p', 'site-mut-note', 'Most traits are active during the Admin Abuse. Mini events pause until it ends.' ) );
+			return;
+		}
 		var nx = minis[ 1 ];
 		if ( nx ) {
 			var n2 = nx.name.replace( / mini event$/, '' );
@@ -574,43 +631,86 @@
 
 	/**
 	 * While the Admin Pond is on: a label under the tagline (tap for its
-	 * traits and to report them) and the reported traits floating out from
-	 * the site name. The floaters are only rebuilt when the traits change,
-	 * so the animation doesn't restart every time the header updates.
+	 * traits and to report them). Floating out from the site name: the
+	 * pond's reported traits, or during an Admin Abuse, when most traits are
+	 * on at once, every trait in turn (user, 2026-10-23), with any reported
+	 * ones coming round more often and a little bigger. The floaters are only
+	 * rebuilt when that list changes, so the animation doesn't restart every
+	 * time the header updates.
 	 */
 	var floatKey = '';
-	function renderPond( pond, now ) {
+	function renderPond( pond, abuse, now ) {
 		var tag = document.getElementById( 'pond-now' );
 		var card = document.getElementById( 'pond-card' );
-		var fl = document.getElementById( 'pond-float' );
-		var traits = pond ? pondTraits( pond, now ) : [];
+		var reported = pond ? pondTraits( pond, now ) : [];
 		tag.hidden = !pond;
 		if ( !pond ) {
 			card.hidden = true;
 		} else {
 			tag.textContent = '';
 			tag.appendChild( el( 'span', 'site-pondtag-live', 'Admin Pond on' ) );
-			tag.appendChild( el( 'span', 'site-pondtag-when', traits.length ? 'ends ' + countdown( pond.ends, now ) : 'Traits? Tap to add them' ) );
+			tag.appendChild( el( 'span', 'site-pondtag-when', reported.length || abuse ? 'ends ' + countdown( pond.ends, now ) : 'Traits? Tap to add them' ) );
 			card.textContent = '';
 			card.appendChild( el( 'div', 'site-upcoming-title', 'Admin Pond · on now' ) );
 			card.appendChild( el( 'div', 'site-upcoming-when', 'until ' + whenText( { when: pond.ends } ) + ' · ends ' + countdown( pond.ends, now ) ) );
 			card.appendChild( pondLine( pond, now ) );
 		}
-		var key = traits.join( '|' );
-		if ( key === floatKey ) {
+		// every trait with a picture to float (an icon or an emoji)
+		var all = abuse && catalog && Array.isArray( catalog.traits ) ? catalog.traits.map( function ( t ) {
+			return t[ 0 ];
+		} ).filter( function ( t ) {
+			return !!( ( catalog.traitIcons && catalog.traitIcons[ t ] ) || ( catalog.traitEmoji && catalog.traitEmoji[ t ] ) );
+		} ) : [];
+		var key = ( abuse ? 'abuse:' + all.length + ':' : '' ) + reported.join( '|' );
+		if ( key !== floatKey ) {
+			floatKey = key;
+			buildFloats( all, reported );
+		}
+	}
+	// where each floater drifts: [ side, how far up (-) or down (+) ]
+	var FLOAT_PATHS = [ [ -1, -0.2 ], [ 1, -0.35 ], [ -1, 0.3 ], [ 1, 0.25 ], [ -1, -0.6 ], [ 1, 0.55 ], [ -1, 0.05 ], [ 1, -0.05 ] ];
+	var FLOAT_TRIP = 9; // seconds, as the CSS animation
+	function buildFloats( all, reported ) {
+		var fl = document.getElementById( 'pond-float' );
+		fl.textContent = '';
+		var queue = [], i;
+		if ( all.length ) {
+			// every trait once, a reported one after every third
+			for ( i = 0; i < all.length; i++ ) {
+				queue.push( { name: all[ i ], hot: false } );
+				if ( reported.length && i % 3 === 2 ) {
+					queue.push( { name: reported[ ( i / 3 | 0 ) % reported.length ], hot: true } );
+				}
+			}
+		} else {
+			reported.forEach( function ( t ) {
+				queue.push( { name: t, hot: false } );
+			} );
+		}
+		if ( !queue.length ) {
 			return;
 		}
-		floatKey = key;
-		fl.textContent = '';
-		// each trait twice, once drifting each way, the starts spread out
-		var paths = [ [ -1, -0.2 ], [ 1, -0.35 ], [ -1, 0.3 ], [ 1, 0.25 ], [ -1, -0.6 ], [ 1, 0.55 ] ];
-		var n = traits.length * 2;
-		for ( var i = 0; i < n; i++ ) {
+		// the pond's few traits: each twice, once drifting each way; every
+		// trait: 8 in the air at once, each taking the next one on each trip
+		var n = all.length ? FLOAT_PATHS.length : Math.min( FLOAT_PATHS.length, queue.length * 2 );
+		var next = 0;
+		function fill( f ) {
+			var q = queue[ next++ % queue.length ];
+			f.textContent = '';
+			f.className = 'site-float' + ( q.hot ? ' site-float-hot' : '' );
+			f.appendChild( traitMark( q.name, false ) );
+		}
+		for ( i = 0; i < n; i++ ) {
 			var f = el( 'span', 'site-float' );
-			f.appendChild( traitMark( traits[ i % traits.length ], false ) );
-			f.style.setProperty( '--dx', paths[ i ][ 0 ] );
-			f.style.setProperty( '--dy', paths[ i ][ 1 ] );
-			f.style.animationDelay = ( -i * 9 / n ).toFixed( 2 ) + 's';
+			fill( f );
+			f.style.setProperty( '--dx', FLOAT_PATHS[ i ][ 0 ] );
+			f.style.setProperty( '--dy', FLOAT_PATHS[ i ][ 1 ] );
+			f.style.animationDelay = ( -i * FLOAT_TRIP / n ).toFixed( 2 ) + 's';
+			if ( queue.length > n ) {
+				f.addEventListener( 'animationiteration', function () {
+					fill( this );
+				} );
+			}
 			fl.appendChild( f );
 		}
 	}
@@ -627,7 +727,12 @@
 	Object.keys( CARDS ).forEach( function ( b ) {
 		document.getElementById( b ).addEventListener( 'click', function ( e ) {
 			e.stopPropagation();
-			openCard( document.getElementById( CARDS[ b ] ).hidden ? CARDS[ b ] : null );
+			var id = CARDS[ b ];
+			// a floating trait with no Admin Pond on (an Admin Abuse): its card
+			if ( b === 'pond-float' && document.getElementById( 'pond-now' ).hidden ) {
+				id = 'mut-card';
+			}
+			openCard( document.getElementById( id ).hidden ? id : null );
 		} );
 	} );
 	document.addEventListener( 'click', function ( e ) {
