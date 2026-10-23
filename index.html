@@ -1,42 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="game">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fish for Brainrots Calculators</title>
-<meta name="description" content="Trade calculator, value calculator and collection tracker for Fish for Brainrots (Fortnite). Figures come live from the Fortnite Creator Islands Wiki.">
-<meta name="theme-color" content="#1b1320">
+<title>Reel Value: fan-made tools for Fish for Brainrots</title>
+<meta name="description" content="Reel Value: fan-made value, trade, Fuze Machine and collection tools for Fish for Brainrots (Fortnite). Figures come live from the Fortnite Creator Islands Wiki.">
+<meta name="theme-color" content="#0e7ad1">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FfB Calc">
+<meta name="apple-mobile-web-app-title" content="Reel Value">
 <link rel="stylesheet" href="site.css?v=328ea7e3cd">
-<link rel="stylesheet" href="calc.css?v=9f6102b06f">
+<link rel="stylesheet" href="calc.css?v=7754123bc8">
+<link rel="stylesheet" href="game.css?v=70a326af4f">
 </head>
 <body>
+<div class="mk-world" aria-hidden="true">
+	<div class="mk-volcano">
+		<div class="mk-smoke">
+			<i style="--d:0s;--x:-6px"></i><i style="--d:1.1s;--x:8px"></i><i style="--d:2.2s;--x:-2px"></i>
+			<i style="--d:3.3s;--x:10px"></i><i style="--d:4.4s;--x:-9px"></i><i style="--d:5.5s;--x:4px"></i>
+		</div>
+		<div class="mk-cone"></div>
+		<div class="mk-lava mk-lava-1"></div>
+		<div class="mk-lava mk-lava-2"></div>
+	</div>
+	<div class="mk-palm" style="left:10%"><svg class="mk-palm-svg" viewBox="0 0 90 120" aria-hidden="true"><path d="M38 120 C40 95 44 70 52 40 L58 41 C52 70 49 95 50 120 Z" fill="#c96f12"/><path d="M38 120 C40 95 44 70 52 40 L55 40.5 C49 70 45 95 44 120 Z" fill="#f29a32"/><path d="M40.0 112.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M41.9 101.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M43.6 90.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M45.2 79.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M46.8 68.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M48.2 57.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M49.6 46.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><g transform="translate(55 38)"><g transform="rotate(-200)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-160)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-115)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-65)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><circle cx="-2" cy="6" r="3.6" fill="#7a4a1a"/><circle cx="4" cy="7" r="3.4" fill="#8c5520"/></g></svg></div>
+	<div class="mk-palm mk-palm-s mk-palm-flip" style="left:22%"><svg class="mk-palm-svg" viewBox="0 0 90 120" aria-hidden="true"><path d="M38 120 C40 95 44 70 52 40 L58 41 C52 70 49 95 50 120 Z" fill="#c96f12"/><path d="M38 120 C40 95 44 70 52 40 L55 40.5 C49 70 45 95 44 120 Z" fill="#f29a32"/><path d="M40.0 112.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M41.9 101.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M43.6 90.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M45.2 79.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M46.8 68.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M48.2 57.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M49.6 46.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><g transform="translate(55 38)"><g transform="rotate(-200)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-160)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-115)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-65)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><circle cx="-2" cy="6" r="3.6" fill="#7a4a1a"/><circle cx="4" cy="7" r="3.4" fill="#8c5520"/></g></svg></div>
+	<div class="mk-palm mk-palm-flip" style="left:72%"><svg class="mk-palm-svg" viewBox="0 0 90 120" aria-hidden="true"><path d="M38 120 C40 95 44 70 52 40 L58 41 C52 70 49 95 50 120 Z" fill="#c96f12"/><path d="M38 120 C40 95 44 70 52 40 L55 40.5 C49 70 45 95 44 120 Z" fill="#f29a32"/><path d="M40.0 112.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M41.9 101.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M43.6 90.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M45.2 79.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M46.8 68.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M48.2 57.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M49.6 46.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><g transform="translate(55 38)"><g transform="rotate(-200)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-160)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-115)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-65)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><circle cx="-2" cy="6" r="3.6" fill="#7a4a1a"/><circle cx="4" cy="7" r="3.4" fill="#8c5520"/></g></svg></div>
+	<div class="mk-palm mk-palm-s" style="left:84%"><svg class="mk-palm-svg" viewBox="0 0 90 120" aria-hidden="true"><path d="M38 120 C40 95 44 70 52 40 L58 41 C52 70 49 95 50 120 Z" fill="#c96f12"/><path d="M38 120 C40 95 44 70 52 40 L55 40.5 C49 70 45 95 44 120 Z" fill="#f29a32"/><path d="M40.0 112.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M41.9 101.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M43.6 90.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M45.2 79.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M46.8 68.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M48.2 57.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M49.6 46.0 q4 2 8 0" stroke="#a85a0c" stroke-width="1.6" fill="none" stroke-linecap="round"/><g transform="translate(55 38)"><g transform="rotate(-200)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-160)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-115)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-65)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(-20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><g transform="rotate(20)"><path d="M0 0 C10 -10 26 -10 38 4 C26 -2 12 0 0 6 Z" fill="#00b81a"/><path d="M0 0 C10 -10 26 -10 38 4 C26 -4 12 -4 0 2 Z" fill="#21e02e"/><path d="M2 1 C14 -5 26 -5 36 3" stroke="#0a8a1a" stroke-width="1" fill="none"/></g><circle cx="-2" cy="6" r="3.6" fill="#7a4a1a"/><circle cx="4" cy="7" r="3.4" fill="#8c5520"/></g></svg></div>
+	<div class="mk-ground"></div>
+</div>
 <header class="site-head">
 	<div class="site-top">
 		<div class="site-title">
-			<h1>Fish for Brainrots Calculators</h1>
-			<p class="site-sub">Every figure comes live from the <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>.</p>
+			<h1>Reel Value</h1>
+			<p class="mk-tagline">Fan-made tools for Fish for Brainrots</p>
 		</div>
 		<div class="site-bell-wrap">
 			<button type="button" class="site-bell" id="bell" aria-label="Coming up" aria-expanded="false" aria-controls="upcoming" hidden>🔔<span class="site-bell-count" id="bell-count"></span></button>
 			<div class="site-upcoming" id="upcoming" hidden></div>
 		</div>
 	</div>
-	<button type="button" class="site-banner" id="banner" hidden></button>
-	<nav class="site-tabs" role="tablist" aria-label="Calculators">
-		<a role="tab" href="#trade" id="tab-trade">Trade</a>
-		<a role="tab" href="#value" id="tab-value">Value</a>
-		<a role="tab" href="#collection" id="tab-collection">My base</a>
-		<a role="tab" href="#catch" id="tab-catch">Catch</a>
-		<a role="tab" href="#codes" id="tab-codes">Codes</a>
+	<nav class="site-tabs" role="tablist" aria-label="Pages">
+		<a role="tab" href="#value" id="tab-value" data-n="1">Value</a>
+		<a role="tab" href="#trade" id="tab-trade" data-n="2">Trade</a>
+		<a role="tab" href="#fuze" id="tab-fuze" data-n="3">Fuze</a>
+		<a role="tab" href="#collection" id="tab-collection" data-n="4">Profile</a>
+		<a role="tab" href="#codes" id="tab-codes" data-n="5">Codes</a>
+		<a role="tab" href="#catch" id="tab-catch" class="mk-sub-tab">What can I catch?</a>
 	</nav>
 </header>
 
 <main>
+	<!-- what's on or coming up, on top of every page (it sat in the header before the redesign) -->
+	<button type="button" class="site-banner" id="banner" hidden></button>
 	<p class="site-status" id="status">Loading the latest figures from the wiki…</p>
 
 	<section class="site-panel" id="panel-trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
@@ -45,6 +64,13 @@
 		<p class="site-warning">⚠️ <strong>Watch out for scams.</strong> Check the other player first (the <code>/check</code> command in the Fish for Brainrots Discord), record the trade, and make sure the items are the ones you agreed on. <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Trading">More safety tips on the wiki</a>.</p>
 		<div class="site-slot" id="slot-trade"></div>
 		<p class="site-more">Trading rules and safety tips: <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Trading">Trading on the wiki</a>.</p>
+	</section>
+
+	<section class="site-panel" id="panel-fuze" role="tabpanel" aria-labelledby="tab-fuze" hidden>
+		<h2>Fuze Machine</h2>
+		<p class="site-intro">Find the mixes that give the brainrot you want, or try 4 brainrots and see what could come out. Worked out from 81 machine screens (October 2026), Admin Fuse included: the outcomes and odds match the machine exactly.</p>
+		<div id="ffz"><p class="site-status">Loading the brainrots from the wiki…</p></div>
+		<p class="site-more">How fusing works: <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Machines#Fuse_Machine">Machines on the wiki</a>.</p>
 	</section>
 
 	<section class="site-panel" id="panel-value" role="tabpanel" aria-labelledby="tab-value" hidden>
@@ -78,14 +104,18 @@
 </main>
 
 <footer class="site-foot">
-	<p>Unofficial fan tool. Figures, formulas and brainrot pages:
-		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fish for Brainrots on the Fortnite Creator Islands Wiki</a>.
+	<p class="site-fan"><strong>Fan-made site, not official.</strong> It isn't made by, affiliated with or endorsed by Pandvil (the creator of Fish for Brainrots) or Epic Games.</p>
+	<p class="site-more">More fan-made tools: <a href="https://brainrots.games/">brainrots.games</a> lets you track the brainrots you have indexed and share a list of the brainrots you still need with others.</p>
+	<p>Every figure comes live from the
+		<a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots">Fortnite Creator Islands Wiki</a>, which also has the formulas and a page for every brainrot.
 		Fish for Brainrots is a Fortnite island by <a href="https://fortnite-creator-islands.fandom.com/wiki/Pandvil">Pandvil</a>.</p>
 	<p class="site-report">Numbers look wrong, or have an in-game reading to share? <a href="https://fortnite-creator-islands.fandom.com/wiki/Message_Wall:Aleseea">Tell us on the wiki</a>. A brainrot's income, mutation, traits, level and evolution are all we need.</p>
 	<p class="site-privacy">Visits are counted anonymously with <a href="https://www.goatcounter.com/">GoatCounter</a>: no cookies and nothing personal. Your collection never leaves this device.</p>
 </footer>
 
 <script data-goatcounter="https://aleseea.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<script src="app.js?v=92402ae2a7"></script>
+<script src="app.js?v=ffb82be742"></script>
+<script src="fuze.js?v=354bde009e"></script>
+<script src="nav.js?v=4913fa3027"></script>
 </body>
 </html>

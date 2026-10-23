@@ -486,7 +486,7 @@
 		var store = env ? chooseStore( env ) : { kind: 'none', load: function () {
 			return null;
 		} };
-		// the reader's own copy loaded from My base: its place in the list and
+		// the reader's own copy loaded from My Collection: its place in the list and
 		// what it was when loaded, to find it again when saving
 		var loaded = null;
 
@@ -662,7 +662,7 @@
 		var dd = null;
 		var root = el( 'div', 'ffb-calc ffb-v2' + ( dropdowns ? ' ffb-v2-dropdowns' : '' ) );
 
-		// ---- In My base: the reader's own copies of this brainrot ----------
+		// ---- In My Collection: the reader's own copies of this brainrot ----------
 		var strip = el( 'div', 'ffb-v2-strip' );
 		root.appendChild( strip );
 
@@ -1118,7 +1118,7 @@
 			if ( !mine.length ) {
 				return;
 			}
-			strip.appendChild( el( 'span', 'ffb-v2-strip-title', 'In My base' ) );
+			strip.appendChild( el( 'span', 'ffb-v2-strip-title', 'In My Collection' ) );
 			strip.appendChild( el( 'span', 'ffb-base-small', 'You have ' + mine.length + ' ' + data.name + ':' ) );
 			mine.forEach( function ( x ) {
 				var on = loaded && loaded.at === x.at;
@@ -1166,15 +1166,15 @@
 			if ( at !== -1 ) {
 				row.inBase = list[ at ].inBase;
 				list[ at ] = row;
-				said = 'Saved. Your ' + data.name + ' is now ' + describe( row ) + ' in My base.';
+				said = 'Saved. Your ' + data.name + ' is now ' + describe( row ) + ' in My Collection.';
 			} else {
 				if ( list.length >= COLLECTION_MAX ) {
-					savedToast( toastBox, 'My base is full (' + COLLECTION_MAX + '). Remove some there first.', null );
+					savedToast( toastBox, 'My Collection is full (' + COLLECTION_MAX + '). Remove some there first.', null );
 					return;
 				}
 				list.push( row );
 				at = list.length - 1;
-				said = 'Added to My base: ' + data.name + ' (' + describe( row ) + ').';
+				said = 'Added to My Collection: ' + data.name + ' (' + describe( row ) + ').';
 			}
 			store.save( serializeCollection( list ), function ( err ) {
 				if ( err ) {
@@ -1228,7 +1228,7 @@
 				} );
 				saveBox.appendChild( b );
 			} else {
-				b = el( 'button', 'ffb-trade-add ffb-v2-save-main', '+ Add to My base' );
+				b = el( 'button', 'ffb-trade-add ffb-v2-save-main', '+ Add to My Collection' );
 				b.type = 'button';
 				b.addEventListener( 'click', function () {
 					save( 'add' );
@@ -1343,15 +1343,32 @@
 			b.setAttribute( 'role', 'tab' );
 			sw.appendChild( b );
 		} );
-		function showSame( on ) {
-			swValue.setAttribute( 'aria-selected', on ? 'false' : 'true' );
-			swValue.setAttribute( 'aria-pressed', on ? 'false' : 'true' );
-			swSame.setAttribute( 'aria-selected', on ? 'true' : 'false' );
-			swSame.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
-			root.hidden = on;
-			sameView.hidden = !on;
-			if ( on ) {
+		// Same income sits under the calculator in a fold, not a separate view
+		// (user, 2026-10-23); once opened it stays open on later visits until
+		// it's closed again
+		var sameFold = el( 'details', 'ffb-same-fold' );
+		var sameSum = el( 'summary', 'ffb-same-fold-sum', 'Who earns the same' );
+		sameFold.appendChild( sameSum );
+		sameFold.appendChild( sameView );
+		try { sameFold.open = localStorage.getItem( 'ffb-same-open' ) === '1'; } catch ( e ) {}
+		sameView.hidden = !sameFold.open;
+		sameFold.addEventListener( 'toggle', function () {
+			sameView.hidden = !sameFold.open;
+			try { localStorage.setItem( 'ffb-same-open', sameFold.open ? '1' : '0' ); } catch ( e ) {}
+			if ( sameFold.open ) {
 				renderSame();
+			}
+		} );
+		function showSame( on ) {
+			if ( on ) {
+				sameFold.open = true;
+				sameView.hidden = false;
+				renderSame();
+				if ( sameFold.scrollIntoView ) {
+					sameFold.scrollIntoView( { block: 'start', behavior: 'smooth' } );
+				}
+			} else if ( root.scrollIntoView ) {
+				root.scrollIntoView( { block: 'start', behavior: 'smooth' } );
 			}
 		}
 		swValue.addEventListener( 'click', function () {
@@ -1597,7 +1614,7 @@
 				} );
 				links.appendChild( back );
 			}
-			var edit = el( 'button', 'ffb-same-link', 'Change mutation, traits, evolution or level' );
+			var edit = el( 'button', 'ffb-same-link', 'Back up to mutation, traits, evolution and level' );
 			edit.type = 'button';
 			edit.addEventListener( 'click', function () {
 				showSame( false );
@@ -1609,10 +1626,11 @@
 		root.appendChild( sameLine );
 		refresh();
 		clear( container );
-		container.appendChild( sw );
 		container.appendChild( root );
-		container.appendChild( sameView );
-		showSame( false );
+		container.appendChild( sameFold );
+		if ( sameFold.open ) {
+			renderSame();
+		}
 	}
 
 	/* ================================================================
@@ -2622,13 +2640,13 @@
 						getRows.length + ' brainrots for ' + giveRows.length + '. That helps if they out-earn what they push out of your base, and hurts if your base is already full of stronger ones.' );
 				}
 			}
-			// with My base saved: what the trade does to the brainrots that
+			// with My Collection saved: what the trade does to the brainrots that
 			// actually earn, your strongest `slots` (as Suggest an offer counts)
 			if ( judge && trade.slots && trade.owned && trade.owned.length ) {
 				var base = baseAfterTrade( cat, trade.owned, giveRows, getRows, trade.slots );
 				if ( !base ) {
-					notes.push( 'Something you give isn’t in My base, so what this trade does to your strongest ' + trade.slots +
-						' can’t be worked out. Add it to My base to see.' );
+					notes.push( 'Something you give isn’t in My Collection, so what this trade does to your strongest ' + trade.slots +
+						' can’t be worked out. Add it to My Collection to see.' );
 				} else if ( base.before > 0 && sameSize( base.after / base.before ) ) {
 					notes.push( 'Your base: your strongest ' + base.slots + ' earn the same after this trade, ' + say( base.after ) + '/s.' );
 				} else if ( base.before > 0 ) {
@@ -3286,7 +3304,7 @@
 		};
 	}
 
-	/* ---- My base: the profile and the plans built from it ---------------- */
+	/* ---- My Collection: the profile and the plans built from it ---------------- */
 
 	var PROFILE_KEY = 'ffb-profile';
 	var REBIRTH_MAX = 45;
@@ -3294,7 +3312,7 @@
 	var FRIENDS_MAX = 3;
 	// play sessions the Your base card can count earnings over; brainrots
 	// only earn while you play (user, 2026-10-19)
-	var PLAY_HOURS = [ 0.25, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12 ];
+	var PLAY_HOURS = [ 0.25, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24 ];
 
 	/** A stored profile, cleaned: { slots, rebirth, indexes: [names], vip, friends, hours, price }. */
 	function readProfile( cat, text ) {
@@ -3315,12 +3333,19 @@
 		}
 		// slots aren't asked any more: they follow the rebirth
 		out.slots = baseSlots( out.rebirth );
+		// only permanent VIP is saved (user, 2026-10-22); timed VIP runs out,
+		// so it's kept for the visit only (see saveProfile)
 		out.vip = p.vip === true;
+		out.vipKind = out.vip ? 'permanent' : 'none';
 		if ( wholeNumber( p.friends, 0, FRIENDS_MAX ) ) {
 			out.friends = p.friends;
 		}
 		if ( PLAY_HOURS.indexOf( p.hours ) !== -1 ) {
 			out.hours = p.hours;
+		}
+		// Fishing Skill, for What can I catch? (user, 2026-10-23)
+		if ( wholeNumber( p.skill, 0, 500 ) ) {
+			out.skill = p.skill;
 		}
 		if ( p.price && typeof p.price === 'object' && typeof p.price.cost === 'number' && p.price.cost > 0 &&
 			typeof p.price.strength === 'number' && p.price.strength > 0 && wholeNumber( p.price.level, 1, cat.data.maxLevel ) ) {
@@ -3357,6 +3382,9 @@
 
 	/** "15 min", "1 hour", "3 hours" */
 	function hoursLabel( h ) {
+		if ( h === 24 ) {
+			return '1 day';
+		}
 		return h < 1 ? Math.round( h * 60 ) + ' min' : h + ( h === 1 ? ' hour' : ' hours' );
 	}
 
@@ -3914,7 +3942,7 @@
 	function chooseStore( env, which ) {
 		var m = env.mw;
 		var storage = workingStorage( env.storage );
-		// My base's profile (slots, rebirth, indexes) is kept the same way as
+		// My Collection's profile (slots, rebirth, indexes) is kept the same way as
 		// the list, under its own key
 		var optionKey = which === 'profile' ? PROFILE_OPTION_KEY : COLLECTION_OPTION_KEY;
 		var browserKey = which === 'profile' ? PROFILE_KEY : COLLECTION_BROWSER_KEY;
@@ -5129,7 +5157,7 @@
 				myIncome: state.myIncome,
 				collectionIncome: saved.length ? collectionIncome( cat, inBase.length ? inBase : saved ) : null,
 				owned: saved,
-				// base slots from My base's profile, for the slot-aware reason
+				// base slots from My Collection's profile, for the slot-aware reason
 				slots: saved.length ? readProfile( cat, chooseStore( env, 'profile' ).load() ).slots : null
 			} );
 		}
@@ -5194,7 +5222,7 @@
 			}
 			if ( undo.list !== undefined ) {
 				store.save( undo.list, function ( err ) {
-					toolOut.textContent = err ? 'Couldn’t put My base back: ' + err + '.' : 'Put back, My base too.';
+					toolOut.textContent = err ? 'Couldn’t put My Collection back: ' + err + '.' : 'Put back, My Collection too.';
 				} );
 			}
 			if ( undo.all ) {
@@ -5472,7 +5500,7 @@
 					}
 					list.push( parseSavedRow( JSON.parse( serializeCollection( [ row ] ) ).r[ 0 ], cat ) );
 					store.save( serializeCollection( list ), function ( err ) {
-						done( err ? 'Couldn’t save: ' + err + '.' : 'Saved to My base.' );
+						done( err ? 'Couldn’t save: ' + err + '.' : 'Saved to My Collection.' );
 					} );
 				}
 			} );
@@ -5589,7 +5617,7 @@
 						return !sq || squash( x.r.name ).indexOf( sq ) !== -1;
 					} );
 					var mineHead = 'Your brainrots · ' + mine.length;
-					var mineHint = sq ? 'every match from My base' : 'strongest first' + ( taken ? ' · ' + taken + ' already in this trade' : '' );
+					var mineHint = sq ? 'every match from My Collection' : 'strongest first' + ( taken ? ' · ' + taken + ' already in this trade' : '' );
 					var out = mine.map( function ( x ) {
 						return { value: 'saved:' + x.k, name: x.r.name + ( isDefault( x.r.mutation ) ? '' : ' · ' + x.r.mutation ),
 							meta: 'Yours · ' + ( x.r.evolution ? 'Evo ' + x.r.evolution + ' · ' : '' ) + 'Lv ' + x.r.level + ' · fills in everything',
@@ -5702,7 +5730,7 @@
 			addBtn.type = 'button';
 			foot.appendChild( addBtn );
 			box.appendChild( foot );
-			said.textContent = key === 'give' && saved.length ? 'Your own brainrots from My base come up first and arrive complete.' :
+			said.textContent = key === 'give' && saved.length ? 'Your own brainrots from My Collection come up first and arrive complete.' :
 				'Pick a brainrot, then set its mutation, traits, level and evolution.';
 			box.appendChild( said );
 			function add() {
@@ -5736,7 +5764,7 @@
 			var profile = readProfile( cat, chooseStore( env, 'profile' ).load() );
 			var res = suggestOffers( cat, savedList(), state.get, profile.slots, 5 );
 			var max = data.maxPerSide;
-			box.appendChild( el( 'div', 'ffb-trade-label', 'Suggested offers from My base' ) );
+			box.appendChild( el( 'div', 'ffb-trade-label', 'Suggested offers from My Collection' ) );
 			if ( !res ) {
 				box.appendChild( el( 'p', 'ffb-base-small', 'Something on the Get side has no measured income yet, so there’s nothing to match it against.' ) );
 				return box;
@@ -5746,9 +5774,9 @@
 			if ( !res.offers.length ) {
 				var short = 1 - res.best.now / res.target.now;
 				box.appendChild( el( 'p', 'ffb-base-note', short > 0 ?
-					'Nothing in My base makes a fair offer: your strongest ' + max + ' together earn ' + money( res.best.now ) + '/s, ' +
+					'Nothing in My Collection makes a fair offer: your strongest ' + max + ' together earn ' + money( res.best.now ) + '/s, ' +
 						Math.round( short * 100 ) + '% short of it.' :
-					'Nothing in My base makes a fair offer: whatever would cover it is worth well over 10% more.' ) );
+					'Nothing in My Collection makes a fair offer: whatever would cover it is worth well over 10% more.' ) );
 				return box;
 			}
 			res.offers.forEach( function ( o ) {
@@ -5874,7 +5902,7 @@
 			var inp = el( 'input', 'ffb-trade-input' );
 			inp.type = 'text';
 			inp.value = state.myIncome;
-			inp.placeholder = res.mine.source === 'collection' ? 'Using My base · or type a total, e.g. 40No' : 'e.g. 2.5Qa';
+			inp.placeholder = res.mine.source === 'collection' ? 'Using My Collection · or type a total, e.g. 40No' : 'e.g. 2.5Qa';
 			inp.setAttribute( 'aria-label', 'Your total income now' );
 			inp.addEventListener( 'change', function () {
 				state.myIncome = inp.value;
@@ -5915,12 +5943,12 @@
 			}
 		}
 
-		/** "Trade accepted": take what you gave off My base and put what you got on. */
+		/** "Trade accepted": take what you gave off My Collection and put what you got on. */
 		function doneCard() {
 			var box = el( 'div', 'ffb-t2-done' );
 			box.appendChild( el( 'div', 'ffb-trade-label', 'Did the trade go through?' ) );
-			box.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'Update My base: what you gave comes off your list, what you got goes on (into the base slots the others leave free). Rods and potions aren’t tracked.' ) );
-			var go = el( 'button', 'ffb-trade-add ffb-t2-done-go', 'Trade accepted: update My base' );
+			box.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'Update My Collection: what you gave comes off your list, what you got goes on (into the base slots the others leave free). Rods and potions aren’t tracked.' ) );
+			var go = el( 'button', 'ffb-trade-add ffb-t2-done-go', 'Trade accepted: update My Collection' );
 			go.type = 'button';
 			var said = el( 'p', 'ffb-base-small' );
 			said.setAttribute( 'aria-live', 'polite' );
@@ -5929,7 +5957,7 @@
 				var out = applyTrade( cat, parseCollection( before, cat ).rows, state.give, state.get );
 				var tradeBefore = { give: state.give, get: state.get, items: state.items };
 				if ( out.full ) {
-					said.textContent = 'Your list would go over ' + COLLECTION_MAX + ' brainrots. Remove some in My base first.';
+					said.textContent = 'Your list would go over ' + COLLECTION_MAX + ' brainrots. Remove some in My Collection first.';
 					return;
 				}
 				go.disabled = true;
@@ -6064,7 +6092,7 @@
 	}
 
 	/* ================================================================
-	 * My base: enter your brainrots once, then tabs that each answer one
+	 * My Collection: enter your brainrots once, then tabs that each answer one
 	 * question (what to upgrade next, which to keep, how they compare at
 	 * one level). Only the tabs that have something to say are shown.
 	 * Uses the same saved list as My collection.
@@ -6163,11 +6191,11 @@
 		return box;
 	}
 
-	/** My base for a signed-out reader on the wiki: what it does, and sign in. */
+	/** My Collection for a signed-out reader on the wiki: what it does, and sign in. */
 	function baseSignedOut( env ) {
 		var box = el( 'div', 'ffb-base-out' );
 		var main = el( 'div', 'ffb-base-out-main' );
-		main.appendChild( el( 'h3', 'ffb-base-h', 'My base keeps your brainrots in one list' ) );
+		main.appendChild( el( 'h3', 'ffb-base-h', 'My Collection keeps your brainrots in one list' ) );
 		main.appendChild( el( 'p', 'ffb-base-muted', 'Enter them once and the trade calculator, every brainrot page and the upgrade plan all use them: what to upgrade next, which to keep, and fair offers for a trade.' ) );
 		var chips = el( 'div', 'ffb-base-chips' );
 		[ 'Upgrade plan', 'Keep or swap', 'Same level', 'Suggest an offer', 'Your brainrots first in every search' ].forEach( function ( t ) {
@@ -6203,6 +6231,12 @@
 		var nextId = 1;
 		var savedProfile = profileStore.load();
 		var profile = readProfile( cat, savedProfile );
+		// What can I catch? can save your Fishing Skill; pick it up here
+		if ( typeof window !== 'undefined' && window.addEventListener ) window.addEventListener( 'ffb-profile-changed', function () {
+			var p = readProfile( cat, profileStore.load() );
+			profile.skill = p.skill;
+			render();
+		} );
 		var view = { tab: 'list', filter: 'all', sort: 'strength', editing: null, level: 175, check: 1, goal: 175, adding: false, cashOn: 'base' };
 		var lastInBase = false;
 
@@ -6217,7 +6251,7 @@
 		status.setAttribute( 'aria-live', 'polite' );
 		var nav = el( 'div', 'ffb-base-nav' );
 		nav.setAttribute( 'role', 'tablist' );
-		nav.setAttribute( 'aria-label', 'My base' );
+		nav.setAttribute( 'aria-label', 'My Collection' );
 		var panel = el( 'div', 'ffb-base-panel' );
 		root.appendChild( nav );
 		root.appendChild( status );
@@ -6282,7 +6316,15 @@
 			} );
 		}
 		function saveProfile() {
-			profileStore.save( JSON.stringify( profile ), function ( err ) {
+			var keep = {};
+			Object.keys( profile ).forEach( function ( k ) {
+				keep[ k ] = profile[ k ];
+			} );
+			if ( keep.vipKind !== 'permanent' ) {
+				keep.vip = false;
+			}
+			delete keep.vipKind;
+			profileStore.save( JSON.stringify( keep ), function ( err ) {
 				if ( err ) {
 					status.textContent = 'Couldn’t save your profile: ' + err + '.';
 				}
@@ -6305,7 +6347,7 @@
 			if ( m >= 2 ) {
 				list.push( { key: 'level', label: 'Same level' } );
 			}
-			list.push( { key: 'profile', label: 'Profile' } );
+			list.push( { key: 'profile', label: 'My stats' } );
 			return list;
 		}
 		function tabButtons( list ) {
@@ -6417,7 +6459,7 @@
 			sess.appendChild( fullTip( el( 'strong', 'ffb-base-sum-earned', money( earned ) ), earned, false, true ) );
 			summary.appendChild( sess );
 			var picks = el( 'div', 'ffb-base-sum-picks' );
-			[ 0.5, 1, 3, 8 ].forEach( function ( h ) {
+			[ 0.5, 1, 3, 8, 24 ].forEach( function ( h ) {
 				var b = el( 'button', 'ffb-base-sum-pick' + ( h === hours ? ' ffb-base-sum-pick-on' : '' ), hoursLabel( h ) );
 				b.type = 'button';
 				b.setAttribute( 'aria-pressed', h === hours ? 'true' : 'false' );
@@ -6427,6 +6469,49 @@
 				picks.appendChild( b );
 			} );
 			summary.appendChild( picks );
+
+			// the other way round: type an amount, see how long it takes
+			var goal = el( 'div', 'ffb-base-sum-goal' );
+			var goalId = uid + 'cashgoal';
+			var goalLab = el( 'label', 'ffb-base-sum-goal-label', 'How long to earn' );
+			goalLab.setAttribute( 'for', goalId );
+			var goalIn = el( 'input', 'ffb-trade-input ffb-base-sum-goal-in' );
+			goalIn.type = 'text';
+			goalIn.id = goalId;
+			goalIn.setAttribute( 'placeholder', 'e.g. 2.5Qa' );
+			goalIn.setAttribute( 'autocomplete', 'off' );
+			goalIn.value = view.cashGoal || '';
+			var goalOut = el( 'div', 'ffb-base-small ffb-base-sum-goal-out' );
+			goalOut.setAttribute( 'aria-live', 'polite' );
+			var showGoal = function () {
+				var text = goalIn.value.trim();
+				var amount = parseMoney( text );
+				view.cashGoal = goalIn.value;
+				goalOut.className = 'ffb-base-small ffb-base-sum-goal-out';
+				if ( !text ) {
+					goalOut.textContent = 'Type an amount the game’s way, like 2.5Qa.';
+					goalOut.className += ' ffb-base-muted';
+				} else if ( amount === null ) {
+					goalOut.textContent = 'That doesn’t look like an amount. Try a number with the game’s suffix, like 2.5Qa.';
+					goalOut.className += ' ffb-base-bad';
+				} else if ( !( up.perSecond > 0 ) ) {
+					goalOut.textContent = 'Add brainrots with a measured income first.';
+					goalOut.className += ' ffb-base-muted';
+				} else {
+					var sec = amount / up.perSecond;
+					clear( goalOut );
+					goalOut.appendChild( el( 'span', null, 'About ' ) );
+					goalOut.appendChild( el( 'strong', null, playTime( sec ) ) );
+					goalOut.appendChild( el( 'span', null, ( sec >= 2 * 86400 ? ' (' + ( sec / 86400 ).toFixed( 1 ) + ' days)' : '' ) +
+						' of play to earn ' + money( amount ) + ' at ' + money( up.perSecond ) + '/s.' ) );
+				}
+			};
+			goalIn.addEventListener( 'input', showGoal );
+			goal.appendChild( goalLab );
+			goal.appendChild( goalIn );
+			goal.appendChild( goalOut );
+			showGoal();
+			summary.appendChild( goal );
 
 			// what it counts, and the checks
 			var facts = el( 'ul', 'ffb-base-sum-facts' );
@@ -6509,7 +6594,24 @@
 			meta.appendChild( el( 'span', 'ffb-base-lv', ( row.evolution ? 'Evo ' + row.evolution + ' · ' : '' ) + 'Lv ' + row.level ) );
 			// one tag, or several side by side
 			( Array.isArray( tag ) ? tag : tag ? [ tag ] : [] ).forEach( function ( t ) {
-				meta.appendChild( el( 'span', 'ffb-base-tag ffb-base-tag-' + t.kind, t.text ) );
+				if ( !t.toggle ) {
+					meta.appendChild( el( 'span', 'ffb-base-tag ffb-base-tag-' + t.kind, t.text ) );
+					return;
+				}
+				// tap the tag to move it in or out of the base (user, 2026-10-22);
+				// the row around it opens the editor, so the tap stops here
+				var b = el( 'button', 'ffb-base-tag ffb-base-tag-btn ffb-base-tag-' + t.kind, t.text );
+				b.type = 'button';
+				b.setAttribute( 'aria-label', t.label );
+				b.title = t.label;
+				b.addEventListener( 'click', function ( e ) {
+					e.stopPropagation();
+					t.toggle();
+				} );
+				b.addEventListener( 'keydown', function ( e ) {
+					e.stopPropagation();
+				} );
+				meta.appendChild( b );
 			} );
 			mid.appendChild( meta );
 			if ( note ) {
@@ -6736,6 +6838,28 @@
 
 		// ---- Brainrots ----------------------------------------------------
 		var listBody = null;
+		var baseToast = el( 'div', 'ffb-base-toastbox' );
+		baseToast.setAttribute( 'aria-live', 'polite' );
+
+		/** In or out of the base from the list's tag, with Undo. */
+		function setInBase( row, on ) {
+			var used = rows.filter( function ( r ) {
+				return r.inBase;
+			} ).length;
+			if ( on && profile.slots && used >= profile.slots ) {
+				savedToast( baseToast, 'Your base is full (' + profile.slots + ' slots). Take one out first.', null );
+				return;
+			}
+			row.inBase = on;
+			save();
+			renderListBody();
+			savedToast( baseToast, row.name + ( on ? ' is in your base.' : ' went to Storage.' ), function () {
+				row.inBase = !on;
+				save();
+				renderListBody();
+			} );
+		}
+
 		function renderList() {
 			if ( !quick ) {
 				quick = buildQuick();
@@ -6824,6 +6948,10 @@
 				} else if ( plan.swapOut.indexOf( row ) !== -1 ) {
 					tag = { kind: 'out', text: 'Swap out' };
 				}
+				tag.label = row.inBase ? 'Take ' + row.name + ' out of your base' : 'Put ' + row.name + ' in your base';
+				tag.toggle = function () {
+					setInBase( row, !row.inBase );
+				};
 				// level 200 at the last evolution: nothing left to buy (user, 2026-10-20)
 				if ( row.level >= data.maxLevel && row.evolution >= data.maxEvolution ) {
 					tag = [ tag, { kind: 'max', text: 'Fully upgraded' } ];
@@ -6842,8 +6970,10 @@
 					sub = 'at level 1';
 				}
 				var item = el( 'div', 'ffb-base-item' );
-				var open = el( 'button', 'ffb-base-item-open' );
-				open.type = 'button';
+				// a div, not a button: the In base tag inside it is a button too
+				var open = el( 'div', 'ffb-base-item-open' );
+				open.setAttribute( 'role', 'button' );
+				open.tabIndex = 0;
 				open.setAttribute( 'aria-expanded', view.editing === row ? 'true' : 'false' );
 				open.setAttribute( 'aria-label', 'Edit ' + describeSaved( cat, row ) );
 				open.appendChild( line( row, right, sub, tag ) );
@@ -6851,12 +6981,19 @@
 					view.editing = view.editing === row ? null : row;
 					renderListBody();
 				} );
+				open.addEventListener( 'keydown', function ( e ) {
+					if ( e.key === 'Enter' || e.key === ' ' ) {
+						e.preventDefault();
+						open.click();
+					}
+				} );
 				item.appendChild( open );
 				if ( view.editing === row ) {
 					item.appendChild( editor( row ) );
 				}
 				listBody.appendChild( item );
 			} );
+			listBody.appendChild( baseToast );
 		}
 
 		function editor( row ) {
@@ -6964,7 +7101,7 @@
 			var m = planMaths( cat, profile, mult );
 			var keepers = planKeepers();
 			var goal = view.goal;
-			var head = el( 'div', 'ffb-base-bar' );
+			var head = el( 'div', 'ffb-base-bar ffb-base-goalbar' );
 			var goalPick = buildListPicker( uid + 'goal', [ { value: '175', label: 'Goal: level 175' }, { value: '200', label: 'Goal: level 200' } ],
 				String( goal ), 'ffb-trade-input ffb-base-sort', function ( v ) {
 					view.goal = parseInt( v, 10 );
@@ -7092,7 +7229,7 @@
 			var open = keepers.filter( function ( r ) {
 				return r.level < data.maxLevel || r.evolution < data.maxEvolution;
 			} );
-			var opts = [ { value: 'base', label: 'My base, following the plan' } ].concat( open.map( function ( r, i ) {
+			var opts = [ { value: 'base', label: 'My Collection, following the plan' } ].concat( open.map( function ( r, i ) {
 				return { value: String( i ), label: r.name + ' (' + ( isDefault( r.mutation ) ? '' : r.mutation + ', ' ) +
 					( r.evolution ? 'Evo ' + r.evolution + ', ' : '' ) + 'level ' + r.level + ')' };
 			} ) );
@@ -7340,13 +7477,18 @@
 				r.appendChild( inp );
 				panel.appendChild( r );
 			}
+			// friends first: it changes every session, the rest only now and then
+			// (user, 2026-10-22)
+			numberRow( 'Friends in your server', 'In-game friends you’re playing with: +0.5x each', profile.friends, 0, FRIENDS_MAX, function ( n ) {
+				profile.friends = n;
+			} );
 			numberRow( 'Rebirth', 'Your rebirth multiplier: ×' + rebirthMultiplier( profile.rebirth ) + ' · ' + profile.slots + ' base slots',
 				profile.rebirth, 0, REBIRTH_MAX, function ( n ) {
 					profile.rebirth = n;
 					profile.slots = baseSlots( n );
 				} );
-			numberRow( 'Friends in your server', 'In-game friends you’re playing with: +0.5x each', profile.friends, 0, FRIENDS_MAX, function ( n ) {
-				profile.friends = n;
+			numberRow( 'Fishing Skill', 'Fills in What can I catch? for you', profile.skill || 0, 0, 500, function ( n ) {
+				profile.skill = n;
 			} );
 			var idx = el( 'div', 'ffb-base-row ffb-base-row-block' );
 			var idxHead = el( 'div', 'ffb-base-row-head' );
@@ -7384,19 +7526,29 @@
 			var vipText = el( 'div' );
 			vipText.appendChild( el( 'div', 'ffb-base-row-label', 'VIP' ) );
 			vipText.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'VIP doubles your base multiplier' ) );
-			var vipLab = el( 'label', 'ffb-base-check' );
-			var vipBox = el( 'input' );
-			vipBox.type = 'checkbox';
-			vipBox.checked = !!profile.vip;
-			vipBox.addEventListener( 'change', function () {
-				profile.vip = !!vipBox.checked;
-				saveProfile();
-				render();
+			// None / Timed / Permanent (user, 2026-10-22): permanent VIP stays
+			// on from visit to visit; timed VIP is for this visit only
+			var vipKind = profile.vipKind || ( profile.vip ? 'permanent' : 'none' );
+			var vipChips = el( 'div', 'ffb-base-chips ffb-base-vip' );
+			vipChips.setAttribute( 'role', 'group' );
+			vipChips.setAttribute( 'aria-label', 'VIP' );
+			[ [ 'none', 'None' ], [ 'timed', 'Timed' ], [ 'permanent', 'Permanent' ] ].forEach( function ( c ) {
+				var b = el( 'button', 'ffb-base-chip' + ( vipKind === c[ 0 ] ? ' ffb-base-chip-on' : '' ), c[ 1 ] );
+				b.type = 'button';
+				b.setAttribute( 'aria-pressed', vipKind === c[ 0 ] ? 'true' : 'false' );
+				b.addEventListener( 'click', function () {
+					profile.vipKind = c[ 0 ];
+					profile.vip = c[ 0 ] !== 'none';
+					saveProfile();
+					render();
+				} );
+				vipChips.appendChild( b );
 			} );
-			vipLab.appendChild( vipBox );
-			vipLab.appendChild( el( 'span', null, ' I have VIP' ) );
+			if ( vipKind === 'timed' ) {
+				vipText.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Timed VIP counts for this visit only, since it runs out. Pick it again next time if it’s still on.' ) );
+			}
 			vipRow.appendChild( vipText );
-			vipRow.appendChild( vipLab );
+			vipRow.appendChild( vipChips );
 			panel.appendChild( vipRow );
 			var sum = el( 'div', 'ffb-base-mult' );
 			var sumText = el( 'span' );
@@ -7934,7 +8086,7 @@
 		return String( Number( n.toFixed( 2 ) ) );
 	}
 
-	function buildCatch( container, data ) {
+	function buildCatch( container, data, env ) {
 		var id = 'ffb-catch-' + ( ++catchCount );
 		var rods = Array.isArray( data.rods ) && data.rods.length ? data.rods : [ { n: 'Basic Rod (no luck)', luck: 1 } ];
 		var potions = Array.isArray( data.potions ) && data.potions.length ? data.potions : [ { n: 'No potion', luck: 1 } ];
@@ -7958,6 +8110,82 @@
 			refresh();
 		} );
 		controls.appendChild( field( id + '-skill', 'Fishing Skill (0-' + max + ')', skillInput, 'ffb-catch-field' ).node );
+		// your saved Fishing Skill fills this in; changing it here only changes
+		// this page until you save it (user, 2026-10-23)
+		// the same store as My Collection's stats: the browser here, the
+		// account for a signed-in reader on the wiki
+		var profileStore = env ? chooseStore( env, 'profile' ) : null;
+		function savedProfile() {
+			try {
+				return JSON.parse( ( profileStore && profileStore.load() ) || '{}' ) || {};
+			} catch ( e ) {
+				return {};
+			}
+		}
+		function savedSkill() {
+			var p = savedProfile();
+			return typeof p.skill === 'number' && p.skill >= 0 && p.skill <= max ? p.skill : null;
+		}
+		var statsBar = el( 'div', 'ffb-catch-stats' );
+		statsBar.hidden = !profileStore || profileStore.kind === 'none' || profileStore.kind === 'signin';
+		var statsText = el( 'span', 'ffb-catch-stats-text' );
+		var statsSave = el( 'button', 'ffb-calc-chip ffb-catch-stats-btn', 'Save to My stats' );
+		var statsReset = el( 'button', 'ffb-calc-chip ffb-catch-stats-btn', 'Use my stats' );
+		statsSave.type = 'button';
+		statsReset.type = 'button';
+		statsBar.appendChild( statsText );
+		statsBar.appendChild( statsSave );
+		statsBar.appendChild( statsReset );
+		function drawStats() {
+			var s = savedSkill();
+			var same = s !== null && s === state.skill;
+			statsText.textContent = s === null ? 'Save your Fishing Skill to My stats and it’s filled in here next time.' :
+				same ? 'Using your Fishing Skill from My stats (' + s + ').' :
+				'Changed here only. My stats says ' + s + '.';
+			statsSave.hidden = same;
+			statsReset.hidden = s === null || same;
+		}
+		statsSave.addEventListener( 'click', function () {
+			if ( !profileStore ) {
+				return;
+			}
+			var p = savedProfile();
+			p.skill = state.skill;
+			profileStore.save( JSON.stringify( p ), function ( err ) {
+				if ( err ) {
+					statsText.textContent = 'Couldn’t save to My stats: ' + err + '.';
+					return;
+				}
+				if ( typeof window !== 'undefined' && window.dispatchEvent ) {
+					window.dispatchEvent( new Event( 'ffb-profile-changed' ) );
+				}
+				drawStats();
+			} );
+		} );
+		statsReset.addEventListener( 'click', function () {
+			var s = savedSkill();
+			if ( s !== null ) {
+				skillInput.value = String( s );
+				state.skill = s;
+				refresh();
+			}
+			drawStats();
+		} );
+		skillInput.addEventListener( 'input', drawStats );
+		if ( typeof window !== 'undefined' && window.addEventListener ) {
+			window.addEventListener( 'ffb-profile-changed', drawStats );
+			// a change in My stats carries over while you haven't edited it here
+			window.addEventListener( 'storage', drawStats );
+		}
+		( function () {
+			var s = savedSkill();
+			if ( s !== null ) {
+				state.skill = s;
+				skillInput.value = String( s );
+			}
+		}() );
+		controls.appendChild( statsBar );
+		drawStats();
 
 		// ---- where you fish ---------------------------------------------
 		var pondRow = el( 'div', 'ffb-catch-field ffb-catch-ponds' );
@@ -8427,20 +8655,20 @@
 
 	/* ================================================================
 	 * The calculators' card on the wiki: the phone site's header and
-	 * palette (Trade · Value · My base), following the wiki's theme
+	 * palette (Trade · Value · My Collection), following the wiki's theme
 	 * ================================================================ */
 
 	var CARD_TABS = [
 		[ 'Trade', 'Fish for Brainrots - Trading' ],
 		[ 'Value', null ],
-		[ 'My base', 'Fish for Brainrots - My base' ]
+		[ 'My Collection', 'Fish for Brainrots - My base' ]
 	];
 
 	/**
 	 * Wraps a calculator in the card. active names the tab ('Trade', 'Value',
-	 * 'My base', or a title of its own such as 'What can I catch?'). Returns
+	 * 'My Collection', or a title of its own such as 'What can I catch?'). Returns
 	 * { body, status }: build the calculator into body; status is the line
-	 * that says where My base is kept.
+	 * that says where My Collection is kept.
 	 */
 	function appCard( container, active, env, events ) {
 		var card = el( 'section', 'ffb-card' );
@@ -8492,7 +8720,7 @@
 				n = 0;
 			}
 			status.appendChild( el( 'span', 'ffb-card-dot' ) );
-			status.appendChild( el( 'span', null, 'My base: ' ) );
+			status.appendChild( el( 'span', null, 'My Collection: ' ) );
 			status.appendChild( el( 'strong', null, n + ( n === 1 ? ' brainrot' : ' brainrots' ) ) );
 			status.appendChild( el( 'span', null, ' · saved to your Fandom account' ) );
 		}
@@ -8539,7 +8767,7 @@
 				return;
 			}
 			dropNote( container, '.ffb-catch-nojs' );
-			buildCatch( shell( container, 'What can I catch?' ), data );
+			buildCatch( shell( container, 'What can I catch?' ), data, env );
 		} );
 
 		Array.prototype.forEach.call( document.querySelectorAll( '.ffb-collection' ), function ( container ) {
@@ -8548,7 +8776,7 @@
 				return;
 			}
 			dropNote( container, '.ffb-collection-nojs' );
-			buildBase( shell( container, 'My base' ), data, env );
+			buildBase( shell( container, 'My Collection' ), data, env );
 		} );
 
 		// the hub's full-size "Coming up" banner (Module:Brainrot bannerMount)

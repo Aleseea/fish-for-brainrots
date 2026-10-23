@@ -60,19 +60,26 @@ if n != 1:
     raise SystemExit('could not stamp the version into index.html (app.js)')
 open(path, 'w').write(text)
 
-# site.css gets a stamp too
-css_ver = hashlib.sha256(open(os.path.join(HERE, 'site.css'), 'rb').read()).hexdigest()[:10]
-path = os.path.join(HERE, 'index.html')
-text, n = re.subn(r'href="site\.css(\?v=[0-9a-f]+)?"', 'href="site.css?v=%s"' % css_ver, open(path).read())
-if n != 1:
-    raise SystemExit('could not stamp the version into index.html (site.css)')
-open(path, 'w').write(text)
+# site.css, game.css, fuze.js and nav.js get a stamp too
+stamped = {}
+for name, pat in (('site.css', r'href="site\.css(\?v=[0-9a-f]+)?"'), ('game.css', r'href="game\.css(\?v=[0-9a-f]+)?"'),
+        ('fuze.js', r'src="fuze\.js(\?v=[0-9a-f]+)?"'), ('nav.js', r'src="nav\.js(\?v=[0-9a-f]+)?"')):
+    v = hashlib.sha256(open(os.path.join(HERE, name), 'rb').read()).hexdigest()[:10]
+    stamped[name] = v
+    path = os.path.join(HERE, 'index.html')
+    attr = 'href' if name.endswith('.css') else 'src'
+    text, n = re.subn(pat, '%s="%s?v=%s"' % (attr, name, v), open(path).read())
+    if n != 1:
+        raise SystemExit('could not stamp the version into index.html (%s)' % name)
+    open(path, 'w').write(text)
+css_ver = stamped['site.css']
 
 # the service worker caches exactly the versioned files index.html names;
 # a new version of any of them is a new cache, and the old one is dropped
 import json
 shell = ['./', 'index.html', 'app.js?v=%s' % app_ver, 'calc.js?v=%s' % ver, 'calc.css?v=%s' % ver,
-         'site.css?v=%s' % css_ver, 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png']
+         'site.css?v=%s' % css_ver, 'game.css?v=%s' % stamped['game.css'], 'fuze.js?v=%s' % stamped['fuze.js'],
+         'nav.js?v=%s' % stamped['nav.js'], 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png']
 sw_ver = hashlib.sha256(' '.join(shell).encode()).hexdigest()[:10]
 tpl = open(os.path.join(HERE, 'sw.template.js')).read()
 open(os.path.join(HERE, 'sw.js'), 'w').write(tpl.replace('@@VERSION@@', sw_ver).replace('@@SHELL@@', json.dumps(shell)))

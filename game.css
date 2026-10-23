@@ -1,0 +1,2422 @@
+/* Reel Value's game look (the redesign from the Game Style Mockup, built
+   2026-10-23): the island backdrop, the hotbar / sidebar, game panels and
+   buttons, and the Fuze Machine page. Loaded after calc.css so it can
+   restyle the calculators; <html class="game"> switches it on. (Rules for
+   the mockup's .mk-switch bar match nothing here.) */
+
+/* "Game" style: closer to Fish for Brainrots' own UI (charcoal panels,
+   heavy italic uppercase headings, rarity-framed cards, green money,
+   chunky buttons). Everything is scoped to html.game so the switch can
+   show the current style side by side. */
+html.game {
+	--bg: #121214;
+	--panel: #1d1d20;
+	--text: #ffffff;
+	--muted: #a7a7ad;
+	--line: rgba(255, 255, 255, 0.1);
+	--accent: #0094f8; /* the game's selected-slot blue (screenshot, 2026-10-22) */
+	--g-money: #27ed2a; /* the game's cash counter (screenshot, 2026-10-22) */
+	--g-card: #26262a;
+	--g-edge: #38383d;
+	--g-head: 'Rubik', system-ui, sans-serif;
+}
+html.game body {
+	background: var(--bg);
+}
+html.game .ffb-collection,
+html.game .ffb-trade,
+html.game .brainrot-calculator {
+	--ffb-accent: #0094f8;
+	--ffb-good: #7ccf8a; /* softer than the money green (user, 2026-10-22) */
+	--ffb-line: #38383d;
+	--ffb-panel: #26262a;
+}
+
+/* headings and labels: heavy italic capitals, like INDEX COLLECTION */
+html.game .site-head h1,
+html.game .site-panel h2,
+html.game .ffb-base-next-name,
+html.game .site-tabs a,
+html.game .ffb-base-tab,
+html.game .ffb-trade-label,
+html.game .ffb-calc-figure-label,
+html.game .ffb-calc-title,
+html.game .site-pick-label,
+html.game .ffb-trade-heading {
+	font-family: var(--g-head);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+html.game .site-head h1 {
+	font-size: 24px;
+	text-shadow: 0 3px 0 #000;
+}
+html.game .ffb-trade-label,
+html.game .ffb-calc-figure-label {
+	opacity: 1;
+	color: #d7d7dc;
+	font-size: 12px;
+}
+
+/* numbers: chunky, with the game's dark edge; money in green */
+html.game .ffb-calc-figure-value,
+html.game .ffb-base-sum-big,
+html.game .ffb-base-sum-mult,
+html.game .ffb-base-mult-value,
+html.game .ffb-base-next-lv,
+html.game .ffb-base-line-value,
+html.game .ffb-calc-level-value,
+html.game .ffb-collection-tile-value {
+	font-family: var(--g-head);
+	font-weight: 800;
+	text-shadow: 0 2px 0 #000, 0 0 3px #000;
+}
+html.game .ffb-calc-figure-value,
+html.game .ffb-base-sum-big {
+	color: var(--g-money);
+}
+
+/* panels: charcoal, rounded, a dark drop under them */
+html.game .ffb-calc,
+html.game .ffb-base-card,
+html.game .ffb-base-sum,
+html.game .ffb-base-quick,
+html.game .ffb-base-note,
+html.game .ffb-base-mult,
+html.game .ffb-trade-card,
+html.game .ffb-calc-figure.mk-panel {
+	background: var(--panel);
+	border: 2px solid var(--g-edge);
+	border-radius: 14px;
+	box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.04), 0 4px 0 rgba(0, 0, 0, 0.55);
+}
+html.game .ffb-base-next {
+	background: linear-gradient(180deg, rgba(0, 148, 248, 0.16), rgba(0, 148, 248, 0.03)), var(--panel);
+	border: 3px solid var(--accent);
+	border-radius: 14px;
+	box-shadow: 0 4px 0 rgba(0, 0, 0, 0.55);
+}
+
+/* the value calculator sits in a .ffb-card that strips its padding (the
+   plain style has no frame there); Game style frames it, so it needs room
+   inside again (user, 2026-10-22) */
+html.game .ffb-calc {
+	padding: 16px 18px;
+}
+@media (max-width: 720px) {
+	html.game .ffb-calc {
+		padding: 12px;
+	}
+}
+
+/* every brainrot as a card framed in its rarity colour, like the Index */
+html.game .ffb-base-line {
+	background: var(--g-card);
+	border: 3px solid var(--rc, var(--g-edge));
+	border-radius: 12px;
+	padding: 8px 10px;
+	margin-bottom: 8px;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5);
+}
+html.game .ffb-base-card .ffb-base-line {
+	border: 3px solid var(--rc, var(--g-edge));
+	padding: 8px 10px;
+}
+html.game .ffb-base-line-name {
+	font-family: var(--g-head);
+	font-weight: 800;
+}
+html.game .ffb-base-pic {
+	border-radius: 10px;
+}
+/* one outline per card (user, 2026-10-22): the card keeps the rarity
+   outline, so the picture inside loses its own frame. No spinning in Game
+   style either (too much movement, user, 2026-10-22): Eternal and up get a
+   still outline; Celestial shows both its colours as a fixed gradient. */
+html.game .ffb-base-line .ffb-rar,
+html.game .ffb-base-line .ffb-rar.ffb-rar-spin {
+	padding: 0;
+	background: none;
+	animation: none;
+}
+/* any other framed picture in Game style stands still too */
+html.game .ffb-rar-spin,
+html.game .ffb-rar-admin-secret.ffb-rar-spin,
+html.game .ffb-rar-eternal.ffb-rar-spin {
+	background: linear-gradient(135deg, var(--rc), var(--rc2, var(--rc)));
+	animation: none;
+}
+html.game body .ffb-base-line.mk-spin {
+	border-color: transparent;
+	background:
+		linear-gradient(var(--g-card), var(--g-card)) padding-box,
+		linear-gradient(135deg, var(--rc), var(--rc2, var(--rc))) border-box;
+}
+
+/* tabs and buttons: chunky dark tiles; the chosen one in gold */
+html.game .site-tabs {
+	gap: 8px;
+	border-bottom: 0;
+	padding-bottom: 6px;
+}
+html.game .site-tabs a {
+	padding: 9px 14px;
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	color: #e6e6ea;
+	box-shadow: 0 3px 0 #000;
+	margin-bottom: 0;
+}
+html.game .ffb-base-tab,
+html.game .ffb-base-chip,
+html.game .ffb-calc-chip,
+html.game .ffb-trade-add,
+html.game .ffb-collection-button,
+html.game .ffb-base-wide,
+html.game .ffb-calc-reset,
+html.game .ffb-trade-tool,
+html.game .site-bell {
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+	font-family: var(--g-head);
+	font-weight: 800;
+}
+html.game .site-tabs a[aria-selected="true"],
+html.game .ffb-base-tab.ffb-base-tab-on,
+html.game .ffb-base-chip.ffb-base-chip-on,
+html.game .ffb-calc-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0094f8);
+	border-color: #7cc8ff;
+	color: #ffffff;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+html.game .ffb-base-quick-add,
+html.game .ffb-v2-save-main {
+	background: linear-gradient(180deg, #4ff552, #1fc322);
+	border: 2px solid #8dff8d;
+	color: #062206;
+	font-family: var(--g-head);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* inputs and pickers: inset, darker than the panel */
+html.game .ffb-trade-input,
+html.game .site-pick,
+html.game .ffb-pick-input {
+	background: #111113;
+	border: 2px solid var(--g-edge);
+	border-radius: 10px;
+}
+
+/* tags: small capitals on solid colour */
+html.game .ffb-base-tag {
+	font-family: var(--g-head);
+	font-weight: 800;
+	text-transform: uppercase;
+	font-size: 10px;
+	letter-spacing: 0.03em;
+	border-radius: 6px;
+	border-width: 2px;
+}
+html.game .ffb-base-tag-in {
+	background: rgba(92, 240, 92, 0.14);
+}
+html.game .ffb-base-tag-max {
+	background: linear-gradient(180deg, #ffe066, #f5a51d);
+	border-color: #ffd23f;
+	color: #1a1205;
+}
+
+/* ---- Game style, light: the same shapes on light panels ---------------- */
+html.game.theme-fandom-light {
+	--bg: #eceef2;
+	--panel: #ffffff;
+	--text: #16161a;
+	--muted: #5c5c66;
+	--line: rgba(0, 0, 0, 0.1);
+	--accent: #0070c0;
+	--g-money: #138a16;
+	--g-card: #f7f7fa;
+	--g-edge: #cfd1d8;
+}
+html.game.theme-fandom-light .ffb-collection,
+html.game.theme-fandom-light .ffb-trade,
+html.game.theme-fandom-light .brainrot-calculator {
+	--ffb-accent: #0070c0;
+	--ffb-good: #2e7d4a;
+	--ffb-line: #cfd1d8;
+	--ffb-panel: #f7f7fa;
+}
+/* no black outlines on a light page: a soft drop instead */
+html.game.theme-fandom-light .site-head h1 {
+	text-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
+}
+html.game.theme-fandom-light .ffb-calc-figure-value,
+html.game.theme-fandom-light .ffb-base-sum-big,
+html.game.theme-fandom-light .ffb-base-sum-mult,
+html.game.theme-fandom-light .ffb-base-mult-value,
+html.game.theme-fandom-light .ffb-base-next-lv,
+html.game.theme-fandom-light .ffb-base-line-value,
+html.game.theme-fandom-light .ffb-calc-level-value,
+html.game.theme-fandom-light .ffb-collection-tile-value {
+	text-shadow: none;
+}
+html.game.theme-fandom-light .ffb-trade-label,
+html.game.theme-fandom-light .ffb-calc-figure-label {
+	color: #3a3a42;
+}
+html.game.theme-fandom-light .ffb-calc,
+html.game.theme-fandom-light .ffb-base-card,
+html.game.theme-fandom-light .ffb-base-sum,
+html.game.theme-fandom-light .ffb-base-quick,
+html.game.theme-fandom-light .ffb-base-note,
+html.game.theme-fandom-light .ffb-base-mult,
+html.game.theme-fandom-light .ffb-trade-card {
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
+}
+html.game.theme-fandom-light .ffb-base-next {
+	background: linear-gradient(180deg, rgba(0, 148, 248, 0.14), rgba(0, 148, 248, 0.04)), #ffffff;
+	border-color: #0094f8;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
+}
+html.game.theme-fandom-light .ffb-base-line {
+	background: #ffffff;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.07);
+}
+html.game.theme-fandom-light .ffb-base-line.mk-spin {
+	--g-card: #ffffff;
+}
+html.game.theme-fandom-light .site-tabs a,
+html.game.theme-fandom-light .ffb-base-tab,
+html.game.theme-fandom-light .ffb-base-chip,
+html.game.theme-fandom-light .ffb-calc-chip,
+html.game.theme-fandom-light .ffb-trade-add,
+html.game.theme-fandom-light .ffb-collection-button,
+html.game.theme-fandom-light .ffb-base-wide,
+html.game.theme-fandom-light .ffb-calc-reset,
+html.game.theme-fandom-light .ffb-trade-tool,
+html.game.theme-fandom-light .site-bell {
+	background: #ffffff;
+	color: #1d1d22;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+}
+/* the chosen tab in the game's selected blue (after the white tiles, so it wins) */
+html.game.theme-fandom-light .site-tabs a[aria-selected="true"],
+html.game.theme-fandom-light .ffb-base-tab.ffb-base-tab-on,
+html.game.theme-fandom-light .ffb-base-chip.ffb-base-chip-on,
+html.game.theme-fandom-light .ffb-calc-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0084e0);
+	border-color: #0074c8;
+	color: #ffffff;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.14);
+}
+html.game.theme-fandom-light .ffb-base-quick-add,
+html.game.theme-fandom-light .ffb-v2-save-main {
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.14);
+}
+html.game.theme-fandom-light .ffb-trade-input,
+html.game.theme-fandom-light .site-pick,
+html.game.theme-fandom-light .ffb-pick-input {
+	background: #f4f5f8;
+	color: #16161a;
+}
+html.game.theme-fandom-light .ffb-base-tag-in {
+	background: rgba(23, 146, 42, 0.1);
+}
+
+/* In base / Storage / Move in / Swap out are buttons in the list (user,
+   2026-10-22): tap to put a brainrot in the base or take it out */
+:where(.ffb-base-tag-btn) {
+	background: transparent;
+	color: inherit;
+}
+.ffb-base-tag-btn {
+	position: relative;
+	font-family: inherit;
+	line-height: 1.5;
+	cursor: pointer;
+	border-style: solid;
+}
+.ffb-base-tag-btn::after {
+	content: '';
+	position: absolute;
+	inset: -10px -4px;
+}
+.ffb-base-tag-btn::before {
+	content: '⇄ ';
+	opacity: 0.75;
+}
+.ffb-base-tag-btn:hover {
+	filter: brightness(1.2);
+	box-shadow: 0 0 0 1px currentColor;
+}
+.ffb-base-tag-btn:active {
+	transform: translateY(1px);
+}
+.ffb-base-tag-btn:focus-visible {
+	outline: 2px solid var(--ffb-accent, #e3a83f);
+	outline-offset: 2px;
+}
+html.game .ffb-base-tag-btn {
+	font-family: var(--g-head);
+	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+html.game .ffb-base-tag-btn:active {
+	box-shadow: none;
+	transform: translateY(2px);
+}
+.ffb-base-toastbox {
+	position: sticky;
+	bottom: 8px;
+	z-index: 5;
+}
+.ffb-base-toastbox:empty {
+	display: none;
+}
+
+/* ---- Game style background: the game's green checker floor ------------
+   Tile greens start from an in-game screenshot (#00d81e / #15cb04), toned
+   down and moved closer together, with bigger squares, since the raw values
+   were harsh on a page (user, 2026-10-22). The
+   page's header, content and footer sit on see-through black panels, like
+   the game's HUD, so text stays readable over the bright green. */
+html.game body {
+	background-color: #3fae38;
+	background-image: conic-gradient(#4ab843 25%, #3fae38 0 50%, #4ab843 0 75%, #3fae38 0);
+	background-size: 160px 160px;
+	background-attachment: fixed;
+}
+html.game .site-head,
+html.game main,
+html.game .site-foot {
+	background: rgba(0, 0, 0, 0.72);
+	border-radius: 16px;
+}
+html.game .site-head {
+	margin-top: 12px;
+	padding-bottom: 2px;
+}
+html.game main {
+	margin-top: 12px;
+	margin-bottom: 12px;
+}
+html.game .site-foot {
+	margin-bottom: 16px;
+	padding-top: 12px;
+	border-top: 0;
+}
+html.game .mk-switch {
+	background: rgba(0, 0, 0, 0.72);
+	border-bottom: 0;
+}
+/* light: a lighter (still clearly green) floor, under white panels */
+html.game.theme-fandom-light body {
+	background-color: #8fd486;
+	background-image: conic-gradient(#9edd95 25%, #8fd486 0 50%, #9edd95 0 75%, #8fd486 0);
+}
+html.game.theme-fandom-light .site-head,
+html.game.theme-fandom-light main,
+html.game.theme-fandom-light .site-foot,
+html.game.theme-fandom-light .mk-switch {
+	background: rgba(255, 255, 255, 0.9);
+}
+@media (max-width: 720px) {
+	html.game .site-head,
+	html.game main,
+	html.game .site-foot {
+		margin-left: 8px;
+		margin-right: 8px;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+}
+
+/* a little room under the Goal level picker (user, 2026-10-22) */
+.ffb-base-goalbar {
+	margin-bottom: 12px;
+}
+
+/* an even frame round a brainrot picture (user, 2026-10-22): the picture's
+   corners follow the frame's (outer radius less its padding), so no extra
+   colour shows in the corners */
+.ffb-rar > .ffb-base-pic,
+html.game .ffb-rar > .ffb-base-pic {
+	border-radius: 5px;
+	border: 0;
+}
+.ffb-rar-big > .ffb-base-pic,
+html.game .ffb-rar-big > .ffb-base-pic {
+	border-radius: 8px;
+}
+
+/* room above and below the Your base multiplier box (user, 2026-10-22) */
+.ffb-base-mult {
+	margin: 14px 0;
+}
+
+/* the index buttons look like buttons (user, 2026-10-22): a raised tile
+   at full strength, the icon greyed out until it's ticked, a lift on hover
+   and a tick on the finished ones (they used to be faded, so read as off) */
+.ffb-base-idx-btn {
+	position: relative;
+	opacity: 1;
+	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+	transition: transform 0.08s, box-shadow 0.08s;
+}
+.ffb-base-idx-btn:not(.ffb-base-idx-on) > * {
+	filter: grayscale(1);
+	opacity: 0.5;
+}
+.ffb-base-idx-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+	border-color: var(--ffb-accent);
+}
+.ffb-base-idx-btn:active {
+	transform: translateY(2px);
+	box-shadow: none;
+}
+.ffb-base-idx-btn:focus-visible {
+	outline: 2px solid var(--ffb-accent);
+	outline-offset: 2px;
+}
+.ffb-base-idx-btn.ffb-base-idx-on {
+	border-width: 2px;
+}
+.ffb-base-idx-on::after {
+	content: '✓';
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	width: 16px;
+	height: 16px;
+	border-radius: 8px;
+	background: var(--ffb-good);
+	color: #0b1a0b;
+	font-size: 11px;
+	font-weight: 900;
+	line-height: 16px;
+	text-align: center;
+}
+html.game .ffb-base-idx-btn {
+	border: 2px solid var(--g-edge);
+	background: var(--g-card);
+	border-radius: 12px;
+}
+html.game .ffb-base-idx-btn.ffb-base-idx-on {
+	border-color: var(--ffb-good);
+	background: rgba(39, 237, 42, 0.12);
+}
+html.game .ffb-base-idx-btn > span:not(.ffb-swatch) {
+	font-family: var(--g-head);
+	font-weight: 900;
+}
+
+/* How long to earn (user, 2026-10-22) */
+.ffb-base-sum-goal {
+	display: grid;
+	grid-template-columns: auto minmax(0, 200px);
+	justify-content: start;
+	align-items: center;
+	gap: 6px 10px;
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--ffb-line);
+}
+.ffb-base-sum-goal-label {
+	font-weight: 700;
+	font-size: 14px;
+}
+.ffb-base-sum-goal-in {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.ffb-base-sum-goal-out {
+	grid-column: 1 / -1;
+}
+.ffb-base-sum-goal-out strong {
+	color: var(--ffb-accent);
+}
+
+/* cards: a soft, blurred drop shadow instead of a hard grey line
+   (user, 2026-10-22) */
+html.game .ffb-base-line {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+html.game.theme-fandom-light .ffb-base-line {
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* one colour for money (user, 2026-10-22): every cash amount ($/s,
+   totals, costs, earnings) in the game's cash green; blue only for what's
+   chosen or tappable; multipliers and levels plain, since they aren't money */
+html.game .ffb-base-line-value,
+html.game .ffb-trade-card-now,
+html.game .ffb-trade-total-now,
+html.game .ffb-collection-tile:nth-child(2) .ffb-collection-tile-value,
+html.game .ffb-collection-fig-now .ffb-collection-fig-value,
+html.game .ffb-pick-base,
+html.game .ffb-base-sum-earned,
+html.game .ffb-v2-mine-fig,
+html.game .ffb-calc-figure-value,
+html.game .ffb-base-sum-big {
+	color: var(--g-money);
+}
+html.game .ffb-base-sum-mult,
+html.game .ffb-base-mult-value,
+html.game .ffb-calc-level-value,
+html.game .ffb-base-sum-goal-out strong {
+	color: var(--text);
+}
+
+
+
+/* ---- Game style: the island behind the page (user, 2026-10-23) --------
+   A still sky over mountains and the checker ground, fixed to the screen so
+   the panels scroll over it. Sky from the game's screenshots (IMG_4116-4121)
+   and the official site's sky; ground keeps the toned-down checker greens. */
+.mk-world { display: none; }
+html.game .mk-world {
+	display: block;
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	background: linear-gradient(180deg, #005ad0 0%, #0e7ad1 22%, #2cb2ef 52%, #6fd9f7 74%);
+}
+html.game body {
+	background: #0e7ad1;
+	background-image: none;
+}
+html.game .mk-switch,
+html.game .site-head,
+html.game main,
+html.game .site-foot {
+	position: relative;
+	z-index: 1;
+}
+html.game .mk-switch { position: sticky; z-index: 50; }
+.mk-cloud {
+	position: absolute;
+	width: 120px;
+	height: 32px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.85);
+}
+.mk-cloud::before {
+	content: '';
+	position: absolute;
+	top: -18px;
+	left: 28px;
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	background: inherit;
+}
+.mk-cloud-s { transform: scale(0.7); }
+/* low-poly mountains: two faces, lit and shaded, like the island's rocks */
+.mk-mountain {
+	position: absolute;
+	bottom: 22vh;
+	width: 46vw;
+	max-width: 520px;
+	height: 26vh;
+	background: linear-gradient(90deg, #c9c6dc 0 50%, #a9a5c0 50% 100%);
+	clip-path: polygon(0 100%, 50% 0, 100% 100%);
+	opacity: 0.9;
+}
+.mk-mountain-2 {
+	width: 34vw;
+	height: 18vh;
+	opacity: 0.75;
+}
+.mk-ground {
+	position: absolute;
+	left: -5%;
+	right: -5%;
+	bottom: 0;
+	height: 24vh;
+	background-color: #3fae38;
+	background-image: conic-gradient(#4ab843 25%, #3fae38 0 50%, #4ab843 0 75%, #3fae38 0);
+	background-size: 80px 80px;
+	transform: skewY(-1.2deg);
+	transform-origin: bottom left;
+	box-shadow: 0 -6px 0 rgba(0, 0, 0, 0.12);
+}
+/* light: a paler sky and ground; the panels stay white */
+html.game.theme-fandom-light .mk-world {
+	background: linear-gradient(180deg, #2c8fe0 0%, #4fbcf0 30%, #8fdcf7 58%, #c7eefb 76%);
+}
+html.game.theme-fandom-light body { background: #4fbcf0; }
+html.game.theme-fandom-light .mk-ground {
+	background-color: #8fd486;
+	background-image: conic-gradient(#9edd95 25%, #8fd486 0 50%, #9edd95 0 75%, #8fd486 0);
+}
+html.game.theme-fandom-light .mk-mountain {
+	background: linear-gradient(90deg, #e1def0 0 50%, #c6c2db 50% 100%);
+}
+
+/* the header sits on the sky with outlined text, like the official site; the
+   content panel is solid enough that clouds don't show through it */
+html.game .site-head {
+	background: transparent;
+	padding-top: 28px;
+	padding-bottom: 8px;
+}
+html.game .site-head h1 {
+	font-size: 28px;
+	text-shadow: -2px -2px 0 #081408, 2px -2px 0 #081408, -2px 2px 0 #081408, 2px 2px 0 #081408, 0 4px 0 #081408;
+}
+html.game .site-head .site-sub {
+	color: #fff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+html.game .site-head .site-sub a { color: #fff; }
+html.game main,
+html.game .site-foot {
+	background: rgba(10, 16, 22, 0.88);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+html.game.theme-fandom-light .site-head { background: transparent; }
+html.game.theme-fandom-light .site-head h1 {
+	color: #fff;
+	text-shadow: -2px -2px 0 #081408, 2px -2px 0 #081408, -2px 2px 0 #081408, 2px 2px 0 #081408, 0 4px 0 #081408;
+}
+html.game.theme-fandom-light main,
+html.game.theme-fandom-light .site-foot {
+	background: rgba(255, 255, 255, 0.78); /* see-through like dark mode (user, 2026-10-23) */
+	-webkit-backdrop-filter: blur(12px) saturate(1.2);
+	backdrop-filter: blur(12px) saturate(1.2);
+	border-color: rgba(255, 255, 255, 0.6);
+	box-shadow: 0 14px 40px rgba(0, 40, 90, 0.25);
+}
+
+/* ---- less sky, and the island's volcano with moving smoke (user, 2026-10-23)
+   Shape and colours from the volcano in IMG_4116/4121: a faceted lilac-grey
+   cone, flat top, red lava down the sides, blocky blue-grey smoke. The smoke
+   rises and fades; it stays still when the phone asks for less motion. */
+.mk-cloud { display: none; }
+html.game .site-head { padding-top: 14px; }
+
+html.game .site-head h1 { padding-right: 120px; }
+html.game .site-head { padding-bottom: 18px; }
+.mk-volcano {
+	position: absolute;
+	top: 0;
+	right: max(16px, calc(50% - 460px));
+	width: 112px;
+	height: 142px;
+}
+.mk-cone {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 68px;
+	background: linear-gradient(90deg, #c9c6dc 0 46%, #a9a5c0 46% 100%);
+	clip-path: polygon(0 100%, 38% 4%, 62% 4%, 100% 100%);
+}
+.mk-lava {
+	position: absolute;
+	bottom: 0;
+	background: #e8412c;
+}
+.mk-lava-1 {
+	left: 30%;
+	height: 65px;
+	width: 20px;
+	clip-path: polygon(30% 0, 62% 0, 46% 40%, 34% 100%, 0 100%, 26% 45%);
+}
+.mk-lava-2 {
+	left: 52%;
+	height: 65px;
+	width: 24px;
+	clip-path: polygon(10% 0, 40% 0, 62% 50%, 100% 100%, 70% 100%, 38% 48%);
+	background: #c8301f;
+}
+.mk-smoke {
+	position: absolute;
+	left: 50%;
+	bottom: 64px;
+	width: 0;
+	height: 0;
+}
+.mk-smoke i {
+	position: absolute;
+	left: -13px;
+	bottom: 0;
+	width: 26px;
+	height: 26px;
+	background: #7d93b6;
+	box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.22), inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+	opacity: 0;
+	animation: mk-smoke 6.6s linear var(--d) infinite;
+}
+@keyframes mk-smoke {
+	0% { transform: translate(0, 0) scale(0.5) rotate(0deg); opacity: 0; }
+	12% { opacity: 0.95; }
+	60% { opacity: 0.55; }
+	100% { transform: translate(var(--x), -70px) scale(1.7) rotate(18deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.mk-smoke i { animation: none; opacity: 0.7; }
+	.mk-smoke i:nth-child(2) { transform: translate(6px, -24px) scale(0.9); }
+	.mk-smoke i:nth-child(3) { transform: translate(-4px, -50px) scale(1.15); opacity: 0.5; }
+	.mk-smoke i:nth-child(n+4) { display: none; }
+}
+/* the mountains and ground sit low, showing mainly behind the footer */
+html.game .mk-mountain { bottom: 14vh; height: 20vh; }
+html.game .mk-mountain-2 { height: 13vh; }
+html.game .mk-ground { height: 16vh; }
+html.game.theme-fandom-light .mk-cone { background: linear-gradient(90deg, #dddaee 0 46%, #bdb9d4 46% 100%); }
+html.game.theme-fandom-light .mk-smoke i { background: #8ea6c6; }
+
+/* ---- the hotbar (2026-10-23) ------------------------------------------- */
+.mk-hotbar {
+	position: fixed;
+	z-index: 60;
+	left: 50%;
+	bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+	transform: translateX(-50%);
+	display: flex !important;
+	gap: 8px;
+	margin: 0 !important;
+	padding: 10px 12px !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 22px;
+	background: rgba(10, 16, 22, 0.82);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+	overflow: visible !important;
+	width: max-content;
+	max-width: calc(100vw - 20px);
+}
+.mk-hotbar > a,
+.mk-hotbar > .mk-more {
+	position: relative;
+	box-sizing: border-box;
+	width: 60px;
+	height: 60px;
+	flex: 0 0 auto;
+	display: grid !important;
+	place-items: center;
+	padding: 0 !important;
+	margin: 0 !important;
+	border-radius: 15px !important;
+	border: 3px solid rgba(255, 255, 255, 0.12) !important;
+	background: rgba(255, 255, 255, 0.06) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+	color: #fff !important;
+	font: inherit;
+	cursor: pointer;
+	transition: transform 0.12s ease;
+}
+.mk-hotbar > a:active,
+.mk-hotbar > .mk-more:active { transform: scale(0.94); }
+.mk-hotbar > a[aria-selected="true"],
+.mk-hotbar > .mk-more.mk-more-on {
+	border-color: #2e9bf0 !important;
+	background: rgba(46, 155, 240, 0.22) !important;
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22) inset, 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+	transform: translateY(-6px);
+}
+.mk-slot-pic {
+	width: 40px;
+	height: 40px;
+	display: block;
+	pointer-events: none;
+}
+.mk-slot-n {
+	position: absolute;
+	top: 2px;
+	left: 6px;
+	font-size: 11px;
+	font-weight: 900;
+	color: rgba(255, 255, 255, 0.6);
+	pointer-events: none;
+}
+.mk-slot-name {
+	position: absolute;
+	top: -30px;
+	left: 50%;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	font-family: var(--g-head, inherit);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	font-size: 15px;
+	color: #fff;
+	text-shadow: -2px -2px 0 #081408, 2px -2px 0 #081408, -2px 2px 0 #081408, 2px 2px 0 #081408, 0 3px 0 #081408;
+	opacity: 0;
+	pointer-events: none;
+}
+.mk-hotbar > a[aria-selected="true"] .mk-slot-name,
+.mk-hotbar > .mk-more.mk-more-on .mk-slot-name { opacity: 1; }
+.mk-more-dots {
+	font-size: 18px;
+	letter-spacing: 1px;
+	font-weight: 900;
+}
+.mk-more-menu {
+	position: absolute;
+	right: 8px;
+	bottom: calc(100% + 12px);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px;
+	border-radius: 16px;
+	background: rgba(10, 16, 22, 0.94);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.mk-more-menu a {
+	display: block;
+	min-width: 140px;
+	padding: 12px 16px !important;
+	border-radius: 12px !important;
+	border: 2px solid rgba(255, 255, 255, 0.12) !important;
+	background: rgba(255, 255, 255, 0.06) !important;
+	color: #fff !important;
+	text-decoration: none;
+	font-family: var(--g-head, inherit);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	box-shadow: none !important;
+	margin: 0 !important;
+}
+.mk-more-menu a[aria-selected="true"] {
+	border-color: #2e9bf0 !important;
+	background: rgba(46, 155, 240, 0.22) !important;
+}
+/* room so the last of the page and the footer clear the bar */
+body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+/* Trade's pinned verdict sits above the bar */
+.ffb-trade-sticky { bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+/* light: white tiles on a white bar */
+html.theme-fandom-light .mk-hotbar { background: rgba(255, 255, 255, 0.92); border-color: rgba(0, 0, 0, 0.08) !important; box-shadow: 0 10px 30px rgba(0, 40, 90, 0.25); }
+html.theme-fandom-light .mk-hotbar > a,
+html.theme-fandom-light .mk-hotbar > .mk-more { background: #f4f6fa !important; border-color: #d6dae3 !important; color: #16161a !important; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12) !important; }
+html.theme-fandom-light .mk-hotbar > a[aria-selected="true"],
+html.theme-fandom-light .mk-hotbar > .mk-more.mk-more-on { border-color: #0084e0 !important; background: #e3f1fd !important; }
+html.theme-fandom-light .mk-slot-n { color: rgba(0, 0, 0, 0.45); }
+html.theme-fandom-light .mk-more-menu { background: #fff; border-color: #d6dae3; }
+html.theme-fandom-light .mk-more-menu a { background: #f4f6fa !important; border-color: #d6dae3 !important; color: #16161a !important; }
+@media (prefers-reduced-motion: reduce) {
+	.mk-hotbar > a, .mk-hotbar > .mk-more { transition: none; }
+}
+
+/* ---- the sky only behind the title, the volcano on the ground (user, 2026-10-23)
+   --sky-h: where the sky meets the ground (the mockup's style switch adds
+   the first 50px; the real site would drop that). Everything below the
+   horizon is the checker ground; the volcano sits centred on the horizon. */
+html.game { --sky-h: 186px; } /* more sky around the title (user, 2026-10-23) */
+html.game .mk-world {
+	background: linear-gradient(180deg, #005ad0 0, #0e7ad1 calc(var(--sky-h) * 0.45), #4fc0f2 var(--sky-h), #3fae38 var(--sky-h));
+}
+html.game .mk-ground {
+	top: var(--sky-h);
+	bottom: 0;
+	height: auto;
+	transform: none;
+	box-shadow: inset 0 6px 0 rgba(0, 0, 0, 0.12);
+	background-size: 80px 80px;
+}
+html.game .mk-mountain,
+html.game .mk-mountain-2 {
+	top: auto;
+	bottom: calc(100% - var(--sky-h));
+	width: 30vw;
+	max-width: 260px;
+	height: 44px;
+	opacity: 0.85;
+}
+html.game .mk-mountain-2 { height: 30px; width: 22vw; }
+html.game .mk-volcano {
+	top: auto;
+	right: auto;
+	left: 50%;
+	transform: translateX(-50%);
+	bottom: calc(100% - var(--sky-h));
+}
+html.game .site-head {
+	box-sizing: border-box;
+	height: var(--sky-h);
+	padding-top: 28px;
+	padding-bottom: 0;
+	text-align: center;
+	background: transparent;
+}
+html.game .site-head h1 {
+	padding-right: 0;
+	font-size: 24px;
+	line-height: 1.1;
+}
+html.game .site-top { justify-content: center; }
+html.game main { margin-top: 10px; }
+html.game.theme-fandom-light .mk-world {
+	background: linear-gradient(180deg, #2c8fe0 0, #4fbcf0 calc(var(--sky-h) * 0.5), #9fe0f8 var(--sky-h), #8fd486 var(--sky-h));
+}
+@media (min-width: 721px) {
+	html.game { --sky-h: 166px; }
+	html.game .site-head h1 { font-size: 30px; }
+}
+
+/* ---- blocky palm trees on the horizon, like the island's (user, 2026-10-23)
+   Trunk: stepped orange blocks leaning one way (#ec8a1b from IMG_4120);
+   fronds: flat green slabs (#00e200 lit, darker underside). Still. */
+.mk-mountain { display: none !important; }
+.mk-palm {
+	position: absolute;
+	bottom: calc(100% - var(--sky-h, 196px));
+	width: 0;
+	height: 0;
+	--lean: 3px;
+}
+.mk-palm-flip { --lean: -3px; }
+.mk-palm b {
+	position: absolute;
+	left: calc(-5px + var(--k) * var(--lean));
+	bottom: calc(var(--k) * 9px);
+	width: 10px;
+	height: 10px;
+	background: linear-gradient(90deg, #f29a32 0 55%, #c96f12 55%);
+	box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+.mk-fronds {
+	position: absolute;
+	left: calc(7 * var(--lean));
+	bottom: 63px;
+	width: 0;
+	height: 0;
+}
+.mk-fronds u {
+	position: absolute;
+	left: 0;
+	top: -4px;
+	width: 34px;
+	height: 9px;
+	transform-origin: 0 50%;
+	transform: rotate(var(--a)) skewX(-12deg);
+	background: linear-gradient(180deg, #21f02e 0 50%, #00b81a 50%);
+	clip-path: polygon(0 0, 30% 0, 30% 15%, 60% 15%, 60% 30%, 100% 40%, 100% 100%, 0 100%);
+}
+.mk-palm-s { transform: scale(0.75); transform-origin: 0 100%; }
+
+/* Profile: Collection and Catch share slot 4 (2026-10-23) */
+.mk-hotbar .mk-sub-tab { display: none !important; }
+.mk-hotbar > a.mk-profile-on {
+	border-color: #2e9bf0 !important;
+	background: rgba(46, 155, 240, 0.22) !important;
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22) inset, 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+	transform: translateY(-6px);
+}
+.mk-hotbar > a.mk-profile-on .mk-slot-name { opacity: 1; }
+html.theme-fandom-light .mk-hotbar > a.mk-profile-on { border-color: #0084e0 !important; background: #e3f1fd !important; }
+.mk-profile-tabs { margin-bottom: 12px; }
+
+/* the hotbar across the whole bottom, and the page name only flashes up when
+   you switch, like the game's "Backpack" label (user, 2026-10-23) */
+.mk-hotbar {
+	left: 0;
+	right: 0;
+	bottom: 0;
+	transform: none;
+	width: auto;
+	max-width: none;
+	justify-content: space-around;
+	gap: 4px;
+	padding: 12px max(12px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+	border-radius: 20px 20px 0 0;
+	border-width: 1px 0 0 !important;
+}
+.mk-hotbar > a { flex: 0 1 64px; }
+.mk-hotbar .mk-slot-name { opacity: 0 !important; transition: opacity 0.35s ease; }
+.mk-hotbar .mk-slot-name.mk-flash { opacity: 1 !important; transition: none; }
+body { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.ffb-trade-sticky { bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* bigger than a phone: the bar becomes a sidebar with icons and names
+   (user, 2026-10-23) */
+@media (min-width: 900px) {
+	.mk-hotbar {
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: auto;
+		width: 210px;
+		flex-direction: column;
+		justify-content: flex-start;
+		gap: 8px;
+		padding: 84px 14px 20px !important;
+		border-radius: 0 20px 20px 0;
+		border-width: 0 1px 0 0 !important;
+	}
+	.mk-hotbar > a {
+		flex: 0 0 auto;
+		width: 100%;
+		height: 56px;
+		display: flex !important;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 12px;
+		padding: 0 12px !important;
+	}
+	.mk-hotbar > a[aria-selected="true"],
+	.mk-hotbar > a.mk-profile-on { transform: translateX(4px); }
+	.mk-hotbar .mk-slot-name,
+	.mk-hotbar .mk-slot-name.mk-flash {
+		position: static;
+		transform: none;
+		opacity: 1 !important;
+		font-size: 16px;
+		text-shadow: 0 2px 0 #081408;
+		transition: none;
+	}
+	.mk-slot-n { top: 4px; left: 5px; }
+	html.theme-fandom-light .mk-hotbar .mk-slot-name { color: #16161a; text-shadow: none; }
+	body { padding-bottom: 0; padding-left: 210px; }
+	.mk-world { left: 210px; }
+	.mk-switch { margin-left: 0; }
+	.ffb-trade-sticky { bottom: 0 !important; }
+}
+
+/* sub-items under each page in the sidebar (large screens only) */
+.mk-side-subs { display: none; }
+@media (min-width: 900px) {
+	.mk-side-subs {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin: -2px 0 6px 30px;
+		padding-left: 12px;
+		border-left: 2px solid rgba(255, 255, 255, 0.14);
+	}
+	.mk-side-sub {
+		text-align: left;
+		padding: 7px 10px;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: rgba(255, 255, 255, 0.78);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.mk-side-sub:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+	.mk-side-sub[aria-current="page"] {
+		color: #fff;
+		background: rgba(46, 155, 240, 0.25);
+		box-shadow: inset 3px 0 0 #2e9bf0;
+	}
+	html.theme-fandom-light .mk-side-subs { border-left-color: #d6dae3; }
+	html.theme-fandom-light .mk-side-sub { color: #3a3f4a; }
+	html.theme-fandom-light .mk-side-sub[aria-current="page"] { color: #0a2a4a; background: #e3f1fd; box-shadow: inset 3px 0 0 #0084e0; }
+	/* the page's own tabs give way to the sidebar */
+	main .ffb-same-switch,
+	main #ffz > .ffz-nav,
+	main .mk-profile-tabs { display: none !important; }
+	.mk-hotbar { overflow-y: auto !important; }
+}
+
+@media (min-width: 900px) {
+	.mk-side-subs-2 { margin: 0 0 4px 12px; }
+	.mk-side-subs-2 .mk-side-sub { font-size: 13px; padding: 5px 10px; }
+	#slot-collection .ffb-base-nav:not(.mk-profile-tabs) { display: none !important; }
+}
+
+/* large screens: the sidebar's pages read as navigation, not buttons
+   (user, 2026-10-23): no tile, border or shadow; the open page gets a blue
+   bar on the left and a soft fill, like the sub-items under it */
+@media (min-width: 900px) {
+	.mk-hotbar > a,
+	.mk-hotbar > a[aria-selected="true"],
+	.mk-hotbar > a.mk-profile-on,
+	html.theme-fandom-light .mk-hotbar > a,
+	html.theme-fandom-light .mk-hotbar > a[aria-selected="true"],
+	html.theme-fandom-light .mk-hotbar > a.mk-profile-on {
+		height: 48px;
+		border: 0 !important;
+		border-radius: 10px !important;
+		background: transparent !important;
+		box-shadow: none !important;
+		transform: none !important;
+	}
+	.mk-hotbar > a:hover { background: rgba(255, 255, 255, 0.07) !important; }
+	.mk-hotbar > a[aria-selected="true"],
+	.mk-hotbar > a.mk-profile-on {
+		background: rgba(46, 155, 240, 0.18) !important;
+		box-shadow: inset 4px 0 0 #2e9bf0 !important;
+	}
+	html.theme-fandom-light .mk-hotbar > a:hover { background: rgba(0, 0, 0, 0.05) !important; }
+	html.theme-fandom-light .mk-hotbar > a[aria-selected="true"],
+	html.theme-fandom-light .mk-hotbar > a.mk-profile-on {
+		background: #e3f1fd !important;
+		box-shadow: inset 4px 0 0 #0084e0 !important;
+	}
+	.mk-hotbar .mk-slot-n { display: none; }
+	.mk-hotbar .mk-slot-pic { width: 30px; height: 30px; }
+	.mk-hotbar .mk-slot-pic svg { width: 30px; height: 30px; }
+	.mk-hotbar { gap: 4px; }
+	.mk-side-subs { margin-left: 22px; }
+	.mk-hotbar { width: 240px; padding-top: 16px !important; }
+	/* the scene starts beside the sidebar, so the volcano and palms centre on
+	   the content, not the whole window (user, 2026-10-23) */
+	html.game .mk-world { left: 0; }
+	/* the sky and ground still run behind the see-through sidebar; only the
+	   volcano and palms shift so they centre on the content (user, 2026-10-23) */
+	html.game .mk-volcano { left: calc(50% + 120px); }
+	html.game .mk-world > .mk-palm:nth-child(2) { left: calc(240px + (100% - 240px) * 0.10) !important; }
+	html.game .mk-world > .mk-palm:nth-child(3) { left: calc(240px + (100% - 240px) * 0.22) !important; }
+	html.game .mk-world > .mk-palm:nth-child(4) { left: calc(240px + (100% - 240px) * 0.72) !important; }
+	html.game .mk-world > .mk-palm:nth-child(5) { left: calc(240px + (100% - 240px) * 0.84) !important; }
+	body { padding-left: 240px; }
+	.mk-world { left: 240px; }
+	.mk-side-subs-2 { margin-left: 8px; }
+	.mk-side-sub { white-space: nowrap; }
+}
+
+/* My Collection's sections link straight from Profile, not under a
+   My Collection item (user, 2026-10-23) */
+@media (min-width: 900px) {
+	.mk-side-subs-2 { margin: 0 !important; padding-left: 0 !important; border-left: 0 !important; }
+	.mk-side-subs-2 .mk-side-sub { font-size: 14px; padding: 7px 10px; }
+	.mk-side-subs > .mk-side-sub[data-mycol] { display: none; }
+}
+
+@media (min-width: 900px) {
+	.mk-side-subs-2 { display: contents; }
+	.mk-side-sub.mk-side-last { order: 3 !important; }
+	.mk-side-subs > .mk-side-sub:not([data-mycol]):last-child { order: 2; }
+}
+
+/* What can I catch? and your saved stats (2026-10-23) */
+.ffb-catch-stats {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: -4px 0 12px;
+	font-size: 13px;
+}
+.ffb-catch-stats-text { flex: 1 1 200px; opacity: 0.85; }
+.ffb-catch-stats-btn { min-height: 36px !important; }
+
+/* the mutation / evolution / level / traits box gets room inside (user, 2026-10-23) */
+.ffb-trade-card.ffb-v2-dd { padding: 14px !important; }
+
+/* Same income, folded under the value calculator (2026-10-23) */
+.ffb-same-fold {
+	margin-top: 14px;
+	border: 1px solid var(--ffb-line, rgba(128, 128, 128, 0.35));
+	border-radius: 12px;
+	background: var(--ffb-panel, transparent);
+}
+html.game .ffb-same-fold { border: 2px solid var(--g-edge); border-radius: 14px; background: var(--panel); }
+.ffb-same-fold-sum {
+	padding: 14px 16px;
+	cursor: pointer;
+	font-weight: 800;
+	font-size: 16px;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+html.game .ffb-same-fold-sum { font-family: var(--g-head); font-style: italic; text-transform: uppercase; font-weight: 900; }
+.ffb-same-fold-sum::-webkit-details-marker { display: none; }
+.ffb-same-fold-sum::before {
+	content: '';
+	width: 0;
+	height: 0;
+	border: 6px solid transparent;
+	border-left: 8px solid currentColor;
+	transition: transform 0.15s ease;
+}
+.ffb-same-fold[open] > .ffb-same-fold-sum::before { transform: rotate(90deg) translate(2px, 2px); }
+.ffb-same-fold > .ffb-same { margin: 0 12px 12px; }
+@media (prefers-reduced-motion: reduce) { .ffb-same-fold-sum::before { transition: none; } }
+
+/* the sidebar / hotbar a little see-through, and light mode keeps dark
+   mode's green ground (user, 2026-10-23) */
+.mk-hotbar { background: rgba(10, 16, 22, 0.62) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+html.theme-fandom-light .mk-hotbar { background: rgba(255, 255, 255, 0.7) !important; }
+html.game.theme-fandom-light .mk-ground {
+	background-color: #3fae38;
+	background-image: conic-gradient(#4ab843 25%, #3fae38 0 50%, #4ab843 0 75%, #3fae38 0);
+}
+html.game.theme-fandom-light .mk-world {
+	background: linear-gradient(180deg, #2c8fe0 0, #4fbcf0 calc(var(--sky-h) * 0.5), #9fe0f8 var(--sky-h), #3fae38 var(--sky-h));
+}
+
+/* What can I catch? in Game style: the blue selected chip, chunky tiles and
+   money-green figures like the other calculators, not the old gold
+   (user, 2026-10-23) */
+html.game .ffb-catch { --ffb-accent: #0094f8; --ffb-line: #38383d; --ffb-panel: #26262a; }
+html.game.theme-fandom-light .ffb-catch { --ffb-accent: #0070c0; --ffb-line: #cfd1d8; --ffb-panel: #f7f7fa; }
+html.game .ffb-catch-chip {
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	color: inherit;
+	font-family: var(--g-head);
+	font-weight: 800;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+html.game .ffb-catch-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0094f8);
+	border-color: #7cc8ff;
+	color: #fff;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+html.game.theme-fandom-light .ffb-catch-chip { background: #fff; color: #1d1d22; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1); }
+html.game.theme-fandom-light .ffb-catch-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0084e0);
+	border-color: #0074c8;
+	color: #fff;
+}
+
+/* buttons: a soft, see-through lift instead of a hard ledge (user, 2026-10-23) */
+html.game .ffb-base-tab,
+html.game .ffb-base-chip,
+html.game .ffb-calc-chip,
+html.game .ffb-trade-add,
+html.game .ffb-collection-button,
+html.game .ffb-base-wide,
+html.game .ffb-calc-reset,
+html.game .ffb-trade-tool,
+html.game .site-bell,
+html.game .ffb-base-quick-add,
+html.game .ffb-v2-save-main,
+html.game .ffz-chip,
+html.game .ffz-btn,
+html.game .ffz-seg-btn,
+html.game .ffb-catch-chip,
+html.game .ffb-base-tag-btn,
+html.game .ffb-base-idx-btn,
+html.game .ffb-trade-quick-btn,
+html.game .mk-switch button {
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.18) !important;
+}
+html.game.theme-fandom-light .ffb-base-tab,
+html.game.theme-fandom-light .ffb-base-chip,
+html.game.theme-fandom-light .ffb-calc-chip,
+html.game.theme-fandom-light .ffb-trade-add,
+html.game.theme-fandom-light .ffb-collection-button,
+html.game.theme-fandom-light .ffb-base-wide,
+html.game.theme-fandom-light .ffb-calc-reset,
+html.game.theme-fandom-light .ffb-trade-tool,
+html.game.theme-fandom-light .site-bell,
+html.game.theme-fandom-light .ffb-base-quick-add,
+html.game.theme-fandom-light .ffb-v2-save-main,
+html.game.theme-fandom-light .ffz-chip,
+html.game.theme-fandom-light .ffz-btn,
+html.game.theme-fandom-light .ffz-seg-btn,
+html.game.theme-fandom-light .ffb-catch-chip,
+html.game.theme-fandom-light .ffb-base-tag-btn,
+html.game.theme-fandom-light .ffb-base-idx-btn,
+html.game.theme-fandom-light .ffb-trade-quick-btn,
+html.game.theme-fandom-light .mk-switch button {
+	box-shadow: 0 3px 8px rgba(0, 40, 90, 0.14), 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+html.game button:active { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important; }
+
+/* smoother palms (user, 2026-10-23): a curved, tapered trunk with growth
+   rings and soft drooping fronds, still in the island's colours */
+.mk-palm b, .mk-palm .mk-fronds { display: none; }
+.mk-palm-svg {
+	position: absolute;
+	left: -44px;
+	bottom: -2px;
+	width: 90px;
+	height: 120px;
+	overflow: visible;
+}
+.mk-palm-flip .mk-palm-svg { transform: scaleX(-1); }
+
+.mk-stats-first {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 0 0 12px;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 2px solid var(--accent, #0094f8);
+	background: rgba(0, 148, 248, 0.12);
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+/* Codes in Game style (user, 2026-10-23): game cards, chunky code numbers,
+   a real Copy button and the heading in the game's lettering */
+html.game .site-code {
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+	border-radius: 14px;
+	padding: 14px 16px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+html.game .site-code-value {
+	font-family: var(--g-head);
+	font-weight: 900;
+	font-size: 28px;
+	letter-spacing: 0.04em;
+	color: #fff;
+	text-shadow: -2px -2px 0 #081408, 2px -2px 0 #081408, -2px 2px 0 #081408, 2px 2px 0 #081408, 0 3px 0 #081408;
+}
+html.game .site-code-copy {
+	border: 2px solid #7cc8ff;
+	border-radius: 12px;
+	background: linear-gradient(180deg, #2aa8ff, #0094f8);
+	color: #fff;
+	font-family: var(--g-head);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+html.game .site-code-copy:active { transform: translateY(1px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
+html.game .site-code-reward { font-weight: 700; }
+html.game .site-codes-how-title {
+	font-family: var(--g-head);
+	font-weight: 900;
+	font-style: italic;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	font-size: 18px;
+	margin-top: 8px;
+}
+html.game .site-codes-how {
+	padding: 12px 14px 12px 34px;
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+	border-radius: 14px;
+	line-height: 1.6;
+}
+html.game.theme-fandom-light .site-code,
+html.game.theme-fandom-light .site-codes-how { background: #fff; box-shadow: 0 4px 14px rgba(0, 40, 90, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06); }
+html.game.theme-fandom-light .site-code-copy { border-color: #0074c8; background: linear-gradient(180deg, #2aa8ff, #0084e0); box-shadow: 0 3px 8px rgba(0, 40, 90, 0.18); }
+/* the site's name and its line (user, 2026-10-23) */
+.mk-tagline { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); }
+html.game .site-head h1 { font-size: 34px; }
+html.game .mk-tagline { color: #fff; text-shadow: 0 1px 0 #081408, 0 0 4px rgba(0, 0, 0, 0.6); }
+
+
+/* panels and cards: the same soft lift as the buttons, no hard ledge
+   (user, 2026-10-23) */
+html.game .ffb-calc,
+html.game .ffb-base-card,
+html.game .ffb-base-sum,
+html.game .ffb-base-quick,
+html.game .ffb-base-note,
+html.game .ffb-base-mult,
+html.game .ffb-trade-card,
+html.game .ffb-calc-figure.mk-panel,
+html.game .ffb-base-next {
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+}
+html.game.theme-fandom-light .ffb-calc,
+html.game.theme-fandom-light .ffb-base-card,
+html.game.theme-fandom-light .ffb-base-sum,
+html.game.theme-fandom-light .ffb-base-quick,
+html.game.theme-fandom-light .ffb-base-note,
+html.game.theme-fandom-light .ffb-base-mult,
+html.game.theme-fandom-light .ffb-trade-card,
+html.game.theme-fandom-light .ffb-calc-figure.mk-panel,
+html.game.theme-fandom-light .ffb-base-next {
+	box-shadow: 0 4px 14px rgba(0, 40, 90, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+/* the fan-site line, first in the footer (user, 2026-10-23) */
+.site-foot .site-fan { color: var(--text); }
+
+/* ---- Fuze tab (mockup, 2026-10-22): Find a recipe + Try a fuse ----------
+   Uses the page's tokens; Game style below gives it the game's panels. */
+.ffz {
+	--ffb-accent: #e3a83f;
+	--ffb-line: rgba(128, 128, 128, 0.35);
+	--ffb-panel: rgba(128, 128, 128, 0.08);
+	--ffb-good: #6cc28a;
+	--ffb-bad: #ec7a72;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.theme-fandom-light .ffz {
+	--ffb-accent: #a86b00;
+	--ffb-good: #1f7a45;
+	--ffb-bad: #b3342b;
+}
+html.game .ffz {
+	--ffb-accent: #0094f8;
+	--ffb-good: #7ccf8a;
+	--ffb-line: #38383d;
+	--ffb-panel: #26262a;
+}
+html.game.theme-fandom-light .ffz {
+	--ffb-accent: #0070c0;
+	--ffb-good: #2e7d4a;
+	--ffb-line: #cfd1d8;
+	--ffb-panel: #f7f7fa;
+}
+.ffz button,
+.ffz select,
+.ffz input {
+	font: inherit;
+	color: inherit;
+}
+.ffz button:focus-visible,
+.ffz select:focus-visible,
+.ffz input:focus-visible {
+	outline: 2px solid var(--ffb-accent);
+	outline-offset: 2px;
+}
+.ffz-nav {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	/* room between Find a recipe / Try a fuse and the box below (user, 2026-10-23) */
+	margin-bottom: 14px;
+}
+.ffz-h {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 800;
+}
+html.game .ffz-h,
+html.game .ffz-label,
+html.game .ffz-big {
+	font-family: var(--g-head);
+	font-style: italic;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+html.game .ffz-h {
+	font-weight: 900;
+}
+.ffz-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	opacity: 0.8;
+	margin-bottom: 4px;
+}
+.ffz-note {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	opacity: 0.78;
+}
+.ffz-card {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 12px;
+	background: var(--ffb-panel);
+	min-width: 0;
+}
+html.game .ffz-card {
+	background: var(--panel);
+	border: 2px solid var(--g-edge);
+	border-radius: 14px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+html.game.theme-fandom-light .ffz-card {
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.ffz-select {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 0 10px;
+	border-radius: 8px;
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	background: transparent;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.ffz-select option,
+.ffz-select optgroup {
+	background: var(--theme-page-background-color, Canvas);
+	color: var(--theme-page-text-color, CanvasText);
+}
+html.game .ffz-select,
+html.game .ffz-pct {
+	background: #111113;
+	border: 2px solid var(--g-edge);
+	border-radius: 10px;
+}
+html.game.theme-fandom-light .ffz-select,
+html.game.theme-fandom-light .ffz-pct {
+	background: #f4f5f8;
+	color: #16161a;
+}
+.ffz-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: flex-end;
+}
+.ffz-field {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1 1 150px;
+}
+
+/* chips: filters and wants (raised, full strength; on = selected blue) */
+.ffz-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.ffz-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 36px;
+	padding: 0 12px;
+	border-radius: 999px;
+	border: 1px solid var(--ffb-line);
+	background: var(--ffb-panel);
+	font-size: 13.5px;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.ffz-chip:active {
+	transform: translateY(1px);
+	box-shadow: none;
+}
+.ffz-chip[aria-pressed="true"] {
+	background: var(--ffb-accent);
+	border-color: var(--ffb-accent);
+	color: #14161a;
+}
+html.game .ffz-chip {
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	font-family: var(--g-head);
+	font-weight: 800;
+}
+html.game .ffz-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0094f8);
+	border-color: #7cc8ff;
+	color: #fff;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+html.game.theme-fandom-light .ffz-chip {
+	background: #fff;
+	color: #1d1d22;
+}
+html.game.theme-fandom-light .ffz-chip[aria-pressed="true"] {
+	background: linear-gradient(180deg, #2aa8ff, #0084e0);
+	border-color: #0074c8;
+	color: #fff;
+}
+.ffz-chip img,
+.ffz-icon {
+	width: 20px;
+	height: 20px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
+/* a brainrot picture inside its rarity outline (one outline, even width) */
+.ffz-pic {
+	--rc: var(--ffb-line);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 44px;
+	height: 44px;
+	box-sizing: border-box;
+	border: 3px solid var(--rc);
+	border-radius: 10px;
+	background: var(--ffb-panel);
+	overflow: hidden;
+	font-weight: 800;
+	font-size: 12px;
+}
+.ffz-pic img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 7px;
+}
+.ffz-pic-cel {
+	border-color: transparent;
+	background:
+		linear-gradient(var(--ffb-panel), var(--ffb-panel)) padding-box,
+		linear-gradient(135deg, var(--rc), var(--rc2)) border-box;
+}
+html.game .ffz-pic-cel {
+	background:
+		linear-gradient(var(--g-card), var(--g-card)) padding-box,
+		linear-gradient(135deg, var(--rc), var(--rc2)) border-box;
+}
+.ffz-pic-big {
+	width: 64px;
+	height: 64px;
+	border-radius: 12px;
+}
+.ffz-pic-big img {
+	border-radius: 9px;
+}
+
+/* ---- Find a recipe ---------------------------------------------------- */
+.ffz-target {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.ffz-target-text {
+	flex: 1;
+	min-width: 0;
+}
+.ffz-target-name {
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1.2;
+}
+html.game .ffz-target-name {
+	font-family: var(--g-head);
+}
+.ffz-money {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-weight: 700;
+	color: var(--ffb-accent);
+}
+html.game .ffz-money {
+	font-family: var(--g-head);
+	color: var(--g-money);
+}
+.ffz-count {
+	font-size: 13.5px;
+}
+.ffz-sortbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.ffz-sortbar .ffz-select {
+	width: auto;
+	min-width: 190px;
+	flex: 0 1 240px;
+}
+.ffz-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.ffz-recipe {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px 12px;
+	align-items: center;
+	padding: 12px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 12px;
+	background: var(--ffb-panel);
+}
+html.game .ffz-recipe {
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+html.game.theme-fandom-light .ffz-recipe {
+	background: #fff;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.ffz-rank {
+	font-size: 12px;
+	font-weight: 700;
+	opacity: 0.7;
+}
+.ffz-ins {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	min-width: 0;
+}
+.ffz-in {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.ffz-in-name {
+	font-weight: 700;
+	font-size: 14px;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+.ffz-x {
+	font-family: var(--g-head, inherit);
+	font-weight: 900;
+	font-size: 15px;
+}
+.ffz-chance {
+	text-align: right;
+}
+.ffz-big {
+	display: block;
+	font-size: 24px;
+	font-weight: 900;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+}
+html.game .ffz-big {
+	text-shadow: 0 2px 0 #000, 0 0 3px #000;
+}
+html.game.theme-fandom-light .ffz-big {
+	text-shadow: none;
+}
+.ffz-sub {
+	font-size: 12px;
+	opacity: 0.75;
+}
+.ffz-also {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	font-size: 12.5px;
+}
+.ffz-also-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+	opacity: 0.85;
+}
+.ffz-also-item .ffz-pic {
+	width: 24px;
+	height: 24px;
+	border-width: 2px;
+	border-radius: 6px;
+}
+.ffz-also-item .ffz-pic img {
+	border-radius: 4px;
+}
+.ffz-also-item b {
+	font-variant-numeric: tabular-nums;
+}
+.ffz-recipe-foot {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--ffb-line);
+}
+.ffz-tag {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	border: 1px solid currentColor;
+	font-size: 11px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+.ffz-tag-top {
+	color: var(--ffb-good);
+}
+.ffz-tag-own {
+	color: var(--ffb-accent);
+}
+.ffz-btn {
+	min-height: 40px;
+	padding: 0 14px;
+	border-radius: 10px;
+	border: 1px solid var(--ffb-accent);
+	background: transparent;
+	font-weight: 800;
+	cursor: pointer;
+}
+html.game .ffz-btn {
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	font-family: var(--g-head);
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+html.game.theme-fandom-light .ffz-btn {
+	background: #fff;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+}
+.ffz-btn:active {
+	transform: translateY(2px);
+	box-shadow: none;
+}
+.ffz-more {
+	align-self: center;
+}
+.ffz-empty {
+	padding: 18px;
+	border: 1px dashed var(--ffb-line);
+	border-radius: 12px;
+	text-align: center;
+	font-size: 14px;
+}
+
+/* ---- Try a fuse ----------------------------------------------------- */
+.ffz-slots {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+.ffz-slot {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 12px;
+	background: var(--ffb-panel);
+	min-width: 0;
+}
+html.game .ffz-slot {
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+}
+html.game.theme-fandom-light .ffz-slot {
+	background: #fff;
+}
+.ffz-slot-top {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.ffz-slot-top .ffz-select {
+	flex: 1;
+	min-width: 0;
+}
+.ffz-slot .ffz-select {
+	font-size: 13.5px;
+	min-height: 40px;
+	padding: 0 6px;
+}
+.ffz-slot-traits {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 6px;
+}
+.ffz-slot-traits .ffz-select {
+	font-size: 12px;
+	font-weight: 600;
+}
+.ffz-outs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+	gap: 8px;
+}
+.ffz-out {
+	--rc: var(--ffb-line);
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 6px 8px;
+	border: 3px solid var(--rc);
+	border-radius: 12px;
+	background: var(--ffb-panel);
+	cursor: pointer;
+	text-align: center;
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+html.game .ffz-out {
+	background: var(--g-card);
+}
+html.game.theme-fandom-light .ffz-out {
+	background: #fff;
+	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+.ffz-out.ffz-pic-cel {
+	border-color: transparent;
+}
+.ffz-out .ffz-pic {
+	border: 0;
+	background: none;
+	width: 56px;
+	height: 56px;
+}
+.ffz-out-name {
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+}
+.ffz-out-pct {
+	font-size: 17px;
+	font-weight: 900;
+	font-variant-numeric: tabular-nums;
+}
+html.game .ffz-out-pct {
+	font-family: var(--g-head);
+}
+.ffz-out-base {
+	font-size: 11.5px;
+}
+.ffz-out[aria-pressed="true"] {
+	background: rgba(0, 148, 248, 0.18);
+}
+.theme-fandom-light .ffz-out[aria-pressed="true"] {
+	background: rgba(0, 112, 192, 0.12);
+}
+html.game .ffz-out.ffz-pic-cel[aria-pressed="true"] {
+	background:
+		linear-gradient(rgba(0, 148, 248, 0.18), rgba(0, 148, 248, 0.18)) padding-box,
+		linear-gradient(var(--g-card), var(--g-card)) padding-box,
+		linear-gradient(135deg, var(--rc), var(--rc2)) border-box;
+}
+.ffz-out[aria-pressed="true"]::after {
+	content: '✓';
+	position: absolute;
+	top: -8px;
+	right: -8px;
+	width: 22px;
+	height: 22px;
+	border-radius: 11px;
+	background: var(--ffb-accent);
+	color: #fff;
+	font-size: 13px;
+	font-weight: 900;
+	line-height: 22px;
+}
+.ffz-traitrows {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.ffz-traitrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.ffz-traitrow .ffz-chip {
+	flex: 1 1 150px;
+	justify-content: flex-start;
+}
+.ffz-pctwrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 13px;
+}
+.ffz-pct {
+	width: 78px;
+	min-height: 36px;
+	padding: 0 8px;
+	border-radius: 8px;
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	background: transparent;
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 14px;
+}
+.ffz-goal {
+	border-color: var(--ffb-accent);
+}
+html.game .ffz-goal {
+	border: 3px solid var(--accent);
+	background: linear-gradient(180deg, rgba(0, 148, 248, 0.16), rgba(0, 148, 248, 0.03)), var(--panel);
+}
+html.game.theme-fandom-light .ffz-goal {
+	background: linear-gradient(180deg, rgba(0, 148, 248, 0.12), rgba(0, 148, 248, 0.03)), #fff;
+}
+.ffz-goal-want {
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.4;
+}
+.ffz-stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+.ffz-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px;
+	border-radius: 10px;
+	background: var(--ffb-panel);
+	border: 1px solid var(--ffb-line);
+	min-width: 0;
+}
+html.game .ffz-stat {
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+}
+html.game.theme-fandom-light .ffz-stat {
+	background: #fff;
+}
+.ffz-stat .ffz-big {
+	font-size: 22px;
+}
+.ffz-math {
+	margin: 0;
+	padding-left: 18px;
+	font-size: 13px;
+	line-height: 1.55;
+}
+.ffz-warn {
+	margin: 0;
+	padding: 8px 12px;
+	border-radius: 8px;
+	border-left: 4px solid #d67800;
+	background: rgba(214, 120, 0, 0.12);
+	font-size: 13.5px;
+}
+@media (max-width: 520px) {
+	.ffz-stats {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ffz-stat {
+		flex-direction: row;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.ffz-big {
+		font-size: 21px;
+	}
+}
+
+/* five outcomes in one row; on phones each is a row of its own, and the
+   slots stack so their pickers have room to show the names */
+.ffz-outs {
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 600px) {
+	.ffz-slots {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ffz-outs {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ffz-out {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-rows: auto auto;
+		column-gap: 10px;
+		align-items: center;
+		padding: 6px 12px 6px 6px;
+		text-align: left;
+	}
+	.ffz-out .ffz-pic {
+		grid-row: 1 / span 2;
+		width: 48px;
+		height: 48px;
+	}
+	.ffz-out-name {
+		grid-column: 2;
+		grid-row: 1;
+		font-size: 14px;
+	}
+	.ffz-out-base {
+		grid-column: 2;
+		grid-row: 2;
+	}
+	.ffz-out-pct {
+		grid-column: 3;
+		grid-row: 1 / span 2;
+		font-size: 20px;
+	}
+	.ffz-out[aria-pressed="true"]::after {
+		top: 50%;
+		right: auto;
+		left: -8px;
+		margin-top: -11px;
+	}
+}
+
+/* Brainrots I have and don't have: search + a mark on each row */
+.ffz-marks {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 12px;
+	border-top: 1px solid var(--ffb-line);
+}
+.ffz-marks-sum {
+	margin-top: 2px;
+}
+.ffz-search {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: 8px;
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	background: transparent;
+	font-size: 15px;
+}
+html.game .ffz-search {
+	background: #111113;
+	border: 2px solid var(--g-edge);
+	border-radius: 10px;
+}
+html.game.theme-fandom-light .ffz-search {
+	background: #f4f5f8;
+	color: #16161a;
+}
+.ffz-btn-small {
+	min-height: 34px;
+	padding: 0 12px;
+	font-size: 13px;
+}
+.ffz-marklist {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	overflow-y: auto;
+	padding: 2px 4px 2px 0;
+	overscroll-behavior: contain;
+}
+.ffz-markrow {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px 10px;
+	padding: 6px 8px;
+	border-radius: 10px;
+	border: 1px solid var(--ffb-line);
+}
+html.game .ffz-markrow {
+	background: var(--g-card);
+	border: 2px solid var(--g-edge);
+}
+html.game.theme-fandom-light .ffz-markrow {
+	background: #fff;
+}
+.ffz-markname {
+	min-width: 0;
+}
+.ffz-seg {
+	display: inline-flex;
+	gap: 4px;
+}
+.ffz-seg-btn {
+	min-height: 34px;
+	padding: 0 10px;
+	border-radius: 8px;
+	border: 1px solid var(--ffb-line);
+	background: var(--ffb-panel);
+	font-size: 12.5px;
+	font-weight: 800;
+	white-space: nowrap;
+	cursor: pointer;
+	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+html.game .ffz-seg-btn {
+	border: 2px solid var(--g-edge);
+	font-family: var(--g-head);
+}
+.ffz-seg-btn:active {
+	transform: translateY(1px);
+	box-shadow: none;
+}
+.ffz-seg-have[aria-pressed="true"] {
+	background: var(--ffb-good);
+	border-color: var(--ffb-good);
+	color: #0b1a0b;
+}
+.ffz-seg-no[aria-pressed="true"] {
+	background: var(--ffb-bad);
+	border-color: var(--ffb-bad);
+	color: #1f0606;
+}
+.ffz-seg-must[aria-pressed="true"] {
+	background: var(--ffb-accent);
+	border-color: var(--ffb-accent);
+	color: #fff;
+}
+@media (max-width: 600px) {
+	.ffz-markrow {
+		grid-template-columns: auto minmax(0, 1fr);
+	}
+	.ffz-seg {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/* recipe groups: the mixes inside as short rows (2026-10-22) */
+.ffz-mixes {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.ffz-mix {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 10px;
+	background: var(--ffb-panel);
+	border: 1px solid var(--ffb-line);
+}
+html.game .ffz-mix {
+	background: var(--panel);
+}
+html.game.theme-fandom-light .ffz-mix {
+	background: #f4f5f8;
+}
+.ffz-mix-pics {
+	display: inline-flex;
+	gap: 3px;
+}
+.ffz-mix-pics .ffz-pic {
+	width: 30px;
+	height: 30px;
+	border-width: 2px;
+	border-radius: 7px;
+}
+.ffz-mix-pics .ffz-pic img {
+	border-radius: 5px;
+}
+.ffz-mix-names {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+.ffz-mix-pct {
+	font-weight: 900;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+html.game .ffz-mix-pct {
+	font-family: var(--g-head);
+}
+.ffz-also-target {
+	opacity: 1;
+	padding: 1px 6px 1px 2px;
+	border-radius: 999px;
+	background: rgba(0, 148, 248, 0.2);
+}
+.theme-fandom-light .ffz-also-target {
+	background: rgba(0, 112, 192, 0.12);
+}
+@media (max-width: 600px) {
+	.ffz-mix {
+		grid-template-columns: minmax(0, 1fr) auto auto;
+	}
+	.ffz-mix-names {
+		grid-column: 1 / -1;
+		grid-row: 2;
+	}
+}
+
+/* a brainrot every recipe needs: shown up top and locked in (2026-10-22) */
+.ffz-needs {
+	border-color: var(--ffb-good);
+}
+html.game .ffz-needs {
+	border-color: var(--ffb-good);
+}
+.ffz-tag-lock {
+	color: var(--ffb-good);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+.ffz-lock-note {
+	margin-top: 4px;
+}
+.ffz-markrow-lock {
+	border-color: var(--ffb-good);
+}
+html.game .ffz-markrow-lock {
+	border-color: var(--ffb-good);
+}
+.ffz-chip:disabled {
+	cursor: not-allowed;
+	box-shadow: none;
+	text-decoration: line-through;
+	opacity: 0.55;
+}
+@media (max-width: 600px) {
+	.ffz-needs .ffz-target {
+		flex-wrap: wrap;
+	}
+	.ffz-markrow-lock .ffz-tag-lock {
+		grid-column: 1 / -1;
+		justify-self: start;
+	}
+}
+
+/* the shared searchable picker inside the Fuze tab (2026-10-23) */
+.ffz-picker {
+	min-width: 0;
+	flex: 1;
+}
+.ffz-picker .ffb-pick-input {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+}
+.ffz-slot-top .ffz-picker .ffb-pick-input {
+	min-height: 40px;
+	font-size: 13.5px;
+}
+
+/* I'd also be happy with: brainrot chips (2026-10-23) */
+.ffz-chip-rot {
+	padding-left: 4px;
+}
+.ffz-chip-rot .ffz-pic {
+	width: 26px;
+	height: 26px;
+	border-width: 2px;
+	border-radius: 7px;
+}
+.ffz-chip-rot .ffz-pic img {
+	border-radius: 5px;
+}
+.ffz-chance .ffz-sub {
+	display: block;
+}
+
+/* the mark list opens while searching (2026-10-23) */
+.ffz-marklist-open {
+	max-height: 340px;
+}
+.ffz-marks-first {
+	padding-top: 0;
+	border-top: 0;
+}

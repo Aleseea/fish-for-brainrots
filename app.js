@@ -12,7 +12,7 @@
 
 	var WIKI = 'https://fortnite-creator-islands.fandom.com';
 	var HUB = 'Fish for Brainrots';
-	var TABS = [ 'trade', 'value', 'collection', 'catch', 'codes' ];
+	var TABS = [ 'value', 'trade', 'fuze', 'collection', 'catch', 'codes' ];
 	var CODES_KEY = 'ffb-site-codes';
 
 	// tells calc.js it runs on this page, so it hands over its brainrot picker
@@ -64,8 +64,9 @@
 	}
 
 	function show( name ) {
+		// Value is the home page (user, 2026-10-23)
 		if ( TABS.indexOf( name ) === -1 ) {
-			name = 'trade';
+			name = 'value';
 		}
 		TABS.forEach( function ( t ) {
 			document.getElementById( 'panel-' + t ).hidden = t !== name;
@@ -77,7 +78,7 @@
 	window.addEventListener( 'hashchange', function () {
 		show( location.hash.slice( 1 ) );
 	} );
-	show( location.hash.slice( 1 ) || ( params.get( 'brainrot' ) ? 'value' : 'trade' ) );
+	show( location.hash.slice( 1 ) || 'value' );
 
 	function status( text, isError ) {
 		var el = document.getElementById( 'status' );
@@ -150,8 +151,14 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=9f6102b06f';
-		s.onload = usePicker;
+		s.src = 'calc.js?v=7754123bc8';
+		s.onload = function () {
+			usePicker();
+			// the Fuze page builds from the same figures, with calc.js's picker
+			if ( window.ffbFuzeStart ) {
+				window.ffbFuzeStart();
+			}
+		};
 		s.onerror = function () {
 			status( 'The calculator script did not load. Try reloading the page.', true );
 		};
