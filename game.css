@@ -2420,3 +2420,182 @@ html.game .ffz-markrow-lock {
 	padding-top: 0;
 	border-top: 0;
 }
+/* the header sits above the page so the bell's list opens over it, not
+   under it (both were z-index 1 and main came later; user, 2026-10-23) */
+html.game .site-head { z-index: 30; }
+
+/* ---- what's on, in the header (user, 2026-10-23) -----------------------
+   The mutation mini event's icon sits where the bell was, with the time
+   left under it (the next one, faded, between them). While the Admin Pond
+   is on, a label under the tagline and its traits floating out from the
+   name, swaying, fading as they drift. The cards reuse the old bell list. */
+.site-mut-wrap {
+	position: relative;
+	flex-shrink: 0;
+}
+.site-mutbtn {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 46px;
+	height: 46px;
+	padding: 0;
+	border: 2px solid rgba(255, 255, 255, 0.85);
+	border-radius: 12px;
+	background: rgba(0, 30, 70, 0.45);
+	cursor: pointer;
+}
+.site-mutbtn-icon {
+	width: 34px;
+	height: 34px;
+	object-fit: contain;
+}
+.site-mutbtn-next .site-mutbtn-icon { opacity: 0.45; filter: grayscale(0.5); }
+.site-mutbtn-when {
+	position: absolute;
+	left: 50%;
+	bottom: -9px;
+	transform: translateX(-50%);
+	padding: 0 5px;
+	border-radius: 7px;
+	background: #e03131;
+	color: #fff;
+	font-size: 10.5px;
+	font-weight: 800;
+	line-height: 15px;
+	white-space: nowrap;
+}
+.site-mutbtn-next .site-mutbtn-when { background: rgba(0, 30, 70, 0.85); }
+.site-mut-letter {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: #6f8fb8;
+	color: #fff;
+	font-weight: 800;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+.site-mut-card { top: 56px; }
+.site-mut-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 6px;
+	text-align: left;
+}
+.site-mut-big { width: 44px; height: 44px; object-fit: contain; font-size: 20px; }
+.site-mut-small { width: 22px; height: 22px; object-fit: contain; font-size: 12px; }
+.site-mut-text { display: flex; flex-direction: column; gap: 2px; }
+.site-mut-text strong { font-size: 16px; }
+.site-mut-row-next { color: var(--muted); font-size: 13px; }
+.site-mut-note {
+	margin: 10px 0 0;
+	color: var(--muted);
+	font-size: 12px;
+	text-align: left;
+}
+
+html.game .site-title { position: relative; }
+html.game .site-title h1,
+html.game .site-title .mk-tagline {
+	position: relative;
+	z-index: 1;
+}
+.site-pondtag {
+	position: relative;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 3px 10px 3px 4px;
+	border: 0;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.4);
+	color: #fff;
+	font: inherit;
+	font-size: 12.5px;
+	line-height: 1.3;
+	white-space: nowrap;
+	cursor: pointer;
+}
+.site-pondtag-live {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: #e03131;
+	font-size: 10.5px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.site-pondtag-when { opacity: 0.9; }
+.site-pond-card {
+	right: auto;
+	left: 50%;
+	top: calc(100% + 6px);
+	transform: translateX(-50%);
+	text-align: left;
+}
+
+/* the floating traits: each starts behind the name and drifts out to one
+   side, swaying, fading as it goes; 9 s a trip, the starts spread out */
+.site-floats {
+	position: absolute;
+	left: 50%;
+	top: 30px;
+	width: 0;
+	height: 0;
+	z-index: 0;
+}
+.site-float {
+	position: absolute;
+	left: -15px;
+	top: -15px;
+	opacity: 0;
+	cursor: pointer;
+	animation: site-float 9s linear infinite;
+}
+.site-float .site-pond-trait { margin: 0; }
+.site-float .site-pond-icon {
+	width: 30px;
+	height: 30px;
+	margin: 0;
+	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+@keyframes site-float {
+	0% { opacity: 0; transform: translate(calc(var(--dx) * 40px), calc(var(--dy) * 20px)) rotate(-10deg) scale(0.75); }
+	15% { opacity: 0.95; }
+	35% { transform: translate(calc(var(--dx) * 95px), calc(var(--dy) * 45px)) rotate(10deg) scale(0.9); }
+	60% { opacity: 0.6; transform: translate(calc(var(--dx) * 140px), calc(var(--dy) * 70px)) rotate(-10deg) scale(1); }
+	100% { opacity: 0; transform: translate(calc(var(--dx) * 200px), calc(var(--dy) * 100px)) rotate(10deg) scale(1.05); }
+}
+@media (min-width: 721px) {
+	@keyframes site-float {
+		0% { opacity: 0; transform: translate(calc(var(--dx) * 60px), calc(var(--dy) * 20px)) rotate(-10deg) scale(0.75); }
+		15% { opacity: 0.95; }
+		35% { transform: translate(calc(var(--dx) * 150px), calc(var(--dy) * 45px)) rotate(10deg) scale(0.9); }
+		60% { opacity: 0.6; transform: translate(calc(var(--dx) * 230px), calc(var(--dy) * 70px)) rotate(-10deg) scale(1); }
+		100% { opacity: 0; transform: translate(calc(var(--dx) * 320px), calc(var(--dy) * 100px)) rotate(10deg) scale(1.05); }
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.site-float {
+		animation: none;
+		opacity: 0.55;
+		transform: translate(calc(var(--dx) * 130px), calc(var(--dy) * 50px));
+	}
+}
+
+/* the bell's list now drops from the banner */
+.site-banner-wrap {
+	position: relative;
+	z-index: 5;
+}
+.site-banner-wrap .site-upcoming {
+	left: 0;
+	right: 0;
+	top: calc(100% - 2px);
+	width: auto;
+}

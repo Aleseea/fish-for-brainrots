@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Reel Value">
 <link rel="stylesheet" href="site.css?v=328ea7e3cd">
 <link rel="stylesheet" href="calc.css?v=7754123bc8">
-<link rel="stylesheet" href="game.css?v=70a326af4f">
+<link rel="stylesheet" href="game.css?v=d8e344f844">
 </head>
 <body>
 <div class="mk-world" aria-hidden="true">
@@ -35,12 +35,16 @@
 <header class="site-head">
 	<div class="site-top">
 		<div class="site-title">
+			<!-- the Admin Pond's traits float out from the name, as around the pond in the game -->
+			<div class="site-floats" id="pond-float" aria-hidden="true"></div>
 			<h1>Reel Value</h1>
 			<p class="mk-tagline">Fan-made tools for Fish for Brainrots</p>
+			<button type="button" class="site-pondtag" id="pond-now" aria-expanded="false" aria-controls="pond-card" hidden></button>
+			<div class="site-upcoming site-pond-card" id="pond-card" hidden></div>
 		</div>
-		<div class="site-bell-wrap">
-			<button type="button" class="site-bell" id="bell" aria-label="Coming up" aria-expanded="false" aria-controls="upcoming" hidden>🔔<span class="site-bell-count" id="bell-count"></span></button>
-			<div class="site-upcoming" id="upcoming" hidden></div>
+		<div class="site-mut-wrap">
+			<button type="button" class="site-mutbtn" id="mut-btn" aria-expanded="false" aria-controls="mut-card" hidden></button>
+			<div class="site-upcoming site-mut-card" id="mut-card" hidden></div>
 		</div>
 	</div>
 	<nav class="site-tabs" role="tablist" aria-label="Pages">
@@ -55,7 +59,10 @@
 
 <main>
 	<!-- what's on or coming up, on top of every page (it sat in the header before the redesign) -->
-	<button type="button" class="site-banner" id="banner" hidden></button>
+	<div class="site-banner-wrap">
+		<button type="button" class="site-banner" id="banner" aria-expanded="false" aria-controls="upcoming" hidden></button>
+		<div class="site-upcoming" id="upcoming" hidden></div>
+	</div>
 	<p class="site-status" id="status">Loading the latest figures from the wiki…</p>
 
 	<section class="site-panel" id="panel-trade" role="tabpanel" aria-labelledby="tab-trade" hidden>
@@ -114,7 +121,7 @@
 </footer>
 
 <script data-goatcounter="https://aleseea.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<script src="app.js?v=ffb82be742"></script>
+<script src="app.js?v=5c62e8bde8"></script>
 <script src="fuze.js?v=354bde009e"></script>
 <script src="nav.js?v=4913fa3027"></script>
 </body>

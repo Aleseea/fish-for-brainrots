@@ -427,36 +427,36 @@
 
 	var upcomingEvents = [];
 	var bannerAt = 0;
-	var seenKey = 'ffb-site-seen-events';
 	function whenText( x ) {
 		return x.when ?
 			x.when.toLocaleString( [], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' } ) :
 			x.day.toLocaleDateString( [], { weekday: 'short', month: 'short', day: 'numeric' } ) + ' · time not announced';
 	}
-	function itemKey( x ) {
-		return x.name + '|' + ( x.note || '' ) + '|' + ( x.when ? x.when.getTime() : x.day.getTime() );
-	}
-	function seen() {
-		try {
-			return JSON.parse( localStorage.getItem( seenKey ) || '[]' );
-		} catch ( err ) {
-			return [];
-		}
+	function clock( d ) {
+		return d.toLocaleTimeString( [], { hour: 'numeric', minute: '2-digit' } );
 	}
 	/**
-	 * What's coming up lives in a bell (with a count of the ones not seen
-	 * yet) and a one-line banner that rotates through them, instead of a
-	 * box at the top of every tab.
+	 * What's on lives in the header (user, 2026-10-23): the mutation mini
+	 * event's icon beside the site name, and while the Admin Pond is on, a
+	 * label under the tagline with its traits floating around the name, as
+	 * they float around the pond in the game. Everything else (the Admin
+	 * Abuse runs and other events) rotates in a one-line banner at the top
+	 * of the page; tapping it opens the full list.
 	 */
 	function renderUpcoming() {
 		var box = document.getElementById( 'upcoming' );
-		var bell = document.getElementById( 'bell' );
 		var banner = document.getElementById( 'banner' );
 		var now = new Date();
-		var items = upcomingTimes( upcomingEvents, now );
+		var all = upcomingTimes( upcomingEvents, now );
+		renderMutation( all.filter( function ( x ) {
+			return x.mini;
+		} ), now );
+		renderPond( all.filter( isPond )[ 0 ] || null, now );
+		var items = all.filter( function ( x ) {
+			return !x.mini && !isPond( x );
+		} );
 		box.textContent = '';
 		if ( !items.length ) {
-			bell.hidden = true;
 			banner.hidden = true;
 			box.hidden = true;
 			return;
@@ -473,22 +473,12 @@
 			} else if ( x.when ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', countdown( x.when, now ) ) );
 			}
-			if ( isPond( x ) ) {
-				li.appendChild( pondLine( x, now ) );
-			}
 			list.appendChild( li );
 		} );
 		box.appendChild( list );
 		var more = el( 'a', 'site-upcoming-more', 'All events on the wiki' );
 		more.href = WIKI + '/wiki/' + encodeURIComponent( ( HUB + ' - Events' ).replace( / /g, '_' ) );
 		box.appendChild( more );
-		var already = seen();
-		var fresh = items.filter( function ( x ) {
-			return !x.mini && already.indexOf( itemKey( x ) ) === -1;
-		} ).length;
-		bell.hidden = false;
-		document.getElementById( 'bell-count' ).textContent = fresh ? String( fresh ) : '';
-		bell.setAttribute( 'aria-label', 'Coming up' + ( fresh ? ' (' + fresh + ' new)' : '' ) );
 		var x = items[ bannerAt % items.length ];
 		banner.hidden = false;
 		banner.textContent = '';
@@ -500,56 +490,157 @@
 			txt.appendChild( document.createTextNode( ' ' ) );
 		}
 		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-		banner.removeAttribute( 'data-pond-ask' );
-		if ( isPond( x ) && pondTraits( x, now ).length ) {
-			txt.appendChild( document.createTextNode( ' ' ) );
-			pondTraits( x, now ).forEach( function ( t ) {
-				txt.appendChild( traitMark( t, false ) );
-			} );
-		} else if ( isPond( x ) ) {
-			// nobody has reported this half hour's traits: ask (tapping opens the form)
-			banner.setAttribute( 'data-pond-ask', '1' );
-			txt.appendChild( document.createTextNode( ' ' ) );
-			txt.appendChild( el( 'span', 'site-banner-ask', 'Traits? Tap to add them' ) );
-		}
 		txt.appendChild( document.createTextNode( ' ' + ( x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
 		banner.appendChild( txt );
-		banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
-	}
-	function openUpcoming( open ) {
-		var box = document.getElementById( 'upcoming' );
-		var bell = document.getElementById( 'bell' );
-		box.hidden = !open;
-		bell.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
-		if ( open ) {
-			// opening the list counts them as seen
-			try {
-				localStorage.setItem( seenKey, JSON.stringify( upcomingTimes( upcomingEvents, new Date() ).map( itemKey ) ) );
-			} catch ( err ) {}
-			document.getElementById( 'bell-count' ).textContent = '';
+		if ( items.length > 1 ) {
+			banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
 		}
 	}
-	document.getElementById( 'bell' ).addEventListener( 'click', function ( e ) {
-		e.stopPropagation();
-		openUpcoming( document.getElementById( 'upcoming' ).hidden );
-	} );
-	document.getElementById( 'banner' ).addEventListener( 'click', function ( e ) {
-		e.stopPropagation();
-		if ( this.getAttribute( 'data-pond-ask' ) === '1' ) {
-			pondFormOpen = true;
-			renderUpcoming();
+
+	/** A mutation's game icon, or a square in its colour with its first letter. */
+	function mutationMark( name, cls ) {
+		var path = catalog && catalog.mutationIcons && catalog.mutationIcons[ name ];
+		if ( typeof path === 'string' && /^[0-9a-f]\/[0-9a-f]{2}\/[A-Za-z0-9_&.,()'+-]+\.png$/.test( path ) ) {
+			var img = el( 'img', cls );
+			img.referrerPolicy = 'no-referrer';
+			img.setAttribute( 'referrerpolicy', 'no-referrer' );
+			img.src = 'https://static.wikia.nocookie.net/fortnite-creator-islands/images/' + path + '/revision/latest/scale-to-width-down/80?nr=4';
+			img.alt = '';
+			return img;
 		}
-		openUpcoming( true );
+		var sq = el( 'span', cls + ' site-mut-letter', name.charAt( 0 ) );
+		var c = catalog && catalog.mutationColors && catalog.mutationColors[ name ];
+		if ( typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test( c ) ) {
+			sq.style.background = c;
+		}
+		return sq;
+	}
+	function mutationMult( name ) {
+		var mult = null;
+		( catalog && Array.isArray( catalog.mutations ) ? catalog.mutations : [] ).forEach( function ( m ) {
+			if ( m[ 0 ] === name ) {
+				mult = m[ 1 ];
+			}
+		} );
+		return mult;
+	}
+	/**
+	 * The mutation mini event beside the site name: the one on now with the
+	 * time left under it, or between them the next one, faded, with when it
+	 * starts. Tapping it opens a card with the name, multiplier and times.
+	 */
+	function renderMutation( minis, now ) {
+		var btn = document.getElementById( 'mut-btn' );
+		var card = document.getElementById( 'mut-card' );
+		var x = minis[ 0 ];
+		btn.hidden = !x;
+		if ( !x ) {
+			card.hidden = true;
+			return;
+		}
+		// within half a minute of its start counts as on (countdown would say 'on now')
+		var live = x.when.getTime() <= now.getTime() + 30000;
+		var name = x.name.replace( / mini event$/, '' ), mult = mutationMult( name );
+		var left = live ? countdown( x.ends, now ).replace( /^in /, '' ) : countdown( x.when, now );
+		btn.className = 'site-mutbtn' + ( live ? '' : ' site-mutbtn-next' );
+		btn.textContent = '';
+		btn.appendChild( mutationMark( name, 'site-mutbtn-icon' ) );
+		btn.appendChild( el( 'span', 'site-mutbtn-when', live ? left : left.replace( /^in /, '' ) ) );
+		btn.setAttribute( 'aria-label', ( live ? 'Mutation now: ' + name + ', ' + left + ' left' : 'Next mutation: ' + name + ', ' + left ) );
+		card.textContent = '';
+		card.appendChild( el( 'div', 'site-upcoming-title', live ? 'Mutation mini event · on now' : 'Next mutation mini event' ) );
+		var row = el( 'div', 'site-mut-row' );
+		row.appendChild( mutationMark( name, 'site-mut-big' ) );
+		var t = el( 'div', 'site-mut-text' );
+		t.appendChild( el( 'strong', null, name + ( mult ? ' ×' + mult : '' ) ) );
+		t.appendChild( el( 'span', 'site-upcoming-when', live ?
+			clock( x.when ) + ' to ' + clock( x.ends ) + ' · ' + left + ' left' :
+			'starts ' + clock( x.when ) + ' · ' + left ) );
+		row.appendChild( t );
+		card.appendChild( row );
+		var nx = minis[ 1 ];
+		if ( nx ) {
+			var n2 = nx.name.replace( / mini event$/, '' );
+			var r2 = el( 'div', 'site-mut-row site-mut-row-next' );
+			r2.appendChild( mutationMark( n2, 'site-mut-small' ) );
+			r2.appendChild( el( 'span', null, 'Then ' + n2 + ( mutationMult( n2 ) ? ' ×' + mutationMult( n2 ) : '' ) + ' at ' + clock( nx.when ) ) );
+			card.appendChild( r2 );
+		}
+		if ( miniRotation && miniRotation.runs > 0 && miniRotation.every > 0 ) {
+			card.appendChild( el( 'p', 'site-mut-note', 'Mini events run all day, the same for everyone: each lasts ' + miniRotation.runs +
+				' minutes and a new one starts every ' + miniRotation.every + '. Times are yours.' ) );
+		}
+	}
+
+	/**
+	 * While the Admin Pond is on: a label under the tagline (tap for its
+	 * traits and to report them) and the reported traits floating out from
+	 * the site name. The floaters are only rebuilt when the traits change,
+	 * so the animation doesn't restart every time the header updates.
+	 */
+	var floatKey = '';
+	function renderPond( pond, now ) {
+		var tag = document.getElementById( 'pond-now' );
+		var card = document.getElementById( 'pond-card' );
+		var fl = document.getElementById( 'pond-float' );
+		var traits = pond ? pondTraits( pond, now ) : [];
+		tag.hidden = !pond;
+		if ( !pond ) {
+			card.hidden = true;
+		} else {
+			tag.textContent = '';
+			tag.appendChild( el( 'span', 'site-pondtag-live', 'Admin Pond on' ) );
+			tag.appendChild( el( 'span', 'site-pondtag-when', traits.length ? 'ends ' + countdown( pond.ends, now ) : 'Traits? Tap to add them' ) );
+			card.textContent = '';
+			card.appendChild( el( 'div', 'site-upcoming-title', 'Admin Pond · on now' ) );
+			card.appendChild( el( 'div', 'site-upcoming-when', 'until ' + whenText( { when: pond.ends } ) + ' · ends ' + countdown( pond.ends, now ) ) );
+			card.appendChild( pondLine( pond, now ) );
+		}
+		var key = traits.join( '|' );
+		if ( key === floatKey ) {
+			return;
+		}
+		floatKey = key;
+		fl.textContent = '';
+		// each trait twice, once drifting each way, the starts spread out
+		var paths = [ [ -1, -0.2 ], [ 1, -0.35 ], [ -1, 0.3 ], [ 1, 0.25 ], [ -1, -0.6 ], [ 1, 0.55 ] ];
+		var n = traits.length * 2;
+		for ( var i = 0; i < n; i++ ) {
+			var f = el( 'span', 'site-float' );
+			f.appendChild( traitMark( traits[ i % traits.length ], false ) );
+			f.style.setProperty( '--dx', paths[ i ][ 0 ] );
+			f.style.setProperty( '--dy', paths[ i ][ 1 ] );
+			f.style.animationDelay = ( -i * 9 / n ).toFixed( 2 ) + 's';
+			fl.appendChild( f );
+		}
+	}
+
+	// the cards: one open at a time; a tap anywhere else or Escape closes it
+	var CARDS = { banner: 'upcoming', 'mut-btn': 'mut-card', 'pond-now': 'pond-card', 'pond-float': 'pond-card' };
+	function openCard( id ) {
+		Object.keys( CARDS ).forEach( function ( b ) {
+			var open = CARDS[ b ] === id;
+			document.getElementById( CARDS[ b ] ).hidden = !open;
+			document.getElementById( b ).setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+		} );
+	}
+	Object.keys( CARDS ).forEach( function ( b ) {
+		document.getElementById( b ).addEventListener( 'click', function ( e ) {
+			e.stopPropagation();
+			openCard( document.getElementById( CARDS[ b ] ).hidden ? CARDS[ b ] : null );
+		} );
 	} );
 	document.addEventListener( 'click', function ( e ) {
-		var box = document.getElementById( 'upcoming' );
-		if ( !box.hidden && !box.contains( e.target ) ) {
-			openUpcoming( false );
+		var inside = Object.keys( CARDS ).some( function ( b ) {
+			return document.getElementById( CARDS[ b ] ).contains( e.target );
+		} );
+		if ( !inside ) {
+			openCard( null );
 		}
 	} );
 	document.addEventListener( 'keydown', function ( e ) {
 		if ( e.key === 'Escape' ) {
-			openUpcoming( false );
+			openCard( null );
 		}
 	} );
 	// ---- Admin Pond traits, reported by players on a wiki page -------------
@@ -647,7 +738,7 @@
 		var m = Math.max( 0, Math.round( ( now - at ) / 60000 ) );
 		return m < 1 ? 'just now' : m + ' min ago';
 	}
-	/** The traits line under the live Admin Pond in the bell's list. */
+	/** The traits line in the Admin Pond card. */
 	function pondLine( pond, now ) {
 		var box = el( 'div', 'site-pond' );
 		var traits = pondTraits( pond, now );
