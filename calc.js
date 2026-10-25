@@ -317,6 +317,36 @@
 		}
 	}
 
+	/**
+	 * Run rerender(), then scroll so the element marked data-keep="key" sits
+	 * where `from` was on screen. Rebuilding a list removes the row that was
+	 * tapped, and iPhone Safari then jumps to the top (user, 2026-10-25).
+	 */
+	function keepInPlace( from, key, rerender ) {
+		var before = from && from.getBoundingClientRect ? from.getBoundingClientRect().top : null;
+		rerender();
+		if ( before === null || !document.querySelector || !window.scrollBy ) {
+			return;
+		}
+		function fix() {
+			var now = document.querySelector( '[data-keep="' + key + '"]' );
+			var shift = now ? now.getBoundingClientRect().top - before : 0;
+			if ( Math.abs( shift ) > 1 ) {
+				window.scrollBy( 0, shift );
+			}
+			return now;
+		}
+		var now = fix();
+		if ( now && now.focus ) {
+			try {
+				now.focus( { preventScroll: true } );
+			} catch ( e ) {}
+		}
+		if ( window.requestAnimationFrame ) {
+			window.requestAnimationFrame( fix );
+		}
+	}
+
 	/* ================================================================
 	 * Value calculator
 	 * ================================================================ */
@@ -5395,10 +5425,11 @@
 				open.type = 'button';
 				open.setAttribute( 'aria-expanded', view.editing === row ? 'true' : 'false' );
 				open.setAttribute( 'aria-label', 'Edit ' + row.name );
+				open.setAttribute( 'data-keep', uid + key + row.id );
 				open.appendChild( rowLine( row, key ) );
 				open.addEventListener( 'click', function () {
 					view.editing = view.editing === row ? null : row;
-					render();
+					keepInPlace( open, uid + key + row.id, render );
 				} );
 				item.appendChild( open );
 				if ( view.editing === row ) {
@@ -5521,7 +5552,7 @@
 			done.type = 'button';
 			done.addEventListener( 'click', function () {
 				view.editing = null;
-				render();
+				keepInPlace( wrap.previousSibling, uid + key + row.id, render );
 			} );
 			foot.appendChild( move );
 			foot.appendChild( done );
@@ -6976,10 +7007,11 @@
 				open.tabIndex = 0;
 				open.setAttribute( 'aria-expanded', view.editing === row ? 'true' : 'false' );
 				open.setAttribute( 'aria-label', 'Edit ' + describeSaved( cat, row ) );
+				open.setAttribute( 'data-keep', uid + 'row' + row.id );
 				open.appendChild( line( row, right, sub, tag ) );
 				open.addEventListener( 'click', function () {
 					view.editing = view.editing === row ? null : row;
-					renderListBody();
+					keepInPlace( open, uid + 'row' + row.id, renderListBody );
 				} );
 				open.addEventListener( 'keydown', function ( e ) {
 					if ( e.key === 'Enter' || e.key === ' ' ) {
@@ -7031,7 +7063,7 @@
 			done.type = 'button';
 			done.addEventListener( 'click', function () {
 				view.editing = null;
-				render();
+				keepInPlace( wrap.previousSibling, uid + 'row' + row.id, render );
 			} );
 			foot.appendChild( lab );
 			foot.appendChild( done );
