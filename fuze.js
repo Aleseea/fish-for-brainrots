@@ -1460,7 +1460,8 @@ window.ffbFuzeStart = function () {
 		} else {
 			c5.appendChild( el( 'p', 'ffz-note', 'Your Try a fuse 4 have no traits. Add some there to see their chances here.' ) );
 		}
-		vHow.appendChild( c5 );
+		// right under How the machine picks (user, 2026-10-26)
+		vHow.insertBefore( c5, c1.nextSibling );
 
 		// 6. results that need one brainrot put in (user, 2026-10-26: like
 		// Grimferno, which only comes out with Heartcore Bear in the mix)
