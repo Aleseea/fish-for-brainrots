@@ -2778,3 +2778,8 @@ html.game.theme-fandom-light .ffz-how-pt { stroke: #16161a; }
 .ffz-how-key-text strong { font-size: 14px; }
 .ffz-how-key-go { font-size: 22px; font-weight: 900; opacity: 0.6; padding-left: 2px; }
 html.game.theme-fandom-light .ffz-how-key-row { background: #fff; }
+/* Every recipe needs: the reason opens from an (i) (user, 2026-10-26) */
+.ffz-info { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 6px; padding: 0; vertical-align: middle; border-radius: 50%; border: 2px solid #7cc8ff; background: transparent; color: #7cc8ff; font: italic 900 13px Georgia, serif; cursor: pointer; }
+.ffz-info[aria-expanded="true"] { background: #2e9bf0; border-color: #2e9bf0; color: #fff; }
+.ffz-why { margin: 6px 0 2px; padding: 8px 10px; border-radius: 10px; background: rgba(46, 155, 240, 0.12); line-height: 1.4; }
+html.game.theme-fandom-light .ffz-info { border-color: #0074c8; color: #0074c8; }

@@ -450,14 +450,28 @@ window.ffbFuzeStart = function () {
 				var b = byName[ n ], line = el( 'div', 'ffz-target' );
 				line.appendChild( pic( b ) );
 				var tx = el( 'div', 'ffz-target-text' );
-				tx.appendChild( el( 'div', 'ffz-in-name', ( req[ n ] > 1 ? 'At least ' + req[ n ] + '× ' : '' ) + b.name ) );
+				var nm = el( 'div', 'ffz-in-name', ( req[ n ] > 1 ? 'At least ' + req[ n ] + '× ' : '' ) + b.name );
 				var why = b.base === t.base ?
 					'It earns the same as ' + t.name + ' (' + money( b.base ) + '), and the machine shows ' + b.name + ' over ' + t.name + ' whenever both could come out. So ' + t.name + ' only appears when ' + b.name + ' goes in.' :
 					'No mix without it can give ' + t.name + '.';
-				tx.appendChild( el( 'div', 'ffz-sub', why ) );
+				// the reason sits behind an (i), to keep the box short on a phone (user, 2026-10-26)
+				var whyEl = el( 'div', 'ffz-sub ffz-why', why );
+				whyEl.hidden = true;
+				var info = el( 'button', 'ffz-info', 'i' );
+				info.type = 'button';
+				info.setAttribute( 'aria-label', 'Why ' + b.name + ' is needed' );
+				info.setAttribute( 'aria-expanded', 'false' );
+				info.addEventListener( 'click', function () {
+					whyEl.hidden = !whyEl.hidden;
+					info.setAttribute( 'aria-expanded', whyEl.hidden ? 'false' : 'true' );
+				} );
+				nm.appendChild( info );
+				tx.appendChild( nm );
 				line.appendChild( tx );
 				line.appendChild( el( 'span', 'ffz-tag ffz-tag-lock', '🔒 Locked in' ) );
 				rc0.appendChild( line );
+				// full width under the row, so it doesn't squeeze into a thin column
+				rc0.appendChild( whyEl );
 			} );
 			vRecipes.appendChild( rc0 );
 		}
