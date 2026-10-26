@@ -2144,6 +2144,26 @@
 	border-color: var(--ffb-accent);
 }
 
+/* a money box: the number, then its units (a player, 2026-10-25) */
+.ffb-money-box {
+	display: flex;
+	gap: 6px;
+	align-items: stretch;
+	min-width: 0;
+}
+
+.ffb-money-box > input {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+}
+
+.ffb-money-box > .ffb-money-unit {
+	flex: 0 0 auto;
+	width: 5.2em;
+	min-width: 0;
+}
+
 .ffb-base-cash-row {
 	display: flex;
 	flex-wrap: wrap;

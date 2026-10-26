@@ -62,8 +62,9 @@
 	 * Shared formula code
 	 * ================================================================ */
 
+	// Dd (duodecillion) seen by a player, 2026-10-25
 	var SUFFIXES = [
-		[ 1e36, 'Ud' ], [ 1e33, 'Dc' ], [ 1e30, 'No' ], [ 1e27, 'Oc' ],
+		[ 1e39, 'Dd' ], [ 1e36, 'Ud' ], [ 1e33, 'Dc' ], [ 1e30, 'No' ], [ 1e27, 'Oc' ],
 		[ 1e24, 'Sp' ], [ 1e21, 'Sx' ], [ 1e18, 'Qi' ], [ 1e15, 'Qa' ],
 		[ 1e12, 'T' ], [ 1e9, 'B' ], [ 1e6, 'M' ], [ 1e3, 'K' ]
 	];
@@ -110,7 +111,8 @@
 	 * into a number. Returns null for anything it does not recognise.
 	 */
 	function parseMoney( text ) {
-		var m = String( text || '' ).trim().replace( /^\$/, '' )
+		// commas are fine: "2,400,000" (a player typed the whole number, 2026-10-25)
+		var m = String( text || '' ).trim().replace( /^\$/, '' ).replace( /,/g, '' )
 			.match( /^([0-9]*\.?[0-9]+)\s*([A-Za-z]*)\/?s?$/ );
 		var n, i;
 		if ( !m ) {
@@ -1011,10 +1013,12 @@
 		cashBox.appendChild( el( 'span', 'ffb-calc-figure-label', 'What can my cash do?' ) );
 		var cashIn = el( 'input', 'ffb-trade-input' );
 		cashIn.type = 'text';
-		cashIn.placeholder = 'e.g. 2.5Qa';
-		cashIn.setAttribute( 'inputmode', 'decimal' );
+		cashIn.placeholder = 'e.g. 2.5';
 		cashIn.value = readStorage( storage, CASH_KEY ) || '';
-		cashBox.appendChild( field( uid + 'cash', 'Cash to spend', cashIn, 'ffb-v2-cash-field' ).node );
+		var cashWrap = withUnits( cashIn );
+		cashBox.appendChild( field( uid + 'cash', 'Cash to spend', cashWrap, 'ffb-v2-cash-field' ).node );
+		cashWrap.id = '';
+		cashIn.id = uid + 'cash';
 		var cashTog = el( 'label', 'ffb-base-check' );
 		var cashCheck = el( 'input' );
 		cashCheck.type = 'checkbox';
@@ -1026,7 +1030,7 @@
 		result.appendChild( cashBox );
 		cashIn.addEventListener( 'input', function () {
 			if ( storage ) {
-				writeStorage( storage, CASH_KEY, cashIn.value );
+				writeStorage( storage, CASH_KEY, moneyText( cashIn ) );
 			}
 			renderCash();
 		} );
@@ -1037,7 +1041,7 @@
 
 		function renderCash() {
 			clear( cashOut );
-			var cash = parseMoney( cashIn.value );
+			var cash = parseMoney( moneyText( cashIn ) );
 			if ( data.base === null || data.base === undefined ) {
 				cashOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', 'Not known yet: this brainrot’s income hasn’t been measured.' ) );
 				return;
@@ -4136,6 +4140,65 @@
 		return { node: wrap, label: label };
 	}
 
+	/**
+	 * A money box with a units list beside it (a player, 2026-10-25: phones
+	 * show only the number keypad, so "2.2Dd" couldn't be typed). The number
+	 * box keeps the number keypad; the list adds K ... Dd. Typing the suffix
+	 * still works. Read the amount with moneyText( input ). Returns the wrapper,
+	 * to put where the input would have gone.
+	 */
+	function withUnits( input ) {
+		var wrap = el( 'div', 'ffb-money-box' );
+		var unit = el( 'select', 'ffb-trade-input ffb-money-unit' );
+		unit.setAttribute( 'aria-label', 'Units' );
+		var none = el( 'option', null, '—' );
+		none.value = '';
+		unit.appendChild( none );
+		SUFFIXES.slice().reverse().forEach( function ( s ) {
+			var o = el( 'option', null, s[ 1 ] );
+			o.value = s[ 1 ];
+			unit.appendChild( o );
+		} );
+		// split a saved "2.2Dd" back into the box and the list
+		var m = String( input.value || '' ).trim().match( /^(.*?)\s*([A-Za-z]+)$/ );
+		if ( m ) {
+			var known = SUFFIXES.filter( function ( s ) {
+				return s[ 1 ].toLowerCase() === m[ 2 ].toLowerCase();
+			} )[ 0 ];
+			if ( known ) {
+				input.value = m[ 1 ];
+				unit.value = known[ 1 ];
+			}
+		}
+		input.setAttribute( 'inputmode', 'decimal' );
+		input.ffbUnit = unit;
+		// a new unit counts as editing the amount (boxes listen for input or change)
+		unit.addEventListener( 'change', function () {
+			[ 'input', 'change' ].forEach( function ( type ) {
+				var e;
+				try {
+					e = new Event( type, { bubbles: true } );
+				} catch ( err ) {
+					e = document.createEvent( 'Event' );
+					e.initEvent( type, true, true );
+				}
+				input.dispatchEvent( e );
+			} );
+		} );
+		wrap.appendChild( input );
+		wrap.appendChild( unit );
+		return wrap;
+	}
+
+	/** What a withUnits box holds, as text parseMoney reads: "2.2" + "Dd". */
+	function moneyText( input ) {
+		var v = String( input.value || '' ).trim();
+		if ( !input.ffbUnit || !v || /[A-Za-z]/.test( v ) ) {
+			return v;
+		}
+		return v + input.ffbUnit.value;
+	}
+
 	function removeButton( ariaLabel ) {
 		var b = el( 'button', 'ffb-trade-remove', '×' );
 		b.type = 'button';
@@ -5972,13 +6035,14 @@
 			var inp = el( 'input', 'ffb-trade-input' );
 			inp.type = 'text';
 			inp.value = state.myIncome;
-			inp.placeholder = res.mine.source === 'collection' ? 'Using My Collection · or type a total, e.g. 40No' : 'e.g. 2.5Qa';
+			inp.placeholder = res.mine.source === 'collection' ? 'Using My Collection · or type a total, e.g. 40' : 'e.g. 2.5';
 			inp.setAttribute( 'aria-label', 'Your total income now' );
+			var inpWrap = withUnits( inp );
 			inp.addEventListener( 'change', function () {
-				state.myIncome = inp.value;
+				state.myIncome = moneyText( inp );
 				changed();
 			} );
-			mine.appendChild( inp );
+			mine.appendChild( inpWrap );
 			panel.appendChild( mine );
 
 			function reasons( title, list, kind ) {
@@ -6302,10 +6366,13 @@
 		var nextId = 1;
 		var savedProfile = profileStore.load();
 		var profile = readProfile( cat, savedProfile );
-		// What can I catch? can save your Fishing Skill; pick it up here
+		// What can I catch? can save your Fishing Skill, and Crafting your rebirth
+		// (2026-10-25); pick them up here so the next save doesn't undo them
 		if ( typeof window !== 'undefined' && window.addEventListener ) window.addEventListener( 'ffb-profile-changed', function () {
 			var p = readProfile( cat, profileStore.load() );
 			profile.skill = p.skill;
+			profile.rebirth = p.rebirth;
+			profile.slots = p.slots;
 			render();
 		} );
 		var view = { tab: 'list', filter: 'all', sort: 'strength', editing: null, level: 175, check: 1, goal: 175, adding: false, cashOn: 'base' };
@@ -6549,21 +6616,22 @@
 			var goalIn = el( 'input', 'ffb-trade-input ffb-base-sum-goal-in' );
 			goalIn.type = 'text';
 			goalIn.id = goalId;
-			goalIn.setAttribute( 'placeholder', 'e.g. 2.5Qa' );
+			goalIn.setAttribute( 'placeholder', 'e.g. 2.5' );
 			goalIn.setAttribute( 'autocomplete', 'off' );
 			goalIn.value = view.cashGoal || '';
+			var goalWrap = withUnits( goalIn );
 			var goalOut = el( 'div', 'ffb-base-small ffb-base-sum-goal-out' );
 			goalOut.setAttribute( 'aria-live', 'polite' );
 			var showGoal = function () {
-				var text = goalIn.value.trim();
+				var text = moneyText( goalIn );
 				var amount = parseMoney( text );
-				view.cashGoal = goalIn.value;
+				view.cashGoal = text;
 				goalOut.className = 'ffb-base-small ffb-base-sum-goal-out';
 				if ( !text ) {
-					goalOut.textContent = 'Type an amount the game’s way, like 2.5Qa.';
+					goalOut.textContent = 'Type an amount and pick its units, like 2.5 Qa.';
 					goalOut.className += ' ffb-base-muted';
 				} else if ( amount === null ) {
-					goalOut.textContent = 'That doesn’t look like an amount. Try a number with the game’s suffix, like 2.5Qa.';
+					goalOut.textContent = 'That doesn’t look like an amount. Type a number and pick its units, like 2.5 Qa.';
 					goalOut.className += ' ffb-base-bad';
 				} else if ( !( up.perSecond > 0 ) ) {
 					goalOut.textContent = 'Add brainrots with a measured income first.';
@@ -6579,7 +6647,7 @@
 			};
 			goalIn.addEventListener( 'input', showGoal );
 			goal.appendChild( goalLab );
-			goal.appendChild( goalIn );
+			goal.appendChild( goalWrap );
 			goal.appendChild( goalOut );
 			showGoal();
 			summary.appendChild( goal );
@@ -7298,10 +7366,12 @@
 			var row = el( 'div', 'ffb-base-cash-row' );
 			var inp = el( 'input', 'ffb-trade-input' );
 			inp.type = 'text';
-			inp.placeholder = 'e.g. 2.5Qa';
-			inp.setAttribute( 'inputmode', 'decimal' );
+			inp.placeholder = 'e.g. 2.5';
 			inp.value = readStorage( storage, PLAN_CASH_KEY ) || '';
-			row.appendChild( field( uid + 'pc', 'Cash to spend', inp, 'ffb-base-cash-field' ).node );
+			var inpWrap = withUnits( inp );
+			row.appendChild( field( uid + 'pc', 'Cash to spend', inpWrap, 'ffb-base-cash-field' ).node );
+			inpWrap.id = '';
+			inp.id = uid + 'pc';
 			// nothing to buy on a brainrot that's fully upgraded (user, 2026-10-21)
 			var open = keepers.filter( function ( r ) {
 				return r.level < data.maxLevel || r.evolution < data.maxEvolution;
@@ -7323,7 +7393,7 @@
 			box.appendChild( out );
 			function show() {
 				clear( out );
-				var cash = parseMoney( inp.value );
+				var cash = parseMoney( moneyText( inp ) );
 				if ( cash === null || !( cash > 0 ) ) {
 					out.appendChild( el( 'p', 'ffb-base-muted ffb-base-small', 'Type how much you have to see how far the plan gets, or pick one brainrot.' ) );
 					return;
@@ -7382,7 +7452,7 @@
 				out.appendChild( tot );
 			}
 			inp.addEventListener( 'input', function () {
-				writeStorage( storage, PLAN_CASH_KEY, inp.value );
+				writeStorage( storage, PLAN_CASH_KEY, moneyText( inp ) );
 				show();
 			} );
 			show();
@@ -7657,19 +7727,19 @@
 				priceBox.appendChild( picker.node );
 				var priceIn = el( 'input', 'ffb-trade-input' );
 				priceIn.type = 'text';
-				priceIn.placeholder = 'The +1 price, e.g. 4.4Ud';
+				priceIn.placeholder = 'The +1 price, e.g. 4.4';
 				priceIn.setAttribute( 'aria-label', 'The +1 price' );
-				priceBox.appendChild( priceIn );
+				priceBox.appendChild( withUnits( priceIn ) );
 				var useBtn = el( 'button', 'ffb-trade-add', 'Use this price' );
 				useBtn.type = 'button';
 				var msg = el( 'p', 'ffb-base-small' );
 				useBtn.addEventListener( 'click', function () {
-					var cost = parseMoney( priceIn.value );
+					var cost = parseMoney( moneyText( priceIn ) );
 					var row = rows.filter( function ( r ) {
 						return String( r.id ) === choice;
 					} )[ 0 ];
 					if ( !row || !( cost > 0 ) ) {
-						msg.textContent = 'Type the price like the game shows it, e.g. 4.4Ud.';
+						msg.textContent = 'Type the price and pick its units, like the game shows it: 4.4 Ud.';
 						return;
 					}
 					profile.price = { cost: cost, strength: priceStrength( cat, row ), level: row.level, name: row.name };
@@ -8931,6 +9001,8 @@
 			rarityLesson: rarityLesson,
 			roughTime: roughTime,
 			rowStrength: rowStrength,
+			withUnits: withUnits,
+			moneyText: moneyText,
 			levelOneValue: levelOneValue,
 			priceStrength: priceStrength,
 			fullNumber: fullNumber,
