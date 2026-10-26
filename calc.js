@@ -3225,7 +3225,7 @@
 				at: i,
 				now: s.measured ? s.now : -1,
 				ceil: s.measured ? s.ceil : -1,
-				strength: s.measured ? rowStrength( cat, r ) : -1,
+				strength: s.measured ? levelOneValue( cat, r ) : -1,
 				rarity: entry ? rarityRank[ entry.rarity ] : cat.groups.length,
 				name: r.name.toLowerCase()
 			};
@@ -3259,6 +3259,17 @@
 		var s = collectionStats( cat, row );
 		var entry = cat.brainrots[ row.name ];
 		return s.measured ? entry.base * s.tot : null;
+	}
+
+	/**
+	 * What the brainrot makes at level 1 with no evolution: its base income
+	 * times mutation + traits. The list's "Level 1 $/s" shows and sorts by
+	 * this (user, 2026-10-25); the base planner keeps the real evolution.
+	 */
+	function levelOneValue( cat, row ) {
+		var s = rowStrength( cat, row );
+		var evo = row.evolution > 0 ? cat.data.evolutions[ row.evolution ] : 1;
+		return s === null ? null : s / evo;
 	}
 
 	/**
@@ -7002,7 +7013,7 @@
 					right = money( s.ceil ) + '/s';
 					sub = 'fully upgraded';
 				} else {
-					right = money( strength ) + '/s';
+					right = money( levelOneValue( cat, row ) ) + '/s';
 					sub = 'at level 1';
 				}
 				var item = el( 'div', 'ffb-base-item' );
@@ -8891,6 +8902,7 @@
 			rarityLesson: rarityLesson,
 			roughTime: roughTime,
 			rowStrength: rowStrength,
+			levelOneValue: levelOneValue,
 			priceStrength: priceStrength,
 			fullNumber: fullNumber,
 			numberName: numberName,
