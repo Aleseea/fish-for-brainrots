@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="site.css?v=c52590ba1f">
 <link rel="stylesheet" href="calc.css?v=5c547fe444">
 <link rel="stylesheet" href="game.css?v=a2f5b86af0">
+<link rel="stylesheet" href="craft.css">
 </head>
 <body>
 <div class="mk-world" aria-hidden="true">
@@ -50,7 +51,7 @@
 	<nav class="site-tabs" role="tablist" aria-label="Pages">
 		<a role="tab" href="#value" id="tab-value" data-n="1">Value</a>
 		<a role="tab" href="#trade" id="tab-trade" data-n="2">Trade</a>
-		<a role="tab" href="#fuze" id="tab-fuze" data-n="3">Fuze</a>
+		<a role="tab" href="#fuze" id="tab-fuze" data-n="3">Crafting</a>
 		<a role="tab" href="#collection" id="tab-collection" data-n="4">Profile</a>
 		<a role="tab" href="#codes" id="tab-codes" data-n="5">Codes</a>
 		<a role="tab" href="#catch" id="tab-catch" class="mk-sub-tab">What can I catch?</a>
@@ -74,10 +75,13 @@
 	</section>
 
 	<section class="site-panel" id="panel-fuze" role="tabpanel" aria-labelledby="tab-fuze" hidden>
-		<h2>Fuze Machine</h2>
+		<h2>Crafting</h2>
+		<div id="craft" hidden></div>
+		<div id="fuze-wrap">
 		<p class="site-intro">Find the mixes that give the brainrot you want, or try 4 brainrots and see what could come out. Worked out from 81 machine screens (October 2026), Admin Fuse included: the outcomes and odds match the machine exactly.</p>
 		<div id="ffz"><p class="site-status">Loading the brainrots from the wiki…</p></div>
 		<p class="site-more">How fusing works: <a href="https://fortnite-creator-islands.fandom.com/wiki/Fish_for_Brainrots_-_Machines#Fuse_Machine">Machines on the wiki</a>.</p>
+		</div>
 	</section>
 
 	<section class="site-panel" id="panel-value" role="tabpanel" aria-labelledby="tab-value" hidden>
@@ -123,6 +127,7 @@
 <script data-goatcounter="https://aleseea.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script src="app.js?v=57bd66a992"></script>
 <script src="fuze.js?v=57cb44fbe4"></script>
+<script src="craft.js"></script>
 <script src="nav.js?v=4913fa3027"></script>
 </body>
 </html>
