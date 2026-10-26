@@ -2770,3 +2770,11 @@ html.game.theme-fandom-light .ffz-how-lab { fill: #55555e; }
 html.game.theme-fandom-light .ffz-how-num { fill: #16161a; }
 html.game.theme-fandom-light .ffz-how-dot { stroke: #fff; }
 html.game.theme-fandom-light .ffz-how-pt { stroke: #16161a; }
+.ffz-how-keys { list-style: none; margin: 6px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ffz-how-keys li { display: flex; align-items: center; gap: 8px; }
+.ffz-how-keys .ffz-note { margin: 0; }
+.ffz-how-key-row { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; border: 2px solid var(--g-edge, #444); background: var(--g-card, #26262a); color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.ffz-how-key-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.ffz-how-key-text strong { font-size: 14px; }
+.ffz-how-key-go { font-size: 22px; font-weight: 900; opacity: 0.6; padding-left: 2px; }
+html.game.theme-fandom-light .ffz-how-key-row { background: #fff; }

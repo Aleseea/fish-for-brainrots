@@ -1461,6 +1461,53 @@ window.ffbFuzeStart = function () {
 			c5.appendChild( el( 'p', 'ffz-note', 'Your Try a fuse 4 have no traits. Add some there to see their chances here.' ) );
 		}
 		vHow.appendChild( c5 );
+
+		// 6. results that need one brainrot put in (user, 2026-10-26: like
+		// Grimferno, which only comes out with Heartcore Bear in the mix)
+		build();
+		var c6 = el( 'div', 'ffz-card' );
+		c6.appendChild( el( 'h3', 'ffz-h', 'Only with a key brainrot' ) );
+		c6.appendChild( el( 'p', 'ffz-note', 'These only come out when a certain brainrot is one of your 4. Usually it\'s a brainrot right next to them on the ladder that the machine would show instead; putting it in takes it off the list and makes room. Worked out from every possible mix.' ) );
+		var needs = [], never = [];
+		pool.forEach( function ( b ) {
+			var list = byTarget[ b.name ];
+			if ( !list || !list.length ) { never.push( b ); return; }
+			var common = null;
+			list.forEach( function ( r ) {
+				var names = {};
+				r.combo.ins.forEach( function ( i ) { names[ i.name ] = true; } );
+				common = common === null ? names : Object.keys( common ).reduce( function ( o, n ) { if ( names[ n ] ) { o[ n ] = true; } return o; }, {} );
+			} );
+			Object.keys( common ).forEach( function ( n ) { needs.push( [ b, byName[ n ] ] ); } );
+		} );
+		var kl = el( 'ul', 'ffz-how-keys' );
+		needs.forEach( function ( p ) {
+			var li = el( 'li' );
+			// the whole row opens Find a recipe for it
+			var row = el( 'button', 'ffz-how-key-row' );
+			row.type = 'button';
+			row.setAttribute( 'aria-label', p[ 0 ].name + ' needs ' + p[ 1 ].name + '. Find a recipe' );
+			row.appendChild( pic( p[ 0 ] ) );
+			var t = el( 'span', 'ffz-how-key-text' );
+			t.appendChild( el( 'strong', null, p[ 0 ].name ) );
+			t.appendChild( el( 'span', 'ffz-note', 'needs ' + p[ 1 ].name ) );
+			row.appendChild( t );
+			row.appendChild( pic( p[ 1 ] ) );
+			row.appendChild( el( 'span', 'ffz-how-key-go', '›' ) );
+			row.addEventListener( 'click', function () { state.target = p[ 0 ].name; showView( 'recipes' ); window.scrollTo( 0, 0 ); } );
+			li.appendChild( row );
+			kl.appendChild( li );
+		} );
+		c6.appendChild( el( 'p', 'ffz-note', 'Tap one to find its recipes.' ) );
+		c6.appendChild( kl );
+		if ( never.length ) {
+			c6.appendChild( el( 'span', 'ffz-label', 'Never comes out of the machine' ) );
+			var nl = el( 'div', 'ffz-how-ins' );
+			never.forEach( function ( b ) { var p = pic( b ); p.title = b.name; nl.appendChild( p ); } );
+			c6.appendChild( nl );
+			c6.appendChild( el( 'p', 'ffz-note', never.map( function ( b ) { return b.name; } ).join( ', ' ) + '. The cheapest of each kind can never come out, because results are always above your inputs; the others are always passed over for a neighbour on the list.' ) );
+		}
+		vHow.appendChild( c6 );
 	}
 
 	showView( state.view );
