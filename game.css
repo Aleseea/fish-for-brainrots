@@ -2665,3 +2665,56 @@ html.game .site-title .mk-tagline {
 /* worked-out trait chance (user, 2026-10-23), with an optional box for the machine's own % */
 .ffz-tpct { min-width: 64px; font-size: 16px; text-align: right; }
 .ffz-pctsrc { color: var(--muted); font-size: 12px; }
+
+/* ---- one look everywhere (user, 2026-10-26: keep navigation, buttons and
+   boxes consistent across pages) ---- */
+/* section headings: the game's italic capitals, like Recipe or What can I catch? */
+html.game .site-panel h3.ffb-base-h {
+	font-family: var(--g-head);
+	font-style: italic;
+	text-transform: uppercase;
+	font-weight: 900;
+	font-size: 18px;
+	letter-spacing: 0.02em;
+}
+html.game .ffb-t2-side-title { font-family: var(--g-head); font-weight: 800; }
+/* Trade's Swap / Share / Undo / Clear and + Add brainrot / + Item: the same
+   button as everywhere else */
+html.game .ffb-t2-act,
+html.game .ffb-t2-tool {
+	font-family: var(--g-head);
+	font-weight: 800;
+	font-size: 13px;
+	min-height: 34px;
+	border: 2px solid var(--g-edge);
+	border-radius: 12px;
+	background: var(--g-card);
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+html.game.theme-fandom-light .ffb-t2-act,
+html.game.theme-fandom-light .ffb-t2-tool {
+	background: #fff;
+	color: var(--ffb-accent);
+	box-shadow: 0 3px 8px rgba(0, 40, 90, 0.14), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+html.game .ffz-btn { font-weight: 800; }
+html.game .mk-craft-slot,
+html.game .mk-craft-pair-item,
+html.game .ffb-base-idx-btn { font-family: var(--g-head); }
+/* typing boxes and dropdowns: one font, 16px (smaller makes iPhones zoom in
+   when you tap them); the packed Try a fuse slots keep their small size */
+html.game .site-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.ffz-pct),
+html.game .site-panel select:not(.ffz-slot select):not(.ffz-sortbar select),
+html.game .mk-craft-sheet select {
+	font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	font-size: 16px;
+}
+/* one field-label style: the Value / Catch / Trade labels */
+html.game .ffz-label {
+	font-size: 12px;
+	font-weight: 900;
+	opacity: 1;
+	color: #d7d7dc;
+	letter-spacing: 0.02em;
+}
+html.game.theme-fandom-light .ffz-label { color: #3a3a42; }
