@@ -3212,8 +3212,35 @@
 	 * brainrots last; rarity follows the catalog (rarest first), then
 	 * income. Ties keep the saved order, so the sort is stable everywhere.
 	 */
+	/**
+	 * Each brainrot's place in the game's Index: rarity from Common up, then
+	 * base income, lowest first (the Index screenshots of 2026-10-19 follow
+	 * this; the game's order for equal incomes isn't known, so those go by
+	 * name). Unmeasured brainrots go last in their rarity.
+	 */
+	function indexRank( cat ) {
+		if ( !cat.indexRank ) {
+			var order = [];
+			cat.groups.slice().reverse().forEach( function ( g ) {
+				order = order.concat( g.names.slice().sort( function ( a, b ) {
+					var ba = cat.brainrots[ a ].base, bb = cat.brainrots[ b ].base;
+					if ( ba !== bb ) {
+						return ba == null ? 1 : ( bb == null ? -1 : ba - bb );
+					}
+					return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
+				} ) );
+			} );
+			cat.indexRank = {};
+			order.forEach( function ( n, i ) {
+				cat.indexRank[ n ] = i;
+			} );
+		}
+		return cat.indexRank;
+	}
+
 	function sortCollection( cat, rows, key ) {
 		var rarityRank = {};
+		var inIndex = indexRank( cat );
 		cat.groups.forEach( function ( g, i ) {
 			rarityRank[ g.label ] = i;
 		} );
@@ -3227,6 +3254,7 @@
 				ceil: s.measured ? s.ceil : -1,
 				strength: s.measured ? levelOneValue( cat, r ) : -1,
 				rarity: entry ? rarityRank[ entry.rarity ] : cat.groups.length,
+				index: has( inIndex, r.name ) ? inIndex[ r.name ] : Infinity,
 				name: r.name.toLowerCase()
 			};
 		} );
@@ -3237,7 +3265,10 @@
 			} else if ( key === 'strength' ) {
 				d = b.strength - a.strength;
 			} else if ( key === 'rarity' ) {
-				d = a.rarity - b.rarity || b.now - a.now;
+				// inside a rarity, the Index order (user, 2026-10-25)
+				d = a.rarity - b.rarity || ( a.index === b.index ? 0 : ( a.index < b.index ? -1 : 1 ) );
+			} else if ( key === 'index' ) {
+				d = a.index === b.index ? 0 : ( a.index < b.index ? -1 : 1 );
 			} else if ( key === 'name' ) {
 				d = a.name < b.name ? -1 : ( a.name > b.name ? 1 : 0 );
 			} else {
@@ -6147,6 +6178,7 @@
 		{ value: 'ceiling', label: 'Fully upgraded' },
 		{ value: 'level', label: 'Level' },
 		{ value: 'rarity', label: 'Rarity' },
+		{ value: 'index', label: 'Index order' },
 		{ value: 'name', label: 'Name' }
 	];
 	var SAME_LEVELS = [ 1, 100, 175, 200 ];
