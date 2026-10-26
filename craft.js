@@ -368,7 +368,7 @@ var CraftEngine = ( function () {
 					} );
 				} );
 			}
-			out.push( { key: c.key, label: c.label, unit: c.unit, cap: cap, over: over, remove: remove, swap: swap, trade: trade, count: mine.length } );
+			out.push( { key: c.key, label: c.label, unit: c.unit, cap: cap, over: over, remove: remove, left: left, swap: swap, trade: trade, count: mine.length } );
 		} );
 		return out;
 	}
@@ -771,7 +771,8 @@ var CraftEngine = ( function () {
 				save(); draw();
 			} );
 			acts.appendChild( b );
-			acts.appendChild( el( 'span', 'ffz-note', 'still ' + fmt( w.cap, w.unit ) + ', frees ' + w.remove.length + ' slot' + ( w.remove.length > 1 ? 's' : '' ) ) );
+			acts.appendChild( el( 'span', 'ffz-note', 'still ' + fmt( w.cap, w.unit ) + ', frees ' + w.remove.length + ' slot' + ( w.remove.length > 1 ? 's' : '' ) +
+				( w.left > 1e-9 ? ' (' + fmt( w.left, w.unit ) + ' still wasted)' : ', nothing wasted' ) ) );
 		}
 		if ( w.swap ) {
 			var cnt = {};
