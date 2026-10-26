@@ -3213,22 +3213,19 @@
 	 * income. Ties keep the saved order, so the sort is stable everywhere.
 	 */
 	/**
-	 * Each brainrot's place in the game's Index: rarity from Common up, then
-	 * base income, lowest first (the Index screenshots of 2026-10-19 follow
-	 * this; the game's order for equal incomes isn't known, so those go by
-	 * name). Unmeasured brainrots go last in their rarity.
+	 * Each brainrot's place in the game's Index: base income (the Default
+	 * version's), lowest first, whatever the rarity (user, 2026-10-25). The
+	 * game's order for equal incomes isn't known, so those go by name.
+	 * Unmeasured brainrots go last.
 	 */
 	function indexRank( cat ) {
 		if ( !cat.indexRank ) {
-			var order = [];
-			cat.groups.slice().reverse().forEach( function ( g ) {
-				order = order.concat( g.names.slice().sort( function ( a, b ) {
-					var ba = cat.brainrots[ a ].base, bb = cat.brainrots[ b ].base;
-					if ( ba !== bb ) {
-						return ba == null ? 1 : ( bb == null ? -1 : ba - bb );
-					}
-					return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
-				} ) );
+			var order = Object.keys( cat.brainrots ).sort( function ( a, b ) {
+				var ba = cat.brainrots[ a ].base, bb = cat.brainrots[ b ].base;
+				if ( ba !== bb ) {
+					return ba == null ? 1 : ( bb == null ? -1 : ba - bb );
+				}
+				return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
 			} );
 			cat.indexRank = {};
 			order.forEach( function ( n, i ) {
