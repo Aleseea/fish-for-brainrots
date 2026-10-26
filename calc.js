@@ -6869,6 +6869,7 @@
 
 		// ---- Brainrots ----------------------------------------------------
 		var listBody = null;
+		var chips = null;
 		var baseToast = el( 'div', 'ffb-base-toastbox' );
 		baseToast.setAttribute( 'aria-live', 'polite' );
 
@@ -6932,11 +6933,16 @@
 				renderListBody();
 			} );
 			sortPick.input.setAttribute( 'aria-label', 'Sort by' );
-			bar.appendChild( sortPick.node );
 			panel.appendChild( bar );
 			if ( view.adding ) {
 				panel.appendChild( quick );
 			}
+			// the sort sits on the same line as All / In base / Storage (user, 2026-10-25)
+			var filters = el( 'div', 'ffb-base-filters' );
+			chips = el( 'div', 'ffb-base-chips' );
+			filters.appendChild( chips );
+			filters.appendChild( sortPick.node );
+			panel.appendChild( filters );
 			listBody = el( 'div', 'ffb-base-list' );
 			panel.appendChild( listBody );
 			renderListBody();
@@ -6948,10 +6954,10 @@
 				return;
 			}
 			clear( listBody );
+			clear( chips );
 			var inBaseCount = rows.filter( function ( r ) {
 				return r.inBase;
 			} ).length;
-			var chips = el( 'div', 'ffb-base-chips' );
 			[ [ 'all', 'All ' + rows.length ], [ 'base', 'In base ' + inBaseCount ], [ 'storage', 'Storage ' + ( rows.length - inBaseCount ) ] ].forEach( function ( c ) {
 				var b = el( 'button', 'ffb-base-chip' + ( view.filter === c[ 0 ] ? ' ffb-base-chip-on' : '' ), c[ 1 ] );
 				b.type = 'button';
@@ -6962,7 +6968,6 @@
 				} );
 				chips.appendChild( b );
 			} );
-			listBody.appendChild( chips );
 			var plan = planBase( cat, rows, profile.slots );
 			var order = view.sort === 'level' ? rows.slice().sort( function ( a, b ) {
 				return b.level - a.level;

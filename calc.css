@@ -1892,6 +1892,47 @@
 	margin-bottom: 4px;
 }
 
+/* All / In base / Storage and the sort, on one line (user, 2026-10-25) */
+.ffb-base-filters {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-bottom: 8px;
+}
+
+.ffb-base-filters .ffb-base-chips {
+	flex-wrap: nowrap;
+	margin-bottom: 0;
+}
+
+.ffb-base-filters .ffb-base-chip {
+	padding: 0 7px;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.ffb-base-filters .ffb-pick {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 220px;
+	margin-left: auto;
+}
+
+.ffb-base-filters .ffb-pick-input.ffb-base-sort {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	text-overflow: ellipsis;
+	padding-left: 7px;
+	padding-right: 22px;
+	font-size: 12px;
+}
+
+.ffb-base-filters .ffb-pick-list {
+	right: 0;
+	left: auto;
+}
+
 .ffb-base-chip {
 	min-height: 32px;
 	padding: 0 12px;
