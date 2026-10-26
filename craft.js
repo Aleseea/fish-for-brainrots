@@ -653,7 +653,7 @@ var CraftEngine = ( function () {
 		if ( kind === 'potion' ) {
 			var only = el( 'p', 'ffz-note mk-craft-only-you' );
 			only.appendChild( el( 'strong', null, 'Only for you: ' ) );
-			only.appendChild( document.createTextNode( 'a potion only works for the player who used it, and only in your own base pond. A friend fishing in your pond gets none of its effects.' ) );
+			only.appendChild( document.createTextNode( 'a potion only works for the player who used it. A friend fishing in your pond gets none of its effects. Most effects also only work in your own base pond; Lure and Doubloon work on every pond.' ) );
 			root.appendChild( only );
 		}
 		if ( state.mode[ kind ] === 'find' ) { drawFind( kind ); return; }
