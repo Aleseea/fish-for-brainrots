@@ -151,7 +151,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=5c547fe444';
+		s.src = 'calc.js?v=823671a481';
 		s.onload = function () {
 			usePicker();
 			// the Fuze page builds from the same figures, with calc.js's picker

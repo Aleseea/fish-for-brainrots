@@ -185,4 +185,7 @@ html.theme-fandom-light .mk-craft-pair-item { background: #fff; }
 .mk-craft-answer .ffz-btn { align-self: flex-start; }
 html.theme-fandom-light .mk-craft-answer { background: #fff; }
 .mk-craft-slotnote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-weight: 700; }
+.mk-craft-rebirth { display: inline-flex; align-items: center; gap: 6px; }
+.mk-craft-rebirth select { width: auto; min-width: 4.5em; }
+.mk-craft-remember { background: linear-gradient(180deg, #2aa8ff, #0094f8) !important; color: #fff !important; border-color: #7cc8ff !important; }
 .mk-craft-slotnote .ffz-note { margin: 0; flex-basis: 100%; font-weight: 400; }

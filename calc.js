@@ -6302,10 +6302,13 @@
 		var nextId = 1;
 		var savedProfile = profileStore.load();
 		var profile = readProfile( cat, savedProfile );
-		// What can I catch? can save your Fishing Skill; pick it up here
+		// What can I catch? can save your Fishing Skill, and Crafting your rebirth
+		// (2026-10-25); pick them up here so the next save doesn't undo them
 		if ( typeof window !== 'undefined' && window.addEventListener ) window.addEventListener( 'ffb-profile-changed', function () {
 			var p = readProfile( cat, profileStore.load() );
 			profile.skill = p.skill;
+			profile.rebirth = p.rebirth;
+			profile.slots = p.slots;
 			render();
 		} );
 		var view = { tab: 'list', filter: 'all', sort: 'strength', editing: null, level: 175, check: 1, goal: 175, adding: false, cashOn: 'base' };

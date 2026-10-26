@@ -345,34 +345,52 @@ var CraftEngine = ( function () {
 		potion: saved.potion || [],
 		rod: saved.rod || [],
 		mode: saved.mode || { potion: 'build', rod: 'build' },
+		rebirth: typeof saved.rebirth === 'number' ? saved.rebirth : null,
 		goals: saved.goals || { potion: {}, rod: {} }
 	};
 	function save() { store( 'mk-craft', state ); }
-	// the rebirth saved in Profile > My stats; none saved counts as 0, so the
-	// page shows 2 slots until you tell it (user, 2026-10-25)
-	function profileRebirth() { var p = store( 'ffb-profile' ) || {}; return +p.rebirth || 0; }
-	function hasRebirth() { var p = store( 'ffb-profile' ) || {}; return typeof p.rebirth === 'number' && p.rebirth > 0; }
-	function slots() { return C.slotsFor( profileRebirth() ); }
-	// "Enter your rebirth": open Profile > My stats
-	function goToStats() {
-		var tab = document.getElementById( 'tab-collection' );
-		if ( tab ) { tab.click(); location.hash = '#collection'; }
-		setTimeout( function () {
-			var b = Array.prototype.filter.call( document.querySelectorAll( '#slot-collection .ffb-base-tab' ), function ( x ) { return /My stats|Profile/.test( x.textContent ); } )[ 0 ];
-			if ( b ) { b.click(); }
-			window.scrollTo( 0, 0 );
-		}, 50 );
+	// Rebirth: the one saved in Profile > My stats (none saved counts as 0, so the
+	// page shows 2 slots until you say; user, 2026-10-25). You can try another
+	// here; when it differs from the profile, "Remember" saves it there.
+	function profileObj() { return store( 'ffb-profile' ) || {}; }
+	function savedRebirth() { var r = profileObj().rebirth; return typeof r === 'number' ? r : null; }
+	function rebirth() { return state.rebirth !== null && state.rebirth !== undefined ? state.rebirth : ( savedRebirth() || 0 ); }
+	function slots() { return C.slotsFor( rebirth() ); }
+	function rememberRebirth( n ) {
+		var p = profileObj();
+		p.rebirth = n;
+		store( 'ffb-profile', p );
+		state.rebirth = null;
+		save();
+		try { window.dispatchEvent( new Event( 'ffb-profile-changed' ) ); } catch ( e ) {}
 	}
 	function slotNote() {
-		var p = el( 'div', 'mk-craft-slotnote' );
-		var n = slots(), r = profileRebirth();
-		p.appendChild( el( 'span', null, hasRebirth() ? n + ' recipe slots (rebirth ' + r + ')' : n + ' recipe slots (rebirth 0)' ) );
-		var b = el( 'button', 'ffz-btn ffz-btn-small', hasRebirth() ? 'Change rebirth' : 'Enter your rebirth' );
-		b.type = 'button';
-		b.addEventListener( 'click', goToStats );
-		p.appendChild( b );
-		if ( !hasRebirth() ) { p.appendChild( el( 'span', 'ffz-note', 'More rebirths give more slots, up to 10 at rebirth 45. Add yours in My stats.' ) ); }
-		return p;
+		var box = el( 'div', 'mk-craft-slotnote' );
+		var lab = el( 'label', 'mk-craft-rebirth' );
+		lab.appendChild( el( 'span', null, 'Rebirth' ) );
+		var sel = el( 'select', 'ffb-trade-input' );
+		for ( var r = 0; r <= 45; r++ ) { var o = el( 'option', null, String( r ) ); o.value = r; sel.appendChild( o ); }
+		sel.value = rebirth();
+		sel.addEventListener( 'change', function () {
+			var v = +sel.value;
+			state.rebirth = v === ( savedRebirth() === null ? -1 : savedRebirth() ) ? null : v;
+			save(); draw();
+		} );
+		lab.appendChild( sel );
+		box.appendChild( lab );
+		box.appendChild( el( 'span', 'mk-craft-slotcount', slots() + ' recipe slots' ) );
+		var saved = savedRebirth();
+		if ( saved === null || rebirth() !== saved ) {
+			var b = el( 'button', 'ffz-btn ffz-btn-small mk-craft-remember', 'Remember rebirth ' + rebirth() );
+			b.type = 'button';
+			b.addEventListener( 'click', function () { rememberRebirth( rebirth() ); draw(); } );
+			box.appendChild( b );
+			box.appendChild( el( 'span', 'ffz-note', saved === null ?
+				( rebirth() ? 'Tap Remember to save it to your profile, so every page (My Collection, upgrade times) uses it.' :
+					'No rebirth saved yet, so this counts as rebirth 0. Pick yours and tap Remember: every page uses it.' ) :
+				'Your profile says rebirth ' + saved + '. Tap Remember to save ' + rebirth() + ' instead, or keep it just for trying here.' ) );
+		}
+		return box;
 	}
 
 	// ---- top tabs: Potion | Rod | Fuze ---------------------------------------
@@ -811,7 +829,7 @@ var CraftEngine = ( function () {
 			return;
 		}
 		if ( res.minSlots > n ) {
-			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ This needs at least ' + res.minSlots + ' slots, and you have ' + n + ( hasRebirth() ? '' : ' (rebirth 0: enter your rebirth for more)' ) + '. Here is the smallest recipe anyway.' ) );
+			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ This needs at least ' + res.minSlots + ' slots, and you have ' + n + ( savedRebirth() === null ? ' (rebirth 0: pick your rebirth above for more)' : '' ) + '. Here is the smallest recipe anyway.' ) );
 		}
 		var answers = [ [ 'Fewest slots', res.fewest ] ];
 		if ( res.easiest && JSON.stringify( res.easiest.items ) !== JSON.stringify( res.fewest.items ) ) { answers.push( [ 'Easiest to collect', res.easiest ] ); }
