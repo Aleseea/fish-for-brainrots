@@ -62,9 +62,10 @@
 	 * Shared formula code
 	 * ================================================================ */
 
-	// Dd (duodecillion) seen by a player, 2026-10-25
+	// Dd (duodecillion) seen by a player, 2026-10-25; Td and Qad (the next two)
+	// added ahead of time on the usual pattern, not seen in game yet (user, 2026-10-25)
 	var SUFFIXES = [
-		[ 1e39, 'Dd' ], [ 1e36, 'Ud' ], [ 1e33, 'Dc' ], [ 1e30, 'No' ], [ 1e27, 'Oc' ],
+		[ 1e45, 'Qad' ], [ 1e42, 'Td' ], [ 1e39, 'Dd' ], [ 1e36, 'Ud' ], [ 1e33, 'Dc' ], [ 1e30, 'No' ], [ 1e27, 'Oc' ],
 		[ 1e24, 'Sp' ], [ 1e21, 'Sx' ], [ 1e18, 'Qi' ], [ 1e15, 'Qa' ],
 		[ 1e12, 'T' ], [ 1e9, 'B' ], [ 1e6, 'M' ], [ 1e3, 'K' ]
 	];
