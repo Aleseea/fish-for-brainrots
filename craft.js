@@ -1,7 +1,7 @@
-/* Reel Value: the Crafting page (Potion | Rod | Fuze), 2026-10-25.
+/* Reel Value: the Workshop page (Fuze Machine | Rod Crafting | Potion Brewing | Mutation Machine), 2026-10-25.
    Data: the official crafting boards and the in-game Resource Info & Shop
    (brainrot-db/inbox/crafting-*.md, wiki page "Fish for Brainrots - Crafting").
-   The Fuze tab is the existing Fuze page (fuze.js), moved under Crafting. */
+   The Fuze tab is the existing Fuze page (fuze.js), moved under Workshop. */
 var CraftData = ( function () {
 	// wiki file paths of the pictures (uploaded 2026-10-25)
 	var ICON = {"crafted potion - Alchemist Flask":"5/5f/Fish_for_Brainrots_crafted_potion_-_Alchemist_Flask.png","crafted potion - Anchor Bottle":"4/40/Fish_for_Brainrots_crafted_potion_-_Anchor_Bottle.png","crafted potion - Brain Jar":"7/76/Fish_for_Brainrots_crafted_potion_-_Brain_Jar.png","crafted potion - Chained Elixir":"5/57/Fish_for_Brainrots_crafted_potion_-_Chained_Elixir.png","crafted potion - Crab Claw Flask":"f/f4/Fish_for_Brainrots_crafted_potion_-_Crab_Claw_Flask.png","crafted potion - Glass Barrel":"1/1a/Fish_for_Brainrots_crafted_potion_-_Glass_Barrel.png","crafted potion - Kraken Tonic":"1/13/Fish_for_Brainrots_crafted_potion_-_Kraken_Tonic.png","crafted potion - Leviathan Grip":"d/d7/Fish_for_Brainrots_crafted_potion_-_Leviathan_Grip.png","crafted potion - Megalodon Skull Elixir":"c/c0/Fish_for_Brainrots_crafted_potion_-_Megalodon_Skull_Elixir.png","crafted potion - Piranha Jaw Flask":"f/fc/Fish_for_Brainrots_crafted_potion_-_Piranha_Jaw_Flask.png","crafted potion - Shark Jaw Flask":"c/c4/Fish_for_Brainrots_crafted_potion_-_Shark_Jaw_Flask.png","crafted potion - Shark Tooth Vial":"4/48/Fish_for_Brainrots_crafted_potion_-_Shark_Tooth_Vial.png","crafted potion - Ship in a Bottle":"6/6c/Fish_for_Brainrots_crafted_potion_-_Ship_in_a_Bottle.png","crafted potion - Skull Rum":"9/97/Fish_for_Brainrots_crafted_potion_-_Skull_Rum.png","crafted potion - Trident Decanter":"8/8a/Fish_for_Brainrots_crafted_potion_-_Trident_Decanter.png","crafted rod - Abyss Fang III":"b/b4/Fish_for_Brainrots_crafted_rod_-_Abyss_Fang_III.png","crafted rod - Bamboo Rod":"a/ae/Fish_for_Brainrots_crafted_rod_-_Bamboo_Rod.png","crafted rod - Blue Steel Charybdis":"5/51/Fish_for_Brainrots_crafted_rod_-_Blue_Steel_Charybdis.png","crafted rod - Carbon Shark":"b/b2/Fish_for_Brainrots_crafted_rod_-_Carbon_Shark.png","crafted rod - Fishbone":"d/d6/Fish_for_Brainrots_crafted_rod_-_Fishbone.png","crafted rod - Hook-Hand":"7/76/Fish_for_Brainrots_crafted_rod_-_Hook-Hand.png","crafted rod - Kraken Grip":"9/93/Fish_for_Brainrots_crafted_rod_-_Kraken_Grip.png","crafted rod - Leviathan Fang":"6/64/Fish_for_Brainrots_crafted_rod_-_Leviathan_Fang.png","crafted rod - Leviathan Skull":"d/d7/Fish_for_Brainrots_crafted_rod_-_Leviathan_Skull.png","crafted rod - Megalodon II":"2/25/Fish_for_Brainrots_crafted_rod_-_Megalodon_II.png","crafted rod - Morning Star":"6/64/Fish_for_Brainrots_crafted_rod_-_Morning_Star.png","crafted rod - Oak Rod":"3/30/Fish_for_Brainrots_crafted_rod_-_Oak_Rod.png","crafted rod - Pearl Siren":"6/6e/Fish_for_Brainrots_crafted_rod_-_Pearl_Siren.png","crafted rod - Phoenix":"b/b7/Fish_for_Brainrots_crafted_rod_-_Phoenix.png","crafted rod - Steel Barracuda":"f/f9/Fish_for_Brainrots_crafted_rod_-_Steel_Barracuda.png","resource - Admin Crown":"b/bd/Fish_for_Brainrots_resource_-_Admin_Crown.png","resource - Auto Reel":"4/46/Fish_for_Brainrots_resource_-_Auto_Reel.png","resource - Bait":"3/35/Fish_for_Brainrots_resource_-_Bait.png","resource - Bite Bell":"f/f3/Fish_for_Brainrots_resource_-_Bite_Bell.png","resource - Carbon":"8/82/Fish_for_Brainrots_resource_-_Carbon.png","resource - Clover":"1/17/Fish_for_Brainrots_resource_-_Clover.png","resource - Copper Hook":"7/78/Fish_for_Brainrots_resource_-_Copper_Hook.png","resource - Crown Jewel":"a/a7/Fish_for_Brainrots_resource_-_Crown_Jewel.png","resource - Diamond Hook":"7/71/Fish_for_Brainrots_resource_-_Diamond_Hook.png","resource - Doubloon":"1/1f/Fish_for_Brainrots_resource_-_Doubloon.png","resource - Fly Bait":"e/e8/Fish_for_Brainrots_resource_-_Fly_Bait.png","resource - Four-Leaf Clover":"0/09/Fish_for_Brainrots_resource_-_Four-Leaf_Clover.png","resource - Gold Hook":"f/fc/Fish_for_Brainrots_resource_-_Gold_Hook.png","resource - Golden Bait":"8/8a/Fish_for_Brainrots_resource_-_Golden_Bait.png","resource - Golden Clover":"5/5a/Fish_for_Brainrots_resource_-_Golden_Clover.png","resource - Grapnel":"e/e4/Fish_for_Brainrots_resource_-_Grapnel.png","resource - Hourglass":"e/e5/Fish_for_Brainrots_resource_-_Hourglass.png","resource - Ironwood":"8/8e/Fish_for_Brainrots_resource_-_Ironwood.png","resource - Kraken Tentacle":"3/3c/Fish_for_Brainrots_resource_-_Kraken_Tentacle.png","resource - Leviathan Scale":"f/fe/Fish_for_Brainrots_resource_-_Leviathan_Scale.png","resource - Lure":"2/2d/Fish_for_Brainrots_resource_-_Lure.png","resource - Mutation Core":"b/b9/Fish_for_Brainrots_resource_-_Mutation_Core.png","resource - Mutation Essence":"d/de/Fish_for_Brainrots_resource_-_Mutation_Essence.png","resource - Oak Plank":"b/b6/Fish_for_Brainrots_resource_-_Oak_Plank.png","resource - Rainbow Clover":"c/c9/Fish_for_Brainrots_resource_-_Rainbow_Clover.png","resource - Rainbow Hook":"b/b5/Fish_for_Brainrots_resource_-_Rainbow_Hook.png","resource - Siren Pearl":"3/35/Fish_for_Brainrots_resource_-_Siren_Pearl.png","resource - Star Dust":"5/55/Fish_for_Brainrots_resource_-_Star_Dust.png","resource - Star Shard":"8/81/Fish_for_Brainrots_resource_-_Star_Shard.png","resource - Stopwatch":"3/37/Fish_for_Brainrots_resource_-_Stopwatch.png","resource - Time Crystal":"c/c8/Fish_for_Brainrots_resource_-_Time_Crystal.png","resource - Trait Gem":"7/7b/Fish_for_Brainrots_resource_-_Trait_Gem.png","resource - Trait Shard":"3/38/Fish_for_Brainrots_resource_-_Trait_Shard.png","resource - Triple Line":"4/49/Fish_for_Brainrots_resource_-_Triple_Line.png","resource - Turbo Reel":"6/6e/Fish_for_Brainrots_resource_-_Turbo_Reel.png","resource - Twin Line":"f/f4/Fish_for_Brainrots_resource_-_Twin_Line.png"};
@@ -417,7 +417,7 @@ var CraftEngine = ( function () {
 
 	var saved = store( 'mk-craft' ) || {};
 	var state = {
-		view: saved.view || 'potion',
+		view: saved.view || 'fuze',
 		potion: saved.potion || [],
 		rod: saved.rod || [],
 		mode: saved.mode || { potion: 'build', rod: 'build' },
@@ -469,14 +469,20 @@ var CraftEngine = ( function () {
 		return box;
 	}
 
-	// ---- top tabs: Potion | Rod | Fuze ---------------------------------------
+	// ---- top tabs: Fuze Machine | Rod Crafting | Potion Brewing | Mutation
+	// Machine, under the Workshop hotbar slot (user, 2026-10-26)
 	var fuzeWrap = document.getElementById( 'fuze-wrap' );
+	var soon = el( 'div', 'ffz-card mk-craft-soon' );
+	soon.hidden = true;
+	soon.appendChild( el( 'p', null, 'Coming soon.' ) );
+	panel.appendChild( soon );
+	function building( v ) { return v === 'potion' || v === 'rod'; }
 	var heading = panel.querySelector( 'h2' );
 	var nav = el( 'div', 'ffz-nav mk-craft-nav' );
 	nav.setAttribute( 'role', 'group' );
-	nav.setAttribute( 'aria-label', 'Crafting' );
+	nav.setAttribute( 'aria-label', 'Workshop' );
 	var tabs = {};
-	[ [ 'potion', 'Potion' ], [ 'rod', 'Rod' ], [ 'fuze', 'Fuze' ] ].forEach( function ( t ) {
+	[ [ 'fuze', 'Fuze Machine' ], [ 'rod', 'Rod Crafting' ], [ 'potion', 'Potion Brewing' ], [ 'mutation', 'Mutation Machine' ] ].forEach( function ( t ) {
 		var b = el( 'button', 'ffb-base-tab', t[ 1 ] );
 		b.type = 'button';
 		b.addEventListener( 'click', function () { showView( t[ 0 ] ); } );
@@ -485,15 +491,17 @@ var CraftEngine = ( function () {
 	} );
 	panel.insertBefore( nav, heading.nextSibling );
 	function showView( v ) {
+		if ( !tabs[ v ] ) { v = 'fuze'; }
 		state.view = v;
 		Object.keys( tabs ).forEach( function ( k ) {
 			tabs[ k ].classList.toggle( 'ffb-base-tab-on', k === v );
 			tabs[ k ].setAttribute( 'aria-pressed', k === v ? 'true' : 'false' );
 		} );
-		heading.textContent = v === 'fuze' ? 'Fuze Machine' : v === 'rod' ? 'Rod Station' : 'Potion Brewery';
-		root.hidden = v === 'fuze';
+		heading.textContent = tabs[ v ].textContent;
+		root.hidden = !building( v );
+		soon.hidden = v !== 'mutation';
 		if ( fuzeWrap ) { fuzeWrap.hidden = v !== 'fuze'; }
-		if ( v !== 'fuze' ) { draw(); }
+		if ( building( v ) ) { draw(); }
 		save();
 	}
 
@@ -1019,7 +1027,7 @@ var CraftEngine = ( function () {
 	}
 
 	document.addEventListener( 'keydown', function ( e ) { if ( e.key === 'Escape' ) { closeSheet(); } } );
-	window.addEventListener( 'ffb-profile-changed', function () { if ( state.view !== 'fuze' ) { draw(); } } );
+	window.addEventListener( 'ffb-profile-changed', function () { if ( building( state.view ) ) { draw(); } } );
 	showView( state.view );
 }() );
 
