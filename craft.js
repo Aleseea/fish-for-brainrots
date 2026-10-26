@@ -649,6 +649,13 @@ var CraftEngine = ( function () {
 		var kind = state.view, items = state[ kind ], n = slots();
 		root.textContent = '';
 		root.appendChild( modeBar( kind ) );
+		// potions are yours alone (user, 2026-10-26)
+		if ( kind === 'potion' ) {
+			var only = el( 'p', 'ffz-note mk-craft-only-you' );
+			only.appendChild( el( 'strong', null, 'Only for you: ' ) );
+			only.appendChild( document.createTextNode( 'a potion only works for the player who used it, and only in your own base pond. A friend fishing in your pond gets none of its effects.' ) );
+			root.appendChild( only );
+		}
 		if ( state.mode[ kind ] === 'find' ) { drawFind( kind ); return; }
 		// slots
 		var card = el( 'div', 'ffz-card' );

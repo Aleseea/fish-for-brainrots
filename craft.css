@@ -205,3 +205,4 @@ html.theme-fandom-light .mk-craft-answer { background: #fff; }
 .mk-craft-rebirth .ffz-label, .mk-craft-goal .ffz-label, .mk-craft-sheet-tier.ffz-label { margin: 0; }
 .mk-craft-mode.ffz-nav { margin-bottom: 0; }
 .mk-craft-goal { justify-content: space-between; }
+.mk-craft-only-you { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(46, 155, 240, 0.14); font-size: 13px; }
