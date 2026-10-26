@@ -344,13 +344,36 @@ var CraftEngine = ( function () {
 		view: saved.view || 'potion',
 		potion: saved.potion || [],
 		rod: saved.rod || [],
-		slots: saved.slots || null,
 		mode: saved.mode || { potion: 'build', rod: 'build' },
 		goals: saved.goals || { potion: {}, rod: {} }
 	};
 	function save() { store( 'mk-craft', state ); }
+	// the rebirth saved in Profile > My stats; none saved counts as 0, so the
+	// page shows 2 slots until you tell it (user, 2026-10-25)
 	function profileRebirth() { var p = store( 'ffb-profile' ) || {}; return +p.rebirth || 0; }
-	function slots() { return state.slots || C.slotsFor( profileRebirth() ); }
+	function hasRebirth() { var p = store( 'ffb-profile' ) || {}; return typeof p.rebirth === 'number' && p.rebirth > 0; }
+	function slots() { return C.slotsFor( profileRebirth() ); }
+	// "Enter your rebirth": open Profile > My stats
+	function goToStats() {
+		var tab = document.getElementById( 'tab-collection' );
+		if ( tab ) { tab.click(); location.hash = '#collection'; }
+		setTimeout( function () {
+			var b = Array.prototype.filter.call( document.querySelectorAll( '#slot-collection .ffb-base-tab' ), function ( x ) { return /My stats|Profile/.test( x.textContent ); } )[ 0 ];
+			if ( b ) { b.click(); }
+			window.scrollTo( 0, 0 );
+		}, 50 );
+	}
+	function slotNote() {
+		var p = el( 'div', 'mk-craft-slotnote' );
+		var n = slots(), r = profileRebirth();
+		p.appendChild( el( 'span', null, hasRebirth() ? n + ' recipe slots (rebirth ' + r + ')' : n + ' recipe slots (rebirth 0)' ) );
+		var b = el( 'button', 'ffz-btn ffz-btn-small', hasRebirth() ? 'Change rebirth' : 'Enter your rebirth' );
+		b.type = 'button';
+		b.addEventListener( 'click', goToStats );
+		p.appendChild( b );
+		if ( !hasRebirth() ) { p.appendChild( el( 'span', 'ffz-note', 'More rebirths give more slots, up to 10 at rebirth 45. Add yours in My stats.' ) ); }
+		return p;
+	}
 
 	// ---- top tabs: Potion | Rod | Fuze ---------------------------------------
 	var fuzeWrap = document.getElementById( 'fuze-wrap' );
@@ -518,21 +541,11 @@ var CraftEngine = ( function () {
 		// slots
 		var card = el( 'div', 'ffz-card' );
 		var top = el( 'div', 'mk-craft-row' );
-		top.appendChild( el( 'h3', 'ffz-h', kind === 'potion' ? 'Recipe' : 'Recipe' ) );
-		var slotSel = el( 'select', 'ffb-trade-input mk-craft-slots' );
-		slotSel.setAttribute( 'aria-label', 'Recipe slots' );
-		for ( var s = 2; s <= 10; s++ ) { var o = el( 'option', null, s + ' slots' ); o.value = s; slotSel.appendChild( o ); }
-		slotSel.value = n;
-		slotSel.addEventListener( 'change', function () {
-			var v = +slotSel.value;
-			state.slots = v === C.slotsFor( profileRebirth() ) ? null : v;
-			if ( state[ kind ].length > v ) { state[ kind ] = state[ kind ].slice( 0, v ); }
-			save(); draw();
-		} );
-		top.appendChild( slotSel );
+		top.appendChild( el( 'h3', 'ffz-h', 'Recipe' ) );
 		card.appendChild( top );
-		card.appendChild( el( 'p', 'ffz-note', state.slots ? 'Set by hand. Clear it by picking ' + C.slotsFor( profileRebirth() ) + ' (your rebirth ' + profileRebirth() + ').' :
-			'From your rebirth (' + profileRebirth() + ') in My stats. Not checked in game yet: 2 at the start, 3 from rebirth 1, 10 at rebirth 45.' ) );
+		card.appendChild( slotNote() );
+		// a saved recipe longer than your slots keeps only what fits
+		if ( items.length > n ) { state[ kind ] = items = items.slice( 0, n ); save(); }
 		var grid = el( 'div', 'mk-craft-grid' );
 		for ( var i = 0; i < n; i++ ) {
 			( function ( i ) {
@@ -764,6 +777,7 @@ var CraftEngine = ( function () {
 		clear.addEventListener( 'click', function () { state.goals[ kind ] = {}; save(); drawFind( kind ); } );
 		top.appendChild( clear );
 		card.appendChild( top );
+		card.appendChild( slotNote() );
 		var grid = el( 'div', 'mk-craft-goals' );
 		GOALS[ kind ].forEach( function ( def ) {
 			var options = def[ 2 ];
@@ -786,7 +800,7 @@ var CraftEngine = ( function () {
 		var out = el( 'div', 'ffz-card' );
 		out.appendChild( el( 'h3', 'ffz-h', 'Recipes' ) );
 		if ( !anyGoal ) {
-			out.appendChild( el( 'p', 'ffz-note', 'Pick what you want above, and the recipes that do it show up here. You have ' + n + ' recipe slots.' ) );
+			out.appendChild( el( 'p', 'ffz-note', 'Pick what you want above, and the recipes that do it show up here.' ) );
 			root.appendChild( out );
 			return;
 		}
@@ -797,7 +811,7 @@ var CraftEngine = ( function () {
 			return;
 		}
 		if ( res.minSlots > n ) {
-			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ This needs at least ' + res.minSlots + ' slots, and you have ' + n + '. Here is the smallest recipe anyway.' ) );
+			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ This needs at least ' + res.minSlots + ' slots, and you have ' + n + ( hasRebirth() ? '' : ' (rebirth 0: enter your rebirth for more)' ) + '. Here is the smallest recipe anyway.' ) );
 		}
 		var answers = [ [ 'Fewest slots', res.fewest ] ];
 		if ( res.easiest && JSON.stringify( res.easiest.items ) !== JSON.stringify( res.fewest.items ) ) { answers.push( [ 'Easiest to collect', res.easiest ] ); }

@@ -184,3 +184,5 @@ html.theme-fandom-light .mk-craft-pair-item { background: #fff; }
 .mk-craft-answer-foot { display: flex; align-items: center; gap: 8px; }
 .mk-craft-answer .ffz-btn { align-self: flex-start; }
 html.theme-fandom-light .mk-craft-answer { background: #fff; }
+.mk-craft-slotnote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-weight: 700; }
+.mk-craft-slotnote .ffz-note { margin: 0; flex-basis: 100%; font-weight: 400; }
