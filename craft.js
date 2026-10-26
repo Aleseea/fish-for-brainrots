@@ -443,7 +443,7 @@ var CraftEngine = ( function () {
 	function slotNote() {
 		var box = el( 'div', 'mk-craft-slotnote' );
 		var lab = el( 'label', 'mk-craft-rebirth' );
-		lab.appendChild( el( 'span', null, 'Rebirth' ) );
+		lab.appendChild( el( 'span', 'ffz-label', 'Rebirth' ) );
 		var sel = el( 'select', 'ffb-trade-input' );
 		for ( var r = 0; r <= 45; r++ ) { var o = el( 'option', null, String( r ) ); o.value = r; sel.appendChild( o ); }
 		sel.value = rebirth();
@@ -526,7 +526,7 @@ var CraftEngine = ( function () {
 		TIERS.forEach( function ( t ) {
 			var rows = ( kind === 'potion' ? C.POTION : C.ROD ).filter( function ( r ) { return r[ 1 ] === t; } );
 			if ( !rows.length ) { return; }
-			var h = el( 'div', 'mk-craft-sheet-tier' );
+			var h = el( 'div', 'ffz-label mk-craft-sheet-tier' );
 			h.appendChild( tierBadge( t ) );
 			h.appendChild( el( 'span', null, 'Tier ' + t + ' · each drops about 1 in ' + C.TIER_RATE[ t ].toLocaleString( 'en-US' ) + ' catches' ) );
 			list.appendChild( h );
@@ -537,7 +537,7 @@ var CraftEngine = ( function () {
 			} );
 		} );
 		// mutation and trait items: pick which one, then how strong
-		var h2 = el( 'div', 'mk-craft-sheet-tier' );
+		var h2 = el( 'div', 'ffz-label mk-craft-sheet-tier' );
 		h2.appendChild( el( 'span', null, kind === 'potion' ? 'Mutation Essences and Trait Shards (up to 2 of each)' : 'Mutation Cores and Trait Gems (up to 2 of each)' ) );
 		list.appendChild( h2 );
 		list.appendChild( specialRow( kind, 'mut', onPick ) );
@@ -633,10 +633,11 @@ var CraftEngine = ( function () {
 
 	// ---- the builder ------------------------------------------------------------
 	function modeBar( kind ) {
-		var bar = el( 'div', 'mk-craft-mode' );
+		// same buttons as the Fuze page's Find a recipe / Try a fuse (user, 2026-10-26)
+		var bar = el( 'div', 'ffz-nav mk-craft-mode' );
 		bar.setAttribute( 'role', 'group' );
 		[ [ 'build', 'Build' ], [ 'find', 'Find a recipe' ] ].forEach( function ( m ) {
-			var b = el( 'button', 'ffb-base-chip' + ( state.mode[ kind ] === m[ 0 ] ? ' ffb-base-chip-on' : '' ), m[ 1 ] );
+			var b = el( 'button', 'ffb-base-tab' + ( state.mode[ kind ] === m[ 0 ] ? ' ffb-base-tab-on' : '' ), m[ 1 ] );
 			b.type = 'button';
 			b.setAttribute( 'aria-pressed', state.mode[ kind ] === m[ 0 ] ? 'true' : 'false' );
 			b.addEventListener( 'click', function () { state.mode[ kind ] = m[ 0 ]; save(); draw(); } );
@@ -886,7 +887,7 @@ var CraftEngine = ( function () {
 	var MUT_GOAL_PCTS = [ 15, 25, 30, 35, 40, 50, 60, 70 ], TRAIT_GOAL_PCTS = [ 4, 7, 8, 10, 11, 14, 17, 20 ];
 	function select( label, value, options, onChange ) {
 		var f = el( 'label', 'mk-craft-goal' );
-		f.appendChild( el( 'span', 'mk-craft-goal-label', label ) );
+		f.appendChild( el( 'span', 'ffz-label mk-craft-goal-label', label ) );
 		var s = el( 'select', 'ffb-trade-input' );
 		var any = el( 'option', null, 'Any' ); any.value = ''; s.appendChild( any );
 		options.forEach( function ( o ) { var x = el( 'option', null, o[ 1 ] ); x.value = o[ 0 ]; s.appendChild( x ); } );

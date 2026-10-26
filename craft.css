@@ -200,3 +200,8 @@ html.theme-fandom-light .mk-craft-answer { background: #fff; }
 .mk-craft-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .mk-craft-nav .ffb-base-tab { text-align: center; min-width: 0; width: 100%; box-sizing: border-box; padding-left: 4px; padding-right: 4px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-craft-soon p { margin: 0; font-weight: 800; font-size: 18px; text-align: center; padding: 18px 0; }
+/* match the Fuze page: game-font labels, full-size boxes (user, 2026-10-26) */
+#craft select, .mk-craft-sheet select { font-size: 16px; min-height: 40px; }
+.mk-craft-rebirth .ffz-label, .mk-craft-goal .ffz-label, .mk-craft-sheet-tier.ffz-label { margin: 0; }
+.mk-craft-mode.ffz-nav { margin-bottom: 0; }
+.mk-craft-goal { justify-content: space-between; }
