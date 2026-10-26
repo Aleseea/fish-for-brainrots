@@ -297,7 +297,25 @@ var CraftEngine = ( function () {
 		return { fewest: fewest, easiest: easiest, minSlots: minSlots };
 	}
 
-	return { describe: describe, run: run, together: together, solve: solve };
+	// '' if `item` can go into a recipe that already has `items`; otherwise why not
+	// (user, 2026-10-25: don't offer what the game won't take)
+	function blocked( kind, items, item ) {
+		var d = describe( kind, item );
+		if ( !d ) { return 'Unknown item.'; }
+		var others = items.map( function ( it ) { return describe( kind, it ); } ).filter( Boolean );
+		if ( d.one && others.some( function ( o ) { return o.one === d.one; } ) ) {
+			var have = others.filter( function ( o ) { return o.one === d.one; } )[ 0 ].name;
+			if ( d.one === 'line' ) { return 'Only 1 line per rod (you have ' + have + ').'; }
+			if ( d.one === 'bait' ) { return 'Only 1 bait per rod (you have ' + have + ').'; }
+			return 'Only 1 per ' + kind + '.';
+		}
+		if ( d.group && others.filter( function ( o ) { return o.group === d.group; } ).length >= 2 ) {
+			return 'Already 2 ' + ( d.group === 'mut' ? 'mutation' : 'trait' ) + ' items (the most a ' + kind + ' can hold).';
+		}
+		return '';
+	}
+
+	return { describe: describe, run: run, together: together, solve: solve, blocked: blocked };
 }() );
 
 ( function () {
@@ -448,7 +466,8 @@ var CraftEngine = ( function () {
 			list.appendChild( h );
 			rows.forEach( function ( r ) {
 				var d = E.describe( kind, { name: r[ 0 ] } );
-				list.appendChild( optionRow( d, effectText( kind, d ), function () { onPick( { name: r[ 0 ] } ); closeSheet(); } ) );
+				var why = E.blocked( kind, state[ kind ], { name: r[ 0 ] } );
+				list.appendChild( optionRow( d, effectText( kind, d ), function () { onPick( { name: r[ 0 ] } ); closeSheet(); }, why ) );
 			} );
 		} );
 		// mutation and trait items: pick which one, then how strong
@@ -463,9 +482,14 @@ var CraftEngine = ( function () {
 		document.body.appendChild( sheet );
 		document.body.classList.add( 'mk-craft-sheet-open' );
 	}
-	function optionRow( d, text, onTap ) {
+	function optionRow( d, text, onTap, why ) {
 		var b = el( 'button', 'mk-craft-opt' );
 		b.type = 'button';
+		if ( why ) {
+			b.disabled = true;
+			b.classList.add( 'mk-craft-opt-off' );
+			text = why;
+		}
 		b.appendChild( pic( d.icon, 40 ) );
 		var t = el( 'span', 'mk-craft-opt-text' );
 		t.appendChild( el( 'span', 'mk-craft-opt-name', d.name ) );
@@ -493,13 +517,16 @@ var CraftEngine = ( function () {
 		var grades = el( 'div', 'mk-craft-grades' );
 		var names = mut ? [ 'Normal', 'Pure', 'Perfect' ] : [ 'Normal', 'Bright', 'Perfect' ];
 		var pcts = mut ? C.MUT_PCT : C.TRAIT_PCT;
+		var full = E.blocked( kind, state[ kind ], { kind: which, of: ( mut ? C.MUT_TIERS : C.TRAIT_TIERS ).S[ 0 ], grade: 0 } );
 		names.forEach( function ( g, i ) {
 			var b = el( 'button', 'ffz-btn ffz-btn-small', g + ' +' + pcts[ i ] + '%' );
 			b.type = 'button';
+			b.disabled = !!full;
 			b.addEventListener( 'click', function () { onPick( { kind: which, of: sel.value, grade: i } ); closeSheet(); } );
 			grades.appendChild( b );
 		} );
 		wrap.appendChild( grades );
+		if ( full ) { sel.disabled = true; wrap.classList.add( 'mk-craft-opt-off' ); wrap.appendChild( el( 'p', 'mk-craft-off-why', full ) ); }
 		wrap.appendChild( el( 'p', 'ffz-note', mut ? '+15/25/35% chance for that mutation while it runs. Two of the same add up.' : '4/7/10% chance per brainrot to get that trait.' ) );
 		return wrap;
 	}
