@@ -185,7 +185,119 @@ var CraftEngine = ( function () {
 			eternal: p ? p.eternal : 0
 		};
 	}
-	return { describe: describe, run: run, together: together };
+	// ---- Find a recipe (user, 2026-10-25): goals in, recipes out ----------------
+	// Every resource does one kind of thing, so each goal is solved on its own as a
+	// list of options (slots used, collect cost, items); then the goals are combined
+	// within the recipe's slots. Collect cost = the sum of each item's "1 in N".
+	function rate( kind, name ) { return describe( kind, { name: name } ).rate; }
+	// reach at least `need` with items [name, value]; at most `max` items
+	function additive( kind, list, need, max ) {
+		var opts = [];
+		if ( need <= 0 ) { return [ { slots: 0, cost: 0, items: [] } ]; }
+		// best[k][v] for k items reaching value v (capped at need)
+		var best = [ {} ];
+		best[ 0 ][ 0 ] = { cost: 0, items: [] };
+		for ( var k = 1; k <= max; k++ ) {
+			best[ k ] = {};
+			Object.keys( best[ k - 1 ] ).forEach( function ( v ) {
+				var prev = best[ k - 1 ][ v ];
+				list.forEach( function ( it ) {
+					var nv = Math.min( need, +v + it[ 1 ] ), c = prev.cost + rate( kind, it[ 0 ] );
+					var cur = best[ k ][ nv ];
+					if ( !cur || c < cur.cost ) { best[ k ][ nv ] = { cost: c, items: prev.items.concat( [ it[ 0 ] ] ) }; }
+				} );
+			} );
+			var hit = best[ k ][ need ];
+			if ( hit ) { opts.push( { slots: k, cost: hit.cost, items: hit.items.map( function ( n ) { return { name: n }; } ) } ); }
+		}
+		return opts;
+	}
+	// one item that reaches the goal: the cheapest of the allowed ones
+	function single( kind, names ) {
+		var best = null;
+		names.forEach( function ( n ) {
+			var c = rate( kind, n );
+			if ( !best || c < best.cost ) { best = { slots: 1, cost: c, items: [ { name: n } ] }; }
+		} );
+		return best ? [ best ] : [];
+	}
+	// mutation or trait goals: [{ of, pct }], at most 2 items between them
+	function special( kind, which, goals ) {
+		goals = goals.filter( function ( g ) { return g && g.of && g.pct; } );
+		if ( !goals.length ) { return [ { slots: 0, cost: 0, items: [] } ]; }
+		var mut = which === 'mut', pcts = mut ? C.MUT_PCT : C.TRAIT_PCT;
+		function tier( name ) { var l = mut ? C.MUT_TIERS : C.TRAIT_TIERS; for ( var t in l ) { if ( l[ t ].indexOf( name ) !== -1 ) { return t; } } return 'D'; }
+		function choices( g ) {
+			var t = tier( g.of ), rates = ( mut ? C.MUT_RATE : C.TRAIT_RATE )[ t ], out = [];
+			for ( var a = 0; a < 3; a++ ) {
+				if ( pcts[ a ] >= g.pct ) { out.push( { n: 1, cost: rates[ a ], grades: [ a ] } ); }
+				for ( var b = a; b < 3; b++ ) {
+					if ( pcts[ a ] + pcts[ b ] >= g.pct ) { out.push( { n: 2, cost: rates[ a ] + rates[ b ], grades: [ a, b ] } ); }
+				}
+			}
+			return out;
+		}
+		var combos = [ { n: 0, cost: 0, items: [] } ];
+		goals.forEach( function ( g ) {
+			var next = [];
+			combos.forEach( function ( c ) {
+				choices( g ).forEach( function ( ch ) {
+					if ( c.n + ch.n > 2 ) { return; }
+					next.push( { n: c.n + ch.n, cost: c.cost + ch.cost, items: c.items.concat( ch.grades.map( function ( gr ) { return { kind: which, of: g.of, grade: gr }; } ) ) } );
+				} );
+			} );
+			combos = next;
+		} );
+		var byN = {};
+		combos.forEach( function ( c ) { if ( !byN[ c.n ] || c.cost < byN[ c.n ].cost ) { byN[ c.n ] = c; } } );
+		return Object.keys( byN ).map( function ( n ) { return { slots: +n, cost: byN[ n ].cost, items: byN[ n ].items }; } );
+	}
+	// goals: see the page's GOALS lists. Returns { fewest, easiest, minSlots } or null if impossible.
+	function solve( kind, g, slots ) {
+		var groups = [];
+		function need( opts ) { groups.push( opts ); }
+		if ( kind === 'potion' ) {
+			if ( g.luck ) { need( additive( kind, [ [ 'Clover', 1 ], [ 'Four-Leaf Clover', 2 ], [ 'Golden Clover', 3 ], [ 'Rainbow Clover', 4 ] ], g.luck - 1, 10 ) ); }
+			if ( g.time ) { need( additive( kind, [ [ 'Stopwatch', 5 ], [ 'Hourglass', 10 ], [ 'Time Crystal', 20 ] ], g.time - 10, 10 ) ); }
+			[ [ 'money', 'Doubloon' ], [ 'drops', 'Lure' ], [ 'eternal', 'Leviathan Scale' ], [ 'celestial', 'Star Dust' ], [ 'admin', 'Admin Crown' ], [ 'traitAll', 'Siren Pearl' ] ]
+				.forEach( function ( b ) { if ( g[ b[ 0 ] ] ) { need( single( kind, [ b[ 1 ] ] ) ); } } );
+		} else {
+			if ( g.luck ) { need( additive( kind, [ [ 'Copper Hook', 1 ], [ 'Gold Hook', 2 ], [ 'Diamond Hook', 4 ], [ 'Rainbow Hook', 6 ] ], Math.round( ( g.luck - 1 ) * 2 ), 10 ) ); }
+			if ( g.dur ) { need( additive( kind, [ [ 'Oak Plank', 1 ], [ 'Ironwood', 2 ], [ 'Carbon', 5 ] ], Math.round( ( g.dur - 100 ) / 100 ), 10 ) ); }
+			if ( g.afk ) { need( additive( kind, [ [ 'Auto Reel', 1 ], [ 'Turbo Reel', 2 ] ], g.afk / 2, 10 ) ); }
+			if ( g.perCatch ) { need( single( kind, g.perCatch >= 3 ? [ 'Triple Line' ] : [ 'Twin Line', 'Triple Line' ] ) ); }
+			if ( g.bite ) { need( single( kind, [ [ 'Bait', 1 ], [ 'Golden Bait', 1.5 ], [ 'Fly Bait', 2 ] ].filter( function ( b ) { return b[ 1 ] >= g.bite; } ).map( function ( b ) { return b[ 0 ]; } ) ) ); }
+			[ [ 'hook', 'Bite Bell' ], [ 'drops', 'Grapnel' ], [ 'celestial', 'Star Shard' ], [ 'admin', 'Crown Jewel' ], [ 'mutAll', 'Kraken Tentacle' ] ]
+				.forEach( function ( b ) { if ( g[ b[ 0 ] ] ) { need( single( kind, [ b[ 1 ] ] ) ); } } );
+		}
+		need( special( kind, 'mut', g.muts || [] ) );
+		need( special( kind, 'trait', g.traits || [] ) );
+		if ( groups.some( function ( o ) { return !o.length; } ) ) { return null; }
+		// combine: table[s] = cheapest way to meet every goal so far using exactly s slots
+		var table = { 0: { cost: 0, items: [] } };
+		groups.forEach( function ( opts ) {
+			var next = {};
+			Object.keys( table ).forEach( function ( s ) {
+				opts.forEach( function ( o ) {
+					var ns = +s + o.slots, c = table[ s ].cost + o.cost;
+					if ( ns > 10 ) { return; }
+					if ( !next[ ns ] || c < next[ ns ].cost ) { next[ ns ] = { cost: c, items: table[ s ].items.concat( o.items ) }; }
+				} );
+			} );
+			table = next;
+		} );
+		var keys = Object.keys( table ).map( Number ).sort( function ( a, b ) { return a - b; } );
+		if ( !keys.length ) { return null; }
+		var minSlots = keys[ 0 ];
+		function pack( s ) { return { slots: s, cost: table[ s ].cost, items: table[ s ].items }; }
+		var fewest = pack( minSlots );
+		// fewest slots: among the fewest-slot ways, the easiest one already wins.
+		var easiest = null;
+		keys.forEach( function ( s ) { if ( s <= Math.max( slots, minSlots ) && ( !easiest || table[ s ].cost < easiest.cost ) ) { easiest = pack( s ); } } );
+		return { fewest: fewest, easiest: easiest, minSlots: minSlots };
+	}
+
+	return { describe: describe, run: run, together: together, solve: solve };
 }() );
 
 ( function () {
@@ -232,7 +344,9 @@ var CraftEngine = ( function () {
 		view: saved.view || 'potion',
 		potion: saved.potion || [],
 		rod: saved.rod || [],
-		slots: saved.slots || null
+		slots: saved.slots || null,
+		mode: saved.mode || { potion: 'build', rod: 'build' },
+		goals: saved.goals || { potion: {}, rod: {} }
 	};
 	function save() { store( 'mk-craft', state ); }
 	function profileRebirth() { var p = store( 'ffb-profile' ) || {}; return +p.rebirth || 0; }
@@ -384,9 +498,23 @@ var CraftEngine = ( function () {
 	};
 
 	// ---- the builder ------------------------------------------------------------
+	function modeBar( kind ) {
+		var bar = el( 'div', 'mk-craft-mode' );
+		bar.setAttribute( 'role', 'group' );
+		[ [ 'build', 'Build' ], [ 'find', 'Find a recipe' ] ].forEach( function ( m ) {
+			var b = el( 'button', 'ffb-base-chip' + ( state.mode[ kind ] === m[ 0 ] ? ' ffb-base-chip-on' : '' ), m[ 1 ] );
+			b.type = 'button';
+			b.setAttribute( 'aria-pressed', state.mode[ kind ] === m[ 0 ] ? 'true' : 'false' );
+			b.addEventListener( 'click', function () { state.mode[ kind ] = m[ 0 ]; save(); draw(); } );
+			bar.appendChild( b );
+		} );
+		return bar;
+	}
 	function draw() {
 		var kind = state.view, items = state[ kind ], n = slots();
 		root.textContent = '';
+		root.appendChild( modeBar( kind ) );
+		if ( state.mode[ kind ] === 'find' ) { drawFind( kind ); return; }
 		// slots
 		var card = el( 'div', 'ffz-card' );
 		var top = el( 'div', 'mk-craft-row' );
@@ -548,6 +676,176 @@ var CraftEngine = ( function () {
 		card.appendChild( ul );
 		card.appendChild( el( 'p', 'ffz-note', 'Adds the potion and rod together (players say luck adds up; not checked in game). Most potion effects only work on your Base pond.' ) );
 		return card;
+	}
+
+	// ---- Find a recipe -----------------------------------------------------------
+	function opts( list ) { return list.map( function ( v ) { return typeof v === 'object' ? v : [ v, String( v ) ]; } ); }
+	function range( a, b, step, unit ) { var o = []; for ( var v = a; v <= b + 1e-9; v += step ) { o.push( [ +v.toFixed( 2 ), +v.toFixed( 2 ) + unit ] ); } return o; }
+	var YES = [ [ 1, 'Yes' ] ];
+	var GOALS = {
+		potion: [
+			[ 'luck', 'Luck', range( 2, 10, 1, 'x' ) ],
+			[ 'time', 'Lasts', range( 15, 60, 5, ' min' ) ],
+			[ 'money', '2x money (Doubloon)', YES ],
+			[ 'drops', 'Resources drop 25% more', YES ],
+			[ 'eternal', 'Eternal 1 in 2,000', YES ],
+			[ 'celestial', 'Celestial 1 in 2,500', YES ],
+			[ 'admin', 'Admin Secret 1 in 3,000', YES ],
+			[ 'traitAll', 'A trait on every brainrot', YES ]
+		],
+		rod: [
+			[ 'luck', 'Luck', range( 1.5, 7.5, 0.5, 'x' ) ],
+			[ 'dur', 'Durability', range( 200, 1000, 100, ' catches' ) ],
+			[ 'perCatch', 'Brainrots per catch', [ [ 2, '2' ], [ 3, '3' ] ] ],
+			[ 'bite', 'Bites sooner', [ [ 1, '1 s' ], [ 1.5, '1.5 s' ], [ 2, '2 s' ] ] ],
+			[ 'afk', 'AFK catches sooner', [ [ 2, '2 s' ], [ 4, '4 s' ], [ 6, '6 s' ] ] ],
+			[ 'hook', 'Auto-hook', YES ],
+			[ 'drops', 'Resources drop 25% more', YES ],
+			[ 'celestial', 'Celestial 1 in 2,500', YES ],
+			[ 'admin', 'Admin Secret 1 in 3,000', YES ],
+			[ 'mutAll', 'A mutation on every brainrot', YES ]
+		]
+	};
+	var MUT_GOAL_PCTS = [ 15, 25, 30, 35, 40, 50, 60, 70 ], TRAIT_GOAL_PCTS = [ 4, 7, 8, 10, 11, 14, 17, 20 ];
+	function select( label, value, options, onChange ) {
+		var f = el( 'label', 'mk-craft-goal' );
+		f.appendChild( el( 'span', 'mk-craft-goal-label', label ) );
+		var s = el( 'select', 'ffb-trade-input' );
+		var any = el( 'option', null, 'Any' ); any.value = ''; s.appendChild( any );
+		options.forEach( function ( o ) { var x = el( 'option', null, o[ 1 ] ); x.value = o[ 0 ]; s.appendChild( x ); } );
+		s.value = value === undefined || value === null ? '' : String( value );
+		if ( value && s.value === '' ) { s.value = ''; }
+		s.classList.toggle( 'mk-craft-goal-set', s.value !== '' );
+		s.addEventListener( 'change', function () { onChange( s.value === '' ? null : +s.value ); } );
+		f.appendChild( s );
+		return f;
+	}
+	function specialGoals( kind, which, g ) {
+		var mut = which === 'mut', key = mut ? 'muts' : 'traits';
+		var list = g[ key ] || ( g[ key ] = [ {}, {} ] );
+		var box = el( 'div', 'mk-craft-goal-pair' );
+		[ 0, 1 ].forEach( function ( i ) {
+			var cur = list[ i ] || ( list[ i ] = {} );
+			var row = el( 'div', 'mk-craft-goal-row' );
+			var names = el( 'select', 'ffb-trade-input' );
+			names.setAttribute( 'aria-label', ( mut ? 'Mutation ' : 'Trait ' ) + ( i + 1 ) );
+			var none = el( 'option', null, mut ? 'Mutation: none' : 'Trait: none' ); none.value = ''; names.appendChild( none );
+			[ 'S', 'A', 'B', 'C', 'D' ].forEach( function ( t ) {
+				var og = el( 'optgroup' ); og.label = 'Tier ' + t;
+				( mut ? C.MUT_TIERS : C.TRAIT_TIERS )[ t ].forEach( function ( n ) { var o = el( 'option', null, n ); o.value = n; og.appendChild( o ); } );
+				names.appendChild( og );
+			} );
+			names.value = cur.of || '';
+			var pct = el( 'select', 'ffb-trade-input mk-craft-goal-pct' );
+			pct.setAttribute( 'aria-label', 'Chance' );
+			( mut ? MUT_GOAL_PCTS : TRAIT_GOAL_PCTS ).forEach( function ( p ) { var o = el( 'option', null, mut ? '+' + p + '%' : p + '%' ); o.value = p; pct.appendChild( o ); } );
+			pct.value = cur.pct || ( mut ? 15 : 4 );
+			pct.disabled = !cur.of;
+			names.addEventListener( 'change', function () { cur.of = names.value || null; cur.pct = cur.of ? +pct.value : null; save(); drawFind( kind ); } );
+			pct.addEventListener( 'change', function () { cur.pct = +pct.value; save(); drawFind( kind ); } );
+			names.classList.toggle( 'mk-craft-goal-set', !!cur.of );
+			row.appendChild( names );
+			row.appendChild( pct );
+			box.appendChild( row );
+		} );
+		box.appendChild( el( 'p', 'ffz-note', mut ? 'Up to 2 mutation items in a ' + kind + ': two of the same add up (+30% from two Normal ones).' :
+			'Up to 2 trait items: 4 / 7 / 10% per brainrot each, and two add up.' ) );
+		return box;
+	}
+	function drawFind( kind ) {
+		// keep the mode bar, redraw the rest
+		while ( root.children.length > 1 ) { root.removeChild( root.lastChild ); }
+		var g = state.goals[ kind ], n = slots();
+		var card = el( 'div', 'ffz-card' );
+		var top = el( 'div', 'mk-craft-row' );
+		top.appendChild( el( 'h3', 'ffz-h', 'I want a ' + kind + ' with' ) );
+		var clear = el( 'button', 'ffz-btn ffz-btn-small', 'Clear' );
+		clear.type = 'button';
+		clear.addEventListener( 'click', function () { state.goals[ kind ] = {}; save(); drawFind( kind ); } );
+		top.appendChild( clear );
+		card.appendChild( top );
+		var grid = el( 'div', 'mk-craft-goals' );
+		GOALS[ kind ].forEach( function ( def ) {
+			var options = def[ 2 ];
+			// a Doubloon potion lasts at most 30 minutes
+			if ( kind === 'potion' && def[ 0 ] === 'time' && g.money ) { options = options.filter( function ( o ) { return o[ 0 ] <= 30; } ); }
+			if ( kind === 'potion' && def[ 0 ] === 'time' && g.money && g.time > 30 ) { g.time = 30; }
+			grid.appendChild( select( def[ 1 ], g[ def[ 0 ] ], options, function ( v ) { g[ def[ 0 ] ] = v; save(); drawFind( kind ); } ) );
+		} );
+		card.appendChild( grid );
+		card.appendChild( specialGoals( kind, 'mut', g ) );
+		card.appendChild( specialGoals( kind, 'trait', g ) );
+		if ( g.money ) { card.appendChild( el( 'p', 'ffz-note', 'A Doubloon potion lasts at most 30 minutes.' ) ); }
+		root.appendChild( card );
+
+		var goals = {};
+		Object.keys( g ).forEach( function ( k ) { goals[ k ] = g[ k ]; } );
+		goals.muts = ( g.muts || [] ).filter( function ( x ) { return x && x.of; } );
+		goals.traits = ( g.traits || [] ).filter( function ( x ) { return x && x.of; } );
+		var anyGoal = Object.keys( goals ).some( function ( k ) { return k !== 'muts' && k !== 'traits' && goals[ k ]; } ) || goals.muts.length || goals.traits.length;
+		var out = el( 'div', 'ffz-card' );
+		out.appendChild( el( 'h3', 'ffz-h', 'Recipes' ) );
+		if ( !anyGoal ) {
+			out.appendChild( el( 'p', 'ffz-note', 'Pick what you want above, and the recipes that do it show up here. You have ' + n + ' recipe slots.' ) );
+			root.appendChild( out );
+			return;
+		}
+		var res = E.solve( kind, goals, n );
+		if ( !res ) {
+			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ No ' + kind + ' can do all of that, even with 10 slots. Try asking for less.' ) );
+			root.appendChild( out );
+			return;
+		}
+		if ( res.minSlots > n ) {
+			out.appendChild( el( 'p', 'mk-craft-warn', '⚠️ This needs at least ' + res.minSlots + ' slots, and you have ' + n + '. Here is the smallest recipe anyway.' ) );
+		}
+		var answers = [ [ 'Fewest slots', res.fewest ] ];
+		if ( res.easiest && JSON.stringify( res.easiest.items ) !== JSON.stringify( res.fewest.items ) ) { answers.push( [ 'Easiest to collect', res.easiest ] ); }
+		else { answers[ 0 ][ 0 ] = 'Best recipe'; }
+		answers.forEach( function ( a ) { out.appendChild( answerCard( kind, a[ 0 ], a[ 1 ], n ) ); } );
+		root.appendChild( out );
+	}
+	function answerCard( kind, title, ans, n ) {
+		var box = el( 'div', 'mk-craft-answer' );
+		var head = el( 'div', 'mk-craft-row' );
+		head.appendChild( el( 'strong', null, title ) );
+		head.appendChild( el( 'span', 'ffz-note', ans.slots + ' of ' + n + ' slots' ) );
+		box.appendChild( head );
+		// the items, same ones grouped: "3 × Hourglass"
+		var counts = [], seen = {};
+		ans.items.forEach( function ( it ) {
+			var d = E.describe( kind, it ), k = d.name;
+			if ( seen[ k ] ) { seen[ k ].n++; return; }
+			seen[ k ] = { d: d, n: 1 };
+			counts.push( seen[ k ] );
+		} );
+		var chips = el( 'div', 'mk-craft-answer-items' );
+		counts.forEach( function ( c ) {
+			var chip = el( 'span', 'mk-craft-answer-item' );
+			chip.style.setProperty( '--tc', TIER_COLOR[ c.d.tier ] );
+			chip.appendChild( pic( c.d.icon, 32 ) );
+			chip.appendChild( el( 'span', null, ( c.n > 1 ? c.n + ' × ' : '' ) + c.d.name ) );
+			chips.appendChild( chip );
+		} );
+		box.appendChild( chips );
+		var r = E.run( kind, ans.items );
+		var rarest = counts.reduce( function ( m, c ) { return !m || c.d.rate > m.d.rate ? c : m; }, null );
+		var foot = el( 'div', 'mk-craft-answer-foot' );
+		foot.appendChild( pic( 'crafted ' + kind + ' - ' + r.look, 40 ) );
+		var t = el( 'span', 'ffz-note', r.look + ' · ' + r.wait + ( rarest ? ' · rarest: ' + rarest.d.name + ' (1 in ' + rarest.d.rate.toLocaleString( 'en-US' ) + ' catches)' : '' ) );
+		foot.appendChild( t );
+		box.appendChild( foot );
+		var b = el( 'button', 'ffz-btn ffz-btn-small', 'Build this' );
+		b.type = 'button';
+		b.disabled = ans.slots > n;
+		b.addEventListener( 'click', function () {
+			state[ kind ] = ans.items.map( function ( it ) { return JSON.parse( JSON.stringify( it ) ); } );
+			state.mode[ kind ] = 'build';
+			save(); draw();
+			window.scrollTo( 0, 0 );
+		} );
+		box.appendChild( b );
+		return box;
 	}
 
 	document.addEventListener( 'keydown', function ( e ) { if ( e.key === 'Escape' ) { closeSheet(); } } );

@@ -166,3 +166,21 @@ html.theme-fandom-light .mk-craft-pair-item { background: #fff; }
 	main .mk-craft-nav { display: none !important; }
 	main #ffz > .ffz-nav { display: flex !important; }
 }
+
+/* Build | Find a recipe */
+.mk-craft-mode { display: flex; gap: 6px; }
+.mk-craft-goals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.mk-craft-goal { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; }
+.mk-craft-goal-label { opacity: 0.8; font-weight: 700; }
+.mk-craft-goal select, .mk-craft-goal-row select { width: 100%; min-width: 0; }
+.mk-craft-goal-set { border-color: #2e9bf0 !important; box-shadow: 0 0 0 1px #2e9bf0; }
+.mk-craft-goal-pair { display: flex; flex-direction: column; gap: 6px; }
+.mk-craft-goal-pair .ffz-note { margin: 0; }
+.mk-craft-goal-row { display: grid; grid-template-columns: 1fr 5.5em; gap: 6px; }
+.mk-craft-answer { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; border: 2px solid var(--g-edge, #888); background: rgba(0, 0, 0, 0.18); }
+.mk-craft-answer .ffz-note { margin: 0; }
+.mk-craft-answer-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.mk-craft-answer-item { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 10px; border: 2px solid var(--tc, #888); font-weight: 800; font-size: 13px; }
+.mk-craft-answer-foot { display: flex; align-items: center; gap: 8px; }
+.mk-craft-answer .ffz-btn { align-self: flex-start; }
+html.theme-fandom-light .mk-craft-answer { background: #fff; }
