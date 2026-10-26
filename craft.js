@@ -315,7 +315,65 @@ var CraftEngine = ( function () {
 		return '';
 	}
 
-	return { describe: describe, run: run, together: together, solve: solve, blocked: blocked };
+	// Over a cap (user, 2026-10-25): what's wasted, what to take out, and a smaller
+	// mix that still reaches the cap. Returns [{ label, cap, over, unit, remove: [indexes],
+	// keepAt, swap: { items, from, freed } | null }]
+	var CAPPED = {
+		potion: [
+			{ key: 'luck', label: 'Luck', unit: 'x', start: 1, cap: function () { return 10; } },
+			{ key: 'time', label: 'Time', unit: ' min', start: 10, cap: function ( items ) {
+				return items.some( function ( it ) { return it.name === 'Doubloon'; } ) ? 30 : 60;
+			} }
+		],
+		rod: [
+			{ key: 'luck', label: 'Luck', unit: 'x', start: 1, cap: function () { return 7.5; } },
+			{ key: 'dur', label: 'Durability', unit: ' catches', start: 100, cap: function () { return 1000; } },
+			{ key: 'afk', label: 'AFK speed', unit: ' s', start: 0, cap: function () { return 6; } }
+		]
+	};
+	function waste( kind, items ) {
+		var out = [];
+		CAPPED[ kind ].forEach( function ( c ) {
+			var mine = [];
+			items.forEach( function ( it, i ) {
+				var d = describe( kind, it );
+				if ( d && d.fx && d.fx[ c.key ] ) { mine.push( { i: i, v: d.fx[ c.key ], name: d.name } ); }
+			} );
+			var total = c.start + mine.reduce( function ( a, m ) { return a + m.v; }, 0 ), cap = c.cap( items );
+			if ( total <= cap + 1e-9 ) { return; }
+			var over = total - cap;
+			// take out the biggest pieces that still leave you at the cap
+			var left = over, remove = [];
+			mine.slice().sort( function ( a, b ) { return b.v - a.v; } ).forEach( function ( m ) {
+				if ( m.v <= left + 1e-9 ) { remove.push( m.i ); left -= m.v; }
+			} );
+			// the fewest items that reach the cap on their own
+			var goal = {};
+			goal[ c.key ] = cap;
+			var best = solve( kind, goal, 10 ), swap = null;
+			var after = mine.length - remove.length;
+			if ( best && best.fewest.slots < after ) {
+				swap = { items: best.fewest.items, from: mine.map( function ( m ) { return m.i; } ), freed: mine.length - best.fewest.slots };
+			}
+			// or trade one piece for a smaller one of the same kind, wasting the least
+			var trade = null;
+			if ( !remove.length ) {
+				var pool = ( kind === 'potion' ? C.POTION : C.ROD ).filter( function ( r ) { return r[ 3 ][ c.key ]; } );
+				mine.forEach( function ( m ) {
+					pool.forEach( function ( r ) {
+						var v = r[ 3 ][ c.key ], t = total - m.v + v;
+						if ( v < m.v && t >= cap - 1e-9 && ( !trade || t - cap < trade.waste - 1e-9 ) ) {
+							trade = { i: m.i, from: m.name, to: r[ 0 ], waste: t - cap };
+						}
+					} );
+				} );
+			}
+			out.push( { key: c.key, label: c.label, unit: c.unit, cap: cap, over: over, remove: remove, swap: swap, trade: trade, count: mine.length } );
+		} );
+		return out;
+	}
+
+	return { describe: describe, run: run, together: together, solve: solve, blocked: blocked, waste: waste };
 }() );
 
 ( function () {
@@ -689,8 +747,60 @@ var CraftEngine = ( function () {
 		if ( r.mutAll ) { li( 'Mutations', 'every brainrot without one gets one' ); }
 		card.appendChild( ul );
 		if ( !count ) { card.appendChild( el( 'p', 'ffz-note', 'Tap + to add ' + ( kind === 'potion' ? 'ingredients' : 'parts' ) + '. An empty recipe still makes the plainest ' + kind + '.' ) ); }
-		r.warn.forEach( function ( w ) { card.appendChild( el( 'p', 'mk-craft-warn', '⚠️ ' + w ) ); } );
+		var capWarn = /stops at|at most|can only come/;
+		r.warn.forEach( function ( w ) { if ( !capWarn.test( w ) ) { card.appendChild( el( 'p', 'mk-craft-warn', '⚠️ ' + w ) ); } } );
+		E.waste( kind, state[ kind ] ).forEach( function ( wst ) { card.appendChild( wasteBox( kind, wst ) ); } );
 		return card;
+	}
+
+	function fmt( v, unit ) { return ( unit === ' catches' ? Math.round( v ).toLocaleString( 'en-US' ) : +v.toFixed( 2 ) ) + unit; }
+	function wasteBox( kind, w ) {
+		var items = state[ kind ];
+		var box = el( 'div', 'mk-craft-warn mk-craft-waste' );
+		box.appendChild( el( 'div', null, '⚠️ ' + w.label + ' stops at ' + fmt( w.cap, w.unit ) + ': ' + fmt( w.over, w.unit ) + ' wasted.' ) );
+		var acts = el( 'div', 'mk-craft-waste-acts' );
+		if ( w.remove.length ) {
+			var names = {};
+			w.remove.forEach( function ( i ) { var nm = E.describe( kind, items[ i ] ).name; names[ nm ] = ( names[ nm ] || 0 ) + 1; } );
+			var txt = Object.keys( names ).map( function ( nm ) { return ( names[ nm ] > 1 ? names[ nm ] + ' × ' : '' ) + nm; } ).join( ' and ' );
+			var b = el( 'button', 'ffz-btn ffz-btn-small', 'Remove ' + txt );
+			b.type = 'button';
+			b.title = 'Still ' + fmt( w.cap, w.unit ) + ', and frees ' + w.remove.length + ' slot' + ( w.remove.length > 1 ? 's' : '' );
+			b.addEventListener( 'click', function () {
+				state[ kind ] = items.filter( function ( it, i ) { return w.remove.indexOf( i ) === -1; } );
+				save(); draw();
+			} );
+			acts.appendChild( b );
+			acts.appendChild( el( 'span', 'ffz-note', 'still ' + fmt( w.cap, w.unit ) + ', frees ' + w.remove.length + ' slot' + ( w.remove.length > 1 ? 's' : '' ) ) );
+		}
+		if ( w.swap ) {
+			var cnt = {};
+			w.swap.items.forEach( function ( it ) { cnt[ it.name ] = ( cnt[ it.name ] || 0 ) + 1; } );
+			var mix = Object.keys( cnt ).map( function ( nm ) { return ( cnt[ nm ] > 1 ? cnt[ nm ] + ' × ' : '' ) + nm; } ).join( ' + ' );
+			var b2 = el( 'button', 'ffz-btn ffz-btn-small', 'Use ' + mix );
+			b2.type = 'button';
+			b2.addEventListener( 'click', function () {
+				state[ kind ] = items.filter( function ( it, i ) { return w.swap.from.indexOf( i ) === -1; } ).concat( w.swap.items.map( function ( it ) { return { name: it.name }; } ) );
+				save(); draw();
+			} );
+			acts.appendChild( b2 );
+			acts.appendChild( el( 'span', 'ffz-note', 'reaches ' + fmt( w.cap, w.unit ) + ' in ' + w.swap.items.length + ' slot' + ( w.swap.items.length > 1 ? 's' : '' ) + ' instead of ' + w.count + ', frees ' + w.swap.freed ) );
+		}
+		if ( w.trade ) {
+			var b3 = el( 'button', 'ffz-btn ffz-btn-small', 'Swap a ' + w.trade.from + ' for a ' + w.trade.to );
+			b3.type = 'button';
+			b3.addEventListener( 'click', function () {
+				state[ kind ] = items.map( function ( it, i ) { return i === w.trade.i ? { name: w.trade.to } : it; } );
+				save(); draw();
+			} );
+			acts.appendChild( b3 );
+			acts.appendChild( el( 'span', 'ffz-note', 'still ' + fmt( w.cap, w.unit ) + ( w.trade.waste > 1e-9 ? ', only ' + fmt( w.trade.waste, w.unit ) + ' wasted' : ', nothing wasted' ) + ', and an easier piece to find' ) );
+		}
+		if ( !w.remove.length && !w.swap && !w.trade ) {
+			acts.appendChild( el( 'span', 'ffz-note', 'No item can come out without dropping below ' + fmt( w.cap, w.unit ) + '; a smaller piece in place of a big one would waste less.' ) );
+		}
+		box.appendChild( acts );
+		return box;
 	}
 
 	function setupCard() {
