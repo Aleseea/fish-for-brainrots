@@ -1,0 +1,198 @@
+/* Reel Value: the Crafting page (craft.js), 2026-10-25. */
+#craft { display: flex; flex-direction: column; gap: 14px; }
+#craft[hidden] { display: none; }
+.mk-craft-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mk-craft-slots { width: auto; min-width: 0; }
+.mk-craft-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 8px;
+}
+.mk-craft-slot {
+	position: relative;
+	aspect-ratio: 1 / 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	padding: 4px;
+	border-radius: 12px;
+	border: 2px dashed var(--g-edge, #888);
+	background: rgba(0, 0, 0, 0.25);
+	color: inherit;
+	cursor: pointer;
+	min-width: 0;
+}
+.mk-craft-slot-full {
+	border: 3px solid var(--tc, #888);
+	background: rgba(0, 0, 0, 0.35);
+}
+.mk-craft-slot img { width: 70%; height: auto; max-width: 48px; }
+.mk-craft-slot-name {
+	font-size: 9px;
+	overflow-wrap: anywhere;
+	letter-spacing: -0.2px;
+	font-weight: 800;
+	line-height: 1.05;
+	text-align: center;
+	max-width: 100%;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+.mk-craft-slot-x {
+	position: absolute;
+	top: -7px;
+	right: -7px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #e0202a;
+	color: #fff;
+	font-size: 10px;
+	line-height: 18px;
+	text-align: center;
+	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+.mk-craft-slot-plus { font-size: 26px; font-weight: 900; opacity: 0.6; line-height: 1; }
+.mk-craft-presets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mk-craft-presets .ffz-note { margin: 0; }
+.mk-craft-presets button:disabled { opacity: 0.4; cursor: not-allowed; }
+.mk-craft-tier {
+	display: inline-block;
+	min-width: 20px;
+	padding: 1px 6px;
+	border-radius: 6px;
+	color: #fff;
+	font-weight: 900;
+	font-size: 12px;
+	text-align: center;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* result */
+.mk-craft-look { display: flex; gap: 12px; align-items: center; }
+.mk-craft-look-pic { width: 96px; height: 96px; flex: none; object-fit: contain; }
+.mk-craft-look-text { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.mk-craft-look-name { font-family: var(--g-head, inherit); font-weight: 900; font-size: 18px; }
+.mk-craft-look-text .ffz-note { margin: 0; }
+.mk-craft-bar { height: 8px; border-radius: 4px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
+.mk-craft-bar span { display: block; height: 100%; background: linear-gradient(90deg, #2aa8ff, #0094f8); border-radius: 4px; }
+.mk-craft-fx { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mk-craft-fx li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.mk-craft-fx-label { opacity: 0.8; min-width: 7.5em; }
+.mk-craft-fx-val { font-weight: 800; }
+.mk-craft-fx-sub { font-size: 12px; opacity: 0.65; }
+.mk-craft-warn { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(240, 122, 16, 0.15); font-size: 13px; }
+
+/* my setup */
+.mk-craft-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mk-craft-pair-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 12px;
+	border: 2px solid var(--g-edge, #888);
+	background: rgba(0, 0, 0, 0.2);
+	color: inherit;
+	font-weight: 800;
+	font-size: 13px;
+	text-align: left;
+	cursor: pointer;
+	min-width: 0;
+}
+.mk-craft-pair-item img { flex: none; }
+
+/* picker sheet */
+body.mk-craft-sheet-open { overflow: hidden; }
+.mk-craft-sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	background: rgba(0, 0, 0, 0.55);
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+}
+.mk-craft-sheet-box {
+	width: 100%;
+	max-width: 560px;
+	max-height: 82vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--g-card, #222);
+	border: 2px solid var(--g-edge, #444);
+	border-bottom: 0;
+	border-radius: 18px 18px 0 0;
+	color: inherit;
+}
+.mk-craft-sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--g-edge, #444); }
+.mk-craft-x { background: none; border: 0; color: inherit; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+.mk-craft-sheet-list { overflow-y: auto; padding: 6px 10px 18px; display: flex; flex-direction: column; gap: 4px; }
+.mk-craft-sheet-tier { display: flex; gap: 8px; align-items: center; margin: 10px 2px 2px; font-size: 12px; opacity: 0.85; }
+.mk-craft-opt {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 8px;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	background: rgba(127, 127, 127, 0.08);
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.mk-craft-opt:hover, .mk-craft-opt:focus-visible { border-color: #2e9bf0; }
+.mk-craft-opt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mk-craft-opt-name { font-weight: 800; }
+.mk-craft-opt-fx { font-size: 12px; opacity: 0.75; }
+.mk-craft-opt-pts { font-size: 12px; font-weight: 800; opacity: 0.8; white-space: nowrap; }
+.mk-craft-special { padding: 8px; border-radius: 10px; background: rgba(127, 127, 127, 0.08); display: flex; flex-direction: column; gap: 8px; }
+.mk-craft-special-top { display: flex; gap: 10px; align-items: center; }
+.mk-craft-select { flex: 1; min-width: 0; }
+.mk-craft-grades { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-craft-special .ffz-note { margin: 0; }
+
+html.theme-fandom-light .mk-craft-slot { background: rgba(0, 0, 0, 0.04); }
+html.theme-fandom-light .mk-craft-slot-full { background: #fff; }
+html.theme-fandom-light .mk-craft-pair-item { background: #fff; }
+
+/* wide screens: Potion / Rod / Fuze sit in the sidebar, so the Fuze page's own
+   Find a recipe / Try a fuse buttons come back inside the Fuze tab */
+@media (min-width: 900px) {
+	main .mk-craft-nav { display: none !important; }
+	main #ffz > .ffz-nav { display: flex !important; }
+}
+
+/* Build | Find a recipe */
+.mk-craft-mode { display: flex; gap: 6px; }
+.mk-craft-goals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.mk-craft-goal { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; }
+.mk-craft-goal-label { opacity: 0.8; font-weight: 700; }
+.mk-craft-goal select, .mk-craft-goal-row select { width: 100%; min-width: 0; }
+.mk-craft-goal-set { border-color: #2e9bf0 !important; box-shadow: 0 0 0 1px #2e9bf0; }
+.mk-craft-goal-pair { display: flex; flex-direction: column; gap: 6px; }
+.mk-craft-goal-pair .ffz-note { margin: 0; }
+.mk-craft-goal-row { display: grid; grid-template-columns: 1fr 5.5em; gap: 6px; }
+.mk-craft-answer { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; border: 2px solid var(--g-edge, #888); background: rgba(0, 0, 0, 0.18); }
+.mk-craft-answer .ffz-note { margin: 0; }
+.mk-craft-answer-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.mk-craft-answer-item { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 10px; border: 2px solid var(--tc, #888); font-weight: 800; font-size: 13px; }
+.mk-craft-answer-foot { display: flex; align-items: center; gap: 8px; }
+.mk-craft-answer .ffz-btn { align-self: flex-start; }
+html.theme-fandom-light .mk-craft-answer { background: #fff; }
+.mk-craft-slotnote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-weight: 700; }
+.mk-craft-rebirth { display: inline-flex; align-items: center; gap: 6px; }
+.mk-craft-rebirth select { width: auto; min-width: 4.5em; }
+.mk-craft-remember { background: linear-gradient(180deg, #2aa8ff, #0094f8) !important; color: #fff !important; border-color: #7cc8ff !important; }
+.mk-craft-slotnote .ffz-note { margin: 0; flex-basis: 100%; font-weight: 400; }
+/* things the game won't take with what's already in the recipe (user, 2026-10-25) */
+.mk-craft-opt-off { opacity: 0.45; cursor: not-allowed; }
+.mk-craft-opt-off .mk-craft-opt-fx, .mk-craft-off-why { color: #ff8a3d; opacity: 1; font-weight: 700; }
+.mk-craft-off-why { margin: 0; font-size: 12px; }
+.mk-craft-waste { display: flex; flex-direction: column; gap: 8px; }
+.mk-craft-waste-acts { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.mk-craft-waste-acts .ffz-note { margin: 0 0 6px; font-size: 12px; }

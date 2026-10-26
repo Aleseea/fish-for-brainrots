@@ -60,10 +60,11 @@ if n != 1:
     raise SystemExit('could not stamp the version into index.html (app.js)')
 open(path, 'w').write(text)
 
-# site.css, game.css, fuze.js and nav.js get a stamp too
+# site.css, game.css, fuze.js, nav.js and the Crafting page's craft.js/craft.css get a stamp too
 stamped = {}
 for name, pat in (('site.css', r'href="site\.css(\?v=[0-9a-f]+)?"'), ('game.css', r'href="game\.css(\?v=[0-9a-f]+)?"'),
-        ('fuze.js', r'src="fuze\.js(\?v=[0-9a-f]+)?"'), ('nav.js', r'src="nav\.js(\?v=[0-9a-f]+)?"')):
+        ('fuze.js', r'src="fuze\.js(\?v=[0-9a-f]+)?"'), ('nav.js', r'src="nav\.js(\?v=[0-9a-f]+)?"'),
+        ('craft.js', r'src="craft\.js(\?v=[0-9a-f]+)?"'), ('craft.css', r'href="craft\.css(\?v=[0-9a-f]+)?"')):
     v = hashlib.sha256(open(os.path.join(HERE, name), 'rb').read()).hexdigest()[:10]
     stamped[name] = v
     path = os.path.join(HERE, 'index.html')
@@ -79,7 +80,8 @@ css_ver = stamped['site.css']
 import json
 shell = ['./', 'index.html', 'app.js?v=%s' % app_ver, 'calc.js?v=%s' % ver, 'calc.css?v=%s' % ver,
          'site.css?v=%s' % css_ver, 'game.css?v=%s' % stamped['game.css'], 'fuze.js?v=%s' % stamped['fuze.js'],
-         'nav.js?v=%s' % stamped['nav.js'], 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png']
+         'nav.js?v=%s' % stamped['nav.js'], 'craft.js?v=%s' % stamped['craft.js'], 'craft.css?v=%s' % stamped['craft.css'],
+         'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png']
 sw_ver = hashlib.sha256(' '.join(shell).encode()).hexdigest()[:10]
 tpl = open(os.path.join(HERE, 'sw.template.js')).read()
 open(os.path.join(HERE, 'sw.js'), 'w').write(tpl.replace('@@VERSION@@', sw_ver).replace('@@SHELL@@', json.dumps(shell)))

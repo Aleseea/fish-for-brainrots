@@ -16,8 +16,8 @@
 		value: '<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="21" r="15" fill="#e8a417" ' + O + '/><circle cx="20" cy="19" r="15" fill="#ffc93a" ' + O + '/><circle cx="20" cy="19" r="10.5" fill="none" stroke="#e8a417" stroke-width="2"/><path d="M24 14.5c-1-1.3-2.4-1.9-4-1.9-2.4 0-4 1.2-4 3 0 4.2 8.2 2.4 8.2 6.6 0 1.9-1.8 3.2-4.2 3.2-1.8 0-3.4-.7-4.4-2.1M20 10.5v2.1M20 25.4v2.1" fill="none" stroke="#7a4b00" stroke-width="2.4" stroke-linecap="round"/></svg>',
 		// Trade: two arrows swapping
 		trade: '<svg viewBox="0 0 40 40" width="40" height="40"><path d="M7 14h20v-5l9 8-9 8v-5H7z" fill="#2e9bf0" ' + O + '/><path d="M33 26H13v-5l-9 8 9 8v-5h20z" fill="#6fe82a" ' + O + ' transform="translate(0 -3)"/></svg>',
-		// Fuze: the machine's sun burst with a bolt
-		fuze: '<svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 3l3.6 7 7.6-2.2-2.2 7.6 7 3.6-7 3.6 2.2 7.6-7.6-2.2L20 35l-3.6-7-7.6 2.2 2.2-7.6-7-3.6 7-3.6-2.2-7.6 7.6 2.2z" fill="#ffd23f" ' + O + '/><path d="M22 10l-7 11h5l-2 9 7-12h-5z" fill="#ff7a1a" ' + O + ' stroke-width="2"/></svg>',
+		// Crafting (Potion | Rod | Fuze): a potion flask and a hook
+		fuze: '<svg viewBox="0 0 40 40" width="40" height="40"><path d="M15 5h8v8l8 14a5 5 0 0 1-4.5 7.5h-15A5 5 0 0 1 7 27l8-14z" fill="#3ad6ff" ' + O + '/><path d="M9.5 23h19l2.5 4.4a5 5 0 0 1-4.5 7.1h-15A5 5 0 0 1 7 27z" fill="#a34dff" ' + O + ' stroke-width="2"/><rect x="13.5" y="2.5" width="11" height="4" rx="1.5" fill="#c8823a" ' + O + ' stroke-width="2"/><circle cx="16" cy="28" r="1.8" fill="#fff"/><circle cx="22" cy="25.5" r="1.3" fill="#fff"/><path d="M33 6v9a4 4 0 0 1-8 0" fill="none" stroke="#081408" stroke-width="5" stroke-linecap="round"/><path d="M33 6v9a4 4 0 0 1-8 0" fill="none" stroke="#ffd23f" stroke-width="2.4" stroke-linecap="round"/></svg>',
 		// Codes: the keypad in front of your base, where codes are typed
 		codes: '<svg viewBox="0 0 40 40" width="40" height="40"><rect x="7" y="4" width="26" height="32" rx="5" fill="#6b7a8f" ' + O + '/><rect x="11" y="8" width="18" height="6" rx="1.5" fill="#6fe82a" stroke="#081408" stroke-width="2"/>' +
 			[ [ 14, 20 ], [ 20, 20 ], [ 26, 20 ], [ 14, 26 ], [ 20, 26 ], [ 26, 26 ], [ 20, 32 ] ].map( function ( p ) {
@@ -102,7 +102,7 @@
 	var nav = document.querySelector( '.mk-hotbar' );
 	if ( !nav ) { return; }
 	var SUBS = {
-		'tab-fuze': { panel: 'panel-fuze', group: '.ffz-nav', items: [ 'Find a recipe', 'Try a fuse' ] },
+		'tab-fuze': { panel: 'panel-fuze', group: '.mk-craft-nav', items: [ 'Potion', 'Rod', 'Fuze' ] },
 		'tab-collection': { tabs: [ [ 'My Collection', 'tab-collection' ], [ 'What can I catch?', 'tab-catch' ] ] }
 	};
 	var subs = [];
