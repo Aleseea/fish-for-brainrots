@@ -1,4 +1,4 @@
-/* Reel Value: the Crafting page (Potion | Rod | Fuze). MOCKUP 2026-10-25.
+/* Reel Value: the Crafting page (Potion | Rod | Fuze), 2026-10-25.
    Data: the official crafting boards and the in-game Resource Info & Shop
    (brainrot-db/inbox/crafting-*.md, wiki page "Fish for Brainrots - Crafting").
    The Fuze tab is the existing Fuze page (fuze.js), moved under Crafting. */

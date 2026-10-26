@@ -1,4 +1,4 @@
-/* Reel Value: the Crafting page (craft.js). MOCKUP 2026-10-25. */
+/* Reel Value: the Crafting page (craft.js), 2026-10-25. */
 #craft { display: flex; flex-direction: column; gap: 14px; }
 #craft[hidden] { display: none; }
 .mk-craft-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
