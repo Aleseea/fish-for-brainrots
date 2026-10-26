@@ -2718,3 +2718,55 @@ html.game .ffz-label {
 	letter-spacing: 0.02em;
 }
 html.game.theme-fandom-light .ffz-label { color: #3a3a42; }
+
+/* ---- Fuze: How it works (user, 2026-10-26) ---- */
+.ffz-how-svg { display: block; width: 100%; height: auto; overflow: visible; margin: 6px 0 2px; touch-action: manipulation; }
+.ffz-how-axis { stroke: rgba(230, 230, 234, 0.35); stroke-width: 2; }
+.ffz-how-window { fill: rgba(46, 155, 240, 0.14); }
+.ffz-how-edge { stroke: rgba(124, 200, 255, 0.8); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.ffz-how-lab { fill: #b9bcc6; font: 600 10px system-ui, sans-serif; }
+.ffz-how-num { fill: #e6e6ea; font: 800 11px var(--g-head, system-ui), sans-serif; }
+.ffz-how-dot { opacity: 0.5; stroke: #1b1b1f; stroke-width: 1; }
+.ffz-how-dot-on { opacity: 1; stroke: #fff; stroke-width: 1.5; }
+.ffz-how-bar { fill: #2e9bf0; }
+.ffz-how-in { fill: #ffd23f; stroke: #081408; stroke-width: 1.2; }
+.ffz-how-curve { fill: none; stroke: #2e9bf0; stroke-width: 2; }
+.ffz-how-curve-low { stroke-dasharray: 5 4; opacity: 0.8; }
+.ffz-how-pt { stroke: #fff; stroke-width: 2; }
+.ffz-how-tip { margin: 2px 0 6px; min-height: 1.3em; font-size: 13px; font-weight: 700; }
+.ffz-how-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; opacity: 0.9; margin-bottom: 8px; }
+.ffz-how-key { display: inline-flex; align-items: center; gap: 5px; }
+.ffz-how-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.ffz-how-swatch-bar { width: 8px; height: 12px; border-radius: 3px 3px 0 0; background: #2e9bf0; }
+.ffz-how-swatch-in { width: 0; height: 0; border-radius: 0; border: 6px solid transparent; border-bottom: 10px solid #ffd23f; border-top: 0; }
+.ffz-how-swatch-line { width: 16px; height: 0; border-radius: 0; border-top: 2px solid #2e9bf0; }
+.ffz-how-swatch-dash { width: 16px; height: 0; border-radius: 0; border-top: 2px dashed #2e9bf0; }
+.ffz-how-steps { margin: 6px 0 8px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+.ffz-how-steps li { padding-left: 2px; }
+.ffz-how-steps li::marker { font-family: var(--g-head, system-ui); font-weight: 900; color: #2e9bf0; }
+.ffz-how-steps strong { display: block; }
+.ffz-how-steps .ffz-note, .ffz-how-list .ffz-note { margin: 0; }
+.ffz-how-mixes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ffz-how-mixes .ffz-chip { font-size: 13px; min-height: 34px; padding: 0 10px; }
+.ffz-how-ins { display: flex; gap: 6px; margin: 4px 0; }
+.ffz-how-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ffz-how-list li { display: flex; align-items: center; gap: 8px; }
+.ffz-how-list-n { width: 18px; text-align: center; font-family: var(--g-head, system-ui); font-weight: 900; color: #2e9bf0; }
+.ffz-how-list-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ffz-how-list-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ffz-how-list-p { font-weight: 800; }
+.ffz-how-pair { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.ffz-how-ex { padding: 8px 10px; border-radius: 12px; border: 2px solid var(--g-edge, #444); }
+.ffz-how-ex .ffz-note { margin: 0; }
+.ffz-how-facts { margin: 10px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.ffz-how-tbars { display: flex; flex-direction: column; gap: 6px; }
+.ffz-how-trow { display: grid; grid-template-columns: 9em 1fr 3em; align-items: center; gap: 8px; font-size: 13px; }
+.ffz-how-tname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ffz-how-track { height: 10px; border-radius: 5px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
+.ffz-how-fill { display: block; height: 100%; border-radius: 5px; background: #2e9bf0; }
+.ffz-how-tp { text-align: right; font-weight: 800; }
+html.game.theme-fandom-light .ffz-how-axis { stroke: rgba(30, 30, 40, 0.3); }
+html.game.theme-fandom-light .ffz-how-lab { fill: #55555e; }
+html.game.theme-fandom-light .ffz-how-num { fill: #16161a; }
+html.game.theme-fandom-light .ffz-how-dot { stroke: #fff; }
+html.game.theme-fandom-light .ffz-how-pt { stroke: #16161a; }

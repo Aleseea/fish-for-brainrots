@@ -375,7 +375,8 @@ window.ffbFuzeStart = function () {
 	nav.setAttribute( 'aria-label', 'Fuze tools' );
 	var bRecipes = el( 'button', 'ffb-base-tab', 'Find a recipe' );
 	var bTry = el( 'button', 'ffb-base-tab', 'Try a fuse' );
-	[ bRecipes, bTry ].forEach( function ( b ) { b.type = 'button'; nav.appendChild( b ); } );
+	var bHow = el( 'button', 'ffb-base-tab', 'How it works' );
+	[ bRecipes, bTry, bHow ].forEach( function ( b ) { b.type = 'button'; nav.appendChild( b ); } );
 	var vRecipes = el( 'div', 'ffz' ), vTry = el( 'div', 'ffz' );
 	root.appendChild( nav );
 	root.appendChild( vRecipes );
@@ -386,13 +387,17 @@ window.ffbFuzeStart = function () {
 		bTry.classList.toggle( 'ffb-base-tab-on', v === 'try' );
 		bRecipes.setAttribute( 'aria-pressed', v === 'recipes' ? 'true' : 'false' );
 		bTry.setAttribute( 'aria-pressed', v === 'try' ? 'true' : 'false' );
+		bHow.classList.toggle( 'ffb-base-tab-on', v === 'how' );
+		bHow.setAttribute( 'aria-pressed', v === 'how' ? 'true' : 'false' );
 		vRecipes.hidden = v !== 'recipes';
 		vTry.hidden = v !== 'try';
-		if ( v === 'recipes' ) { drawRecipes(); } else { drawTry(); }
+		vHow.hidden = v !== 'how';
+		if ( v === 'recipes' ) { drawRecipes(); } else if ( v === 'how' ) { drawHow(); } else { drawTry(); }
 		save();
 	}
 	bRecipes.addEventListener( 'click', function () { showView( 'recipes' ); } );
 	bTry.addEventListener( 'click', function () { showView( 'try' ); } );
+	bHow.addEventListener( 'click', function () { showView( 'how' ); } );
 
 	// ---- Find a recipe ----------------------------------------------------------
 	function drawRecipes() {
@@ -1152,6 +1157,310 @@ window.ffbFuzeStart = function () {
 	function afterInputs() {
 		save();
 		drawTry();
+	}
+
+	// ---- How it works (user, 2026-10-26: charts that explain the machine) -----
+	// Every chart is worked out live by the same engine as Try a fuse.
+	var SVGNS = 'http://www.w3.org/2000/svg';
+	function sv( tag, attrs, text ) {
+		var n = document.createElementNS( SVGNS, tag );
+		Object.keys( attrs || {} ).forEach( function ( k ) { n.setAttribute( k, attrs[ k ] ); } );
+		if ( text !== undefined ) { n.textContent = text; }
+		return n;
+	}
+	var NORM = pool.filter( function ( b ) { return b.rarity !== 'Admin Secret'; } );
+	var ADM = pool.filter( function ( b ) { return b.rarity === 'Admin Secret'; } );
+	var CEL = pool.filter( function ( b ) { return b.rarity === 'Celestial'; } );
+	function shortName( n ) { return n.length > 18 ? n.slice( 0, 17 ) + '…' : n; }
+	function isAdminMix( ins ) { return ins.some( function ( b ) { return b.rarity === 'Admin Secret'; } ); }
+	// what the machine does with these 4, in numbers the charts need
+	function explain( ins ) {
+		var outs = FuzeEngine.outcomes( pool, ins ), ps = FuzeEngine.odds( ins, outs );
+		var sum = 0, max = 0, admin = isAdminMix( ins ), maxAdmin = 0;
+		ins.forEach( function ( b ) {
+			sum += b.base; max = Math.max( max, b.base );
+			if ( b.rarity === 'Admin Secret' ) { maxAdmin = Math.max( maxAdmin, b.base ); }
+		} );
+		var avg = sum / ins.length;
+		var line = admin ? ADM : NORM;
+		var from = admin ? maxAdmin : avg, to = admin ? 1.5 * maxAdmin : 3.3 * max;
+		var cand = line.filter( function ( b ) {
+			return admin ? b.base > maxAdmin + 1e-6 && b.base <= to + 1e-6 : b.base >= avg - 1e-6 && ins.indexOf( b ) === -1;
+		} );
+		var sweet = Math.pow( avg, 0.65 ) * Math.pow( max, 0.35 ) / ( admin ? Math.exp( 5 ) : 1 );
+		return { ins: ins, outs: outs, ps: ps, avg: avg, max: max, admin: admin, line: line, from: from, to: to, cand: cand, sweet: sweet };
+	}
+	// a tap/hover caption under a chart: the mark's name, income and chance
+	function tipLine( svg ) {
+		var cap = el( 'p', 'ffz-how-tip', 'Tap a bar or dot to see which brainrot it is.' );
+		function show( e ) {
+			var t = e.target.closest && e.target.closest( '[data-tip]' );
+			if ( t ) { cap.textContent = t.getAttribute( 'data-tip' ); }
+		}
+		svg.addEventListener( 'pointerover', show );
+		svg.addEventListener( 'click', show );
+		return cap;
+	}
+	/**
+	 * The income ladder: every brainrot that can come out on one line, cheapest
+	 * on the left (ratio scale, like the machine's spacing). Marks the 4 inputs,
+	 * the window the results come from, and a bar per result for its chance.
+	 */
+	function ladder( x, opts ) {
+		opts = opts || {};
+		var W = 320, H = opts.small ? 92 : 178, pad = 14, base = opts.small ? 58 : 128, barMax = opts.small ? 34 : 86;
+		var lo = x.line[ 0 ].base, hi = x.line[ x.line.length - 1 ].base;
+		var L0 = Math.log( lo ), L1 = Math.log( hi );
+		function X( v ) { return pad + ( Math.log( Math.min( hi, Math.max( lo, v ) ) ) - L0 ) / ( L1 - L0 ) * ( W - 2 * pad ); }
+		var svg = sv( 'svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'ffz-how-svg', role: 'img',
+			'aria-label': 'Income ladder: ' + x.outs.length + ' possible results between ' + money( x.from ) + ' and ' + money( Math.min( x.to, hi ) ) } );
+		// the window results come from
+		var wx0 = X( x.from ), wx1 = X( Math.min( x.to, hi ) );
+		svg.appendChild( sv( 'rect', { x: wx0, y: base - barMax - 14, width: Math.max( 2, wx1 - wx0 ), height: barMax + 14, rx: 6, class: 'ffz-how-window' } ) );
+		[ [ wx0, x.admin ? 'strongest Admin in' : 'average' ], [ wx1, x.admin ? '1.5×' : '3.3× strongest' ] ].forEach( function ( m, k ) {
+			svg.appendChild( sv( 'line', { x1: m[ 0 ], x2: m[ 0 ], y1: base - barMax - 14, y2: base + 4, class: 'ffz-how-edge' } ) );
+			if ( !opts.small ) {
+				svg.appendChild( sv( 'text', { x: m[ 0 ] + ( k ? -3 : 3 ), y: base - barMax - 18, 'text-anchor': k ? 'end' : 'start', class: 'ffz-how-lab' }, m[ 1 ] ) );
+			}
+		} );
+		// the line of brainrots
+		svg.appendChild( sv( 'line', { x1: pad, x2: W - pad, y1: base, y2: base, class: 'ffz-how-axis' } ) );
+		var picked = {};
+		x.outs.forEach( function ( o ) { picked[ o.name ] = true; } );
+		x.line.forEach( function ( b ) {
+			var c = sv( 'circle', { cx: X( b.base ), cy: base, r: picked[ b.name ] ? 4 : 2.6, fill: D.rarityColors[ b.rarity ] || '#888',
+				class: 'ffz-how-dot' + ( picked[ b.name ] ? ' ffz-how-dot-on' : '' ), 'data-tip': b.name + ' · ' + b.rarity + ' · ' + money( b.base ) } );
+			svg.appendChild( c );
+		} );
+		// a bar per result: its chance
+		var top = Math.max.apply( null, x.ps.concat( [ 1 ] ) );
+		x.outs.forEach( function ( o, k ) {
+			var h = Math.max( 3, x.ps[ k ] / top * barMax ), cx = X( o.base );
+			var tip = ( k + 1 ) + '. ' + o.name + ' · ' + money( o.base ) + ' · ' + pct( x.ps[ k ] );
+			svg.appendChild( sv( 'rect', { x: cx - 4, y: base - 6 - h, width: 8, height: h, rx: 3, class: 'ffz-how-bar', 'data-tip': tip } ) );
+			// a wider invisible target, easier to tap than the bar
+			svg.appendChild( sv( 'rect', { x: cx - 9, y: base - 6 - barMax, width: 18, height: barMax + 6, fill: 'transparent', 'data-tip': tip } ) );
+			if ( !opts.small ) {
+				svg.appendChild( sv( 'text', { x: cx, y: base - 10 - h, 'text-anchor': 'middle', class: 'ffz-how-num' }, String( k + 1 ) ) );
+			}
+		} );
+		// the 4 inputs, under the line
+		var seen = {};
+		// Admin Fuse: only the Admin Secrets put in matter for the list, so only they are marked
+		x.ins.forEach( function ( b ) { if ( !x.admin || b.rarity === 'Admin Secret' ) { seen[ b.name ] = ( seen[ b.name ] || 0 ) + 1; } } );
+		Object.keys( seen ).forEach( function ( n ) {
+			var b = byName[ n ], cx = X( b.base ), y = base + 8;
+			svg.appendChild( sv( 'path', { d: 'M' + cx + ' ' + y + 'l-5 9h10z', class: 'ffz-how-in', 'data-tip': 'You put in ' + ( seen[ n ] > 1 ? seen[ n ] + '× ' : '' ) + n + ' · ' + money( b.base ) } ) );
+			if ( seen[ n ] > 1 && !opts.small ) { svg.appendChild( sv( 'text', { x: cx + 7, y: y + 9, class: 'ffz-how-lab' }, '×' + seen[ n ] ) ); }
+		} );
+		if ( !opts.small ) {
+			svg.appendChild( sv( 'text', { x: pad, y: H - 4, class: 'ffz-how-lab' }, money( lo ) ) );
+			svg.appendChild( sv( 'text', { x: W - pad, y: H - 4, 'text-anchor': 'end', class: 'ffz-how-lab' }, money( hi ) ) );
+			svg.appendChild( sv( 'text', { x: W / 2, y: H - 4, 'text-anchor': 'middle', class: 'ffz-how-lab' }, 'income →' ) );
+		}
+		return svg;
+	}
+	// the results as a list: the table view of the ladder
+	function resultList( x ) {
+		var ol = el( 'ol', 'ffz-how-list' );
+		x.outs.forEach( function ( o, k ) {
+			var li = el( 'li' );
+			li.appendChild( el( 'span', 'ffz-how-list-n', String( k + 1 ) ) );
+			li.appendChild( pic( o ) );
+			var t = el( 'span', 'ffz-how-list-name' );
+			t.appendChild( el( 'strong', null, o.name ) );
+			t.appendChild( el( 'span', 'ffz-note', o.rarity + ' · ' + money( o.base ) ) );
+			li.appendChild( t );
+			li.appendChild( el( 'span', 'ffz-how-list-p', pct( x.ps[ k ] ) ) );
+			ol.appendChild( li );
+		} );
+		return ol;
+	}
+	/** The odds curve: chances peak at a sweet spot and fall off both ways. */
+	function curve( x ) {
+		var W = 320, H = 156, pad = 14, base = 112, top = 22;
+		var lo = x.line[ 0 ].base, hi = x.line[ x.line.length - 1 ].base, L0 = Math.log( lo ), L1 = Math.log( hi );
+		function X( v ) { return pad + ( Math.log( v ) - L0 ) / ( L1 - L0 ) * ( W - 2 * pad ); }
+		var spread = x.admin ? 2.5 : 2;
+		function wt( v ) { var l = Math.log( v / x.sweet ); return Math.exp( -l * l / spread ); }
+		function Y( w ) { return base - w * ( base - top ); }
+		var svg = sv( 'svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'ffz-how-svg', role: 'img', 'aria-label': 'Odds curve peaking at ' + money( x.sweet ) } );
+		svg.appendChild( sv( 'line', { x1: pad, x2: W - pad, y1: base, y2: base, class: 'ffz-how-axis' } ) );
+		function path( mult ) {
+			var d = '';
+			for ( var i = 0; i <= 80; i++ ) {
+				var v = Math.exp( L0 + ( L1 - L0 ) * i / 80 );
+				d += ( i ? 'L' : 'M' ) + X( v ).toFixed( 1 ) + ' ' + Y( wt( v ) * mult ).toFixed( 1 );
+			}
+			return d;
+		}
+		svg.appendChild( sv( 'path', { d: path( 1 ), class: 'ffz-how-curve' } ) );
+		var low = x.admin ? 0.25 : 0.3;
+		svg.appendChild( sv( 'path', { d: path( low ), class: 'ffz-how-curve ffz-how-curve-low' } ) );
+		var sx = X( Math.min( hi, Math.max( lo, x.sweet ) ) );
+		svg.appendChild( sv( 'line', { x1: sx, x2: sx, y1: top - 4, y2: base + 4, class: 'ffz-how-edge' } ) );
+		svg.appendChild( sv( 'text', { x: sx, y: base + 15, 'text-anchor': sx > W - 70 ? 'end' : sx < 70 ? 'start' : 'middle', class: 'ffz-how-lab' }, 'sweet spot ' + money( x.sweet ) ) );
+		x.outs.forEach( function ( o, k ) {
+			var rare = x.admin ? o.base >= 900e6 : o.rarity === 'Celestial';
+			var cy = Y( wt( o.base ) * ( rare ? low : 1 ) );
+			svg.appendChild( sv( 'circle', { cx: X( o.base ), cy: cy, r: 5, class: 'ffz-how-pt', fill: D.rarityColors[ o.rarity ] || '#888',
+				'data-tip': ( k + 1 ) + '. ' + o.name + ' · ' + pct( x.ps[ k ] ) + ( rare ? ( x.admin ? ' (900M and up: rarer)' : ' (Celestial: rarer)' ) : '' ) } ) );
+			svg.appendChild( sv( 'text', { x: X( o.base ), y: cy - 8, 'text-anchor': 'middle', class: 'ffz-how-num' }, String( k + 1 ) ) );
+		} );
+		svg.appendChild( sv( 'text', { x: pad, y: H - 6, class: 'ffz-how-lab' }, money( lo ) ) );
+		svg.appendChild( sv( 'text', { x: W - pad, y: H - 6, 'text-anchor': 'end', class: 'ffz-how-lab' }, money( hi ) ) );
+		return svg;
+	}
+	function legend( items ) {
+		var row = el( 'div', 'ffz-how-legend' );
+		items.forEach( function ( it ) {
+			var s = el( 'span', 'ffz-how-key' );
+			var m = el( 'span', 'ffz-how-swatch ' + ( it[ 2 ] || '' ) );
+			if ( it[ 1 ] ) { m.style.background = it[ 1 ]; }
+			s.appendChild( m );
+			s.appendChild( document.createTextNode( it[ 0 ] ) );
+			row.appendChild( s );
+		} );
+		return row;
+	}
+	function rarityLegend( admin ) {
+		var keys = admin ? [ 'Admin Secret' ] : [ 'Eternal', 'Celestial' ];
+		return legend( keys.map( function ( r ) { return [ r, D.rarityColors[ r ] ]; } )
+			.concat( [ [ 'result chance', null, 'ffz-how-swatch-bar' ], [ 'you put in', null, 'ffz-how-swatch-in' ] ] ) );
+	}
+	function inputsRow( ins ) {
+		var row = el( 'div', 'ffz-how-ins' );
+		ins.forEach( function ( b ) { var p = pic( b ); p.title = b.name + ' · ' + money( b.base ); row.appendChild( p ); } );
+		return row;
+	}
+	// example mixes for the charts
+	// the weakest Eternal shows the change best: one strong input moves the whole window
+	var mid = NORM[ 0 ], strong = CEL[ CEL.length - 1 ] || NORM[ NORM.length - 1 ];
+	var EXAMPLES = {
+		same: [ mid, mid, mid, mid ],
+		strong: [ mid, mid, mid, strong ],
+		admin: ADM.filter( FuzeEngine.canInput ).slice( 0, 2 ).concat( CEL.slice( 0, 2 ) )
+	};
+	var howMix = 'try';
+	function howIns() {
+		if ( howMix === 'try' ) {
+			var ins = state.slots.map( function ( s ) { return byName[ s.name ]; } );
+			return FuzeEngine.check( ins ) ? EXAMPLES.same : ins;
+		}
+		return EXAMPLES[ howMix ];
+	}
+	var vHow = el( 'div', 'ffz' );
+	root.appendChild( vHow );
+	function drawHow() {
+		vHow.textContent = '';
+		var x = explain( howIns() );
+
+		// 1. the steps
+		var c1 = el( 'div', 'ffz-card' );
+		c1.appendChild( el( 'h3', 'ffz-h', 'How the machine picks' ) );
+		var steps = el( 'ol', 'ffz-how-steps' );
+		( x.admin ? [
+			[ 'Put in 2 Admin Secrets + 2 Celestials', 'The Admin Fuse. Admin Secrets can\'t be fused any other way.' ],
+			[ 'Your strongest Admin Secret sets the floor', 'Only Admin Secrets stronger than it can come out (' + money( x.from ) + ' here). The Celestials don\'t change the list.' ],
+			[ 'Up to 1.5× it can come out', x.cand.length + ' Admin Secret' + ( x.cand.length === 1 ? '' : 's' ) + ' fit, up to ' + money( x.to ) + '.' ],
+			[ 'You see up to 5, with their chances', 'Spread out from the cheapest to the strongest. Ones at $900M/s and up are 4× rarer.' ]
+		] : [
+			[ 'Put in 4 brainrots', 'Brainrot God or rarer. These charts cover Eternals and Celestials, the ones measured from the machine.' ],
+			[ 'The machine takes their average income', 'Your average here: ' + money( x.avg ) + '. It\'s the floor: nothing cheaper can come out.' ],
+			[ 'Anything at or above the average can come out', x.cand.length + ' brainrot' + ( x.cand.length === 1 ? '' : 's' ) + ' qualify here, except the ones you put in.' ],
+			[ 'You see 5 of them, with their chances', x.cand.length > 5 ? 'Spread out from the cheapest up to about 3.3× your strongest (' + money( Math.min( x.to, x.line[ x.line.length - 1 ].base ) ) + ').' : 'Only ' + x.cand.length + ' qualify, so you see all of them.' ]
+		] ).forEach( function ( s ) {
+			var li = el( 'li' );
+			li.appendChild( el( 'strong', null, s[ 0 ] ) );
+			li.appendChild( el( 'span', 'ffz-note', s[ 1 ] ) );
+			steps.appendChild( li );
+		} );
+		c1.appendChild( steps );
+		c1.appendChild( el( 'p', 'ffz-note', 'One strong brainrot pulls the top of the window up. Weak ones pull the average, and so the floor, down.' ) );
+		vHow.appendChild( c1 );
+
+		// 2. the ladder, live
+		var c2 = el( 'div', 'ffz-card' );
+		c2.appendChild( el( 'h3', 'ffz-h', 'The income ladder' ) );
+		var mixes = el( 'div', 'ffz-how-mixes' );
+		[ [ 'try', 'My Try a fuse 4' ], [ 'same', '4 the same' ], [ 'strong', '3 + 1 strong' ], [ 'admin', 'Admin Fuse' ] ].forEach( function ( m ) {
+			var b = el( 'button', 'ffz-chip', m[ 1 ] );
+			b.type = 'button';
+			b.setAttribute( 'aria-pressed', howMix === m[ 0 ] ? 'true' : 'false' );
+			b.addEventListener( 'click', function () { howMix = m[ 0 ]; drawHow(); } );
+			mixes.appendChild( b );
+		} );
+		c2.appendChild( mixes );
+		c2.appendChild( inputsRow( x.ins ) );
+		c2.appendChild( el( 'p', 'ffz-note', 'Every brainrot that can come out of ' + ( x.admin ? 'an Admin Fuse' : 'a fuse' ) + ', cheapest on the left. The blue window is where results come from; the bars are each result\'s chance.' ) );
+		var lad = ladder( x );
+		c2.appendChild( lad );
+		c2.appendChild( tipLine( lad ) );
+		c2.appendChild( rarityLegend( x.admin ) );
+		c2.appendChild( resultList( x ) );
+		vHow.appendChild( c2 );
+
+		// 3. the odds curve
+		var c3 = el( 'div', 'ffz-card' );
+		c3.appendChild( el( 'h3', 'ffz-h', 'Why some results are likelier' ) );
+		c3.appendChild( el( 'p', 'ffz-note', 'Chances aren\'t even. They peak at a sweet spot a bit above your average, pulled up toward your strongest brainrot, and fall off on both sides. ' +
+			( x.admin ? 'Admin Secrets at $900M/s and up sit on the lower curve: 4× rarer.' : 'Celestials sit on the lower curve: about 3× rarer than an Eternal in the same spot.' ) ) );
+		var cv = curve( x );
+		c3.appendChild( cv );
+		c3.appendChild( tipLine( cv ) );
+		c3.appendChild( legend( [ [ x.admin ? 'under $900M/s' : 'Eternal', null, 'ffz-how-swatch-line' ], [ x.admin ? '$900M/s and up' : 'Celestial', null, 'ffz-how-swatch-dash' ] ] ) );
+		vHow.appendChild( c3 );
+
+		// 4. what changes the result
+		var c4 = el( 'div', 'ffz-card' );
+		c4.appendChild( el( 'h3', 'ffz-h', 'What changes your result' ) );
+		var pair = el( 'div', 'ffz-how-pair' );
+		[ [ '4 the same', EXAMPLES.same ], [ 'Swap one for a strong one', EXAMPLES.strong ] ].forEach( function ( p ) {
+			var ex = explain( p[ 1 ] ), box = el( 'div', 'ffz-how-ex' );
+			box.appendChild( el( 'span', 'ffz-label', p[ 0 ] ) );
+			box.appendChild( inputsRow( p[ 1 ] ) );
+			box.appendChild( ladder( ex, { small: true } ) );
+			box.appendChild( el( 'p', 'ffz-note', 'Results from ' + money( ex.outs[ 0 ] ? ex.outs[ 0 ].base : ex.avg ) + ' to ' + money( ex.outs.length ? ex.outs[ ex.outs.length - 1 ].base : ex.avg ) ) );
+			pair.appendChild( box );
+		} );
+		c4.appendChild( pair );
+		var facts = el( 'ul', 'ffz-how-facts' );
+		var muts = state.slots.map( function ( s ) { return s.mut; } );
+		[
+			[ 'Levels and evolutions', 'change nothing. A level 1 and a level 200 of the same brainrot give the same results and chances.' ],
+			[ 'The mutation', 'is one of your 4 inputs\' mutations, 25% each (' + muts.join( ', ' ) + ' in your Try a fuse).' ],
+			[ 'Putting in a brainrot', 'means it can\'t come out of that fuse.' ]
+		].forEach( function ( f ) {
+			var li = el( 'li' );
+			li.appendChild( el( 'strong', null, f[ 0 ] + ' ' ) );
+			li.appendChild( document.createTextNode( f[ 1 ] ) );
+			facts.appendChild( li );
+		} );
+		c4.appendChild( facts );
+		vHow.appendChild( c4 );
+
+		// 5. traits
+		var c5 = el( 'div', 'ffz-card' );
+		c5.appendChild( el( 'h3', 'ffz-h', 'Traits passed on' ) );
+		var to = traitOdds( state.slots ), names = Object.keys( to ).sort( function ( a, b ) { return to[ b ] - to[ a ]; } );
+		c5.appendChild( el( 'p', 'ffz-note', 'Each trait on your inputs has its own chance to come through (your Try a fuse 4). Traits on stronger brainrots come through more often; rarer traits, with a bigger multiplier, less often.' ) );
+		if ( names.length ) {
+			var bars = el( 'div', 'ffz-how-tbars' );
+			names.forEach( function ( t ) {
+				var row = el( 'div', 'ffz-how-trow' );
+				row.appendChild( el( 'span', 'ffz-how-tname', t + ' ×' + TRAIT_MULT[ t ] ) );
+				var track = el( 'span', 'ffz-how-track' ), fill = el( 'span', 'ffz-how-fill' );
+				fill.style.width = Math.max( 2, to[ t ] ) + '%';
+				track.appendChild( fill );
+				row.appendChild( track );
+				row.appendChild( el( 'span', 'ffz-how-tp', Math.round( to[ t ] ) + '%' ) );
+				bars.appendChild( row );
+			} );
+			c5.appendChild( bars );
+		} else {
+			c5.appendChild( el( 'p', 'ffz-note', 'Your Try a fuse 4 have no traits. Add some there to see their chances here.' ) );
+		}
+		vHow.appendChild( c5 );
 	}
 
 	showView( state.view );
