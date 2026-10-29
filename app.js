@@ -358,6 +358,9 @@
 				var st = new Date( e.start ), to = isoParts( e.to ), ends = null;
 				if ( to ) {
 					ends = new Date( Date.UTC( to[ 0 ], to[ 1 ] - 1, to[ 2 ], st.getUTCHours(), st.getUTCMinutes() ) );
+				} else if ( e.type === 'abuse' ) {
+					// one Admin Abuse run at its own time (Halloween 2026: two on Saturday)
+					ends = new Date( st.getTime() + 45 * 60000 );
 				}
 				out.push( { name: e.name, when: st, ends: ends && ends > st ? ends : null, note: '', abuse: e.type === 'abuse', mutation: e.mutation } );
 				return;
