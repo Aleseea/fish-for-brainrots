@@ -729,7 +729,8 @@
 			var mutOrder = data.mutations.map( function ( m, i ) {
 				return i;
 			} ).sort( function ( a, b ) {
-				return data.mutations[ b ].m - data.mutations[ a ].m || a - b;
+				// a tie shows the newest first (user, 2026-10-30)
+				return data.mutations[ b ].m - data.mutations[ a ].m || b - a;
 			} );
 			var mutChips = el( 'div', 'ffb-calc-chips' );
 			var mutChipNodes = [];
@@ -1609,7 +1610,7 @@
 				groups[ c.m ].push( c );
 			} );
 			order.sort( function ( a, b ) {
-				return data.mutations[ b ].m - data.mutations[ a ].m;
+				return data.mutations[ b ].m - data.mutations[ a ].m || b - a;
 			} );
 			var box = el( 'div', 'ffb-same-ties' );
 			( tieAll ? order : order.slice( 0, 5 ) ).forEach( function ( mi ) {
@@ -2039,11 +2040,12 @@
 	}
 
 	function mutationOptions( cat ) {
-		// best first (ties keep the catalog order), like the trait lists
+		// best first, a tie newest first (the catalog lists it after; user,
+		// 2026-10-30: Halloween above Darkness)
 		return cat.data.mutations.map( function ( m, i ) {
 			return { m: m, i: i };
 		} ).sort( function ( a, b ) {
-			return b.m[ 1 ] - a.m[ 1 ] || a.i - b.i;
+			return b.m[ 1 ] - a.m[ 1 ] || b.i - a.i;
 		} ).map( function ( x ) {
 			var m = x.m;
 			return { value: m[ 0 ], label: isDefault( m[ 0 ] ) ? m[ 0 ] : m[ 0 ] + ' ' + plus( m[ 1 ] ) };
