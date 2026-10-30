@@ -506,7 +506,7 @@
 		return { vals: vals, by: by };
 	}
 
-	function buildValueCalculator( container, data, env ) {
+	function buildValueCalculator( container, data, env, carry ) {
 		var cat = valueCatalog( data );
 		var uid = 'ffb-calc-' + ( ++valueCount ) + '-';
 		var maxTraits = cat.data.maxTraits;
@@ -515,7 +515,7 @@
 		var fresh = function () {
 			return { mutation: mutIndex( 'Default' ), traits: [], evolution: 0, level: env && env.planner ? 1 : data.maxLevel };
 		};
-		var state = fresh();
+		var state = carry ? carried( carry ) : fresh();
 		var store = env ? chooseStore( env ) : { kind: 'none', load: function () {
 			return null;
 		} };
@@ -540,6 +540,30 @@
 				}
 			}
 			return -1;
+		}
+		/**
+		 * Another brainrot's picks ({ mutation, traits, evolution, level } by
+		 * name), so the phone site keeps them when the brainrot changes (user,
+		 * 2026-10-30). Anything this one can't take is left at the start value.
+		 */
+		function carried( row ) {
+			var s = fresh();
+			var e = parseInt( row.evolution, 10 );
+			var l = parseInt( row.level, 10 );
+			s.mutation = mutIndex( row.mutation );
+			( Array.isArray( row.traits ) ? row.traits : [] ).forEach( function ( n ) {
+				var i = traitIndex( n );
+				if ( i !== -1 && s.traits.indexOf( i ) === -1 && s.traits.length < maxTraits ) {
+					s.traits.push( i );
+				}
+			} );
+			if ( e >= 0 && e <= data.maxEvolution ) {
+				s.evolution = e;
+			}
+			if ( l >= 1 && l <= data.maxLevel ) {
+				s.level = l;
+			}
+			return s;
 		}
 		function savedRows() {
 			return store.kind === 'account' || store.kind === 'browser' ?
@@ -1661,6 +1685,8 @@
 
 		root.appendChild( sameLine );
 		refresh();
+		// what's picked now, for the next brainrot the phone site swaps in
+		container.ffbValueRow = stateRow;
 		clear( container );
 		container.appendChild( root );
 		container.appendChild( sameFold );
@@ -9077,6 +9103,16 @@
 	if ( typeof window !== 'undefined' && window.ffbStandalone && typeof window.ffbStandalone === 'object' ) {
 		window.ffbStandalone.namePicker = function ( data, id, current, onPick ) {
 			return buildNamePicker( buildCatalog( data ), id, current, onPick );
+		};
+		// a new brainrot's value calculator in place of the last one, keeping
+		// its picks (carry: the last one's container.ffbValueRow())
+		window.ffbStandalone.mountValue = function ( container, carry ) {
+			var data = readPayload( container.querySelector( '.brainrot-calculator-data' ) );
+			if ( !data ) {
+				return false;
+			}
+			buildValueCalculator( container, data, pageEnv(), carry || null );
+			return true;
 		};
 	}
 	if ( document.readyState === 'loading' ) {

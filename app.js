@@ -31,6 +31,8 @@
 	var BEST_KEY = 'ffb-site-best';
 	var asked = params.get( 'brainrot' );
 	var chosen = asked || rememberedBest() || 'Skeleton Dragon';
+	// the Value tab's brainrot when the page opened, and the searchable picker
+	var firstChosen = null, pickerInput = null;
 
 	function rememberedBest() {
 		try {
@@ -113,17 +115,75 @@
 			pick.appendChild( o );
 		} );
 		pick.value = chosen;
+		firstChosen = chosen;
 		pick.addEventListener( 'change', function () {
-			location.href = '?brainrot=' + encodeURIComponent( pick.value ) + '#value';
+			switchTo( pick.value, true );
 		} );
+		moreLink( chosen );
+	}
+
+	function moreLink( name ) {
 		var more = document.getElementById( 'value-more' );
 		var a = document.createElement( 'a' );
-		a.href = wikiUrl( HUB + ' - ' + chosen );
-		a.textContent = chosen + ' on the wiki';
+		a.href = wikiUrl( HUB + ' - ' + name );
+		a.textContent = name + ' on the wiki';
+		more.textContent = '';
 		more.appendChild( document.createTextNode( 'Every mutation and level in full: ' ) );
 		more.appendChild( a );
 		more.appendChild( document.createTextNode( '.' ) );
 	}
+
+	/**
+	 * Another brainrot on the Value tab without reloading the page: its
+	 * calculator is fetched and swapped in, keeping the mutation, traits,
+	 * evolution and level picked (user, 2026-10-30: a reload flashed and
+	 * cleared them). Falls back to loading the page if anything is missing.
+	 */
+	function switchTo( name, push ) {
+		var url = '?brainrot=' + encodeURIComponent( name ) + '#value';
+		var slot = document.getElementById( 'slot-value' );
+		var old = slot.querySelector( '.brainrot-calculator' );
+		var mount = window.ffbStandalone && window.ffbStandalone.mountValue;
+		if ( name === chosen ) {
+			return;
+		}
+		if ( !old || !mount || typeof old.ffbValueRow !== 'function' ) {
+			location.href = url;
+			return;
+		}
+		var carry = old.ffbValueRow();
+		chosen = name;
+		if ( push ) {
+			history.pushState( { brainrot: name }, '', url );
+		}
+		getHtml( calculatorMount( name ) ).then( function ( html ) {
+			if ( chosen !== name ) {
+				return; // picked another one while this loaded
+			}
+			var holder = document.createElement( 'div' );
+			holder.innerHTML = html;
+			var fresh = holder.querySelector( '.brainrot-calculator' );
+			if ( !fresh ) {
+				throw new Error( 'no calculator' );
+			}
+			// built before it goes in, so the page never shows it empty
+			mount( fresh, carry );
+			old.parentNode.replaceChild( fresh, old );
+			moreLink( name );
+		} ).catch( function () {
+			location.href = url;
+		} );
+	}
+	window.addEventListener( 'popstate', function () {
+		// back to the page as first opened (no ?brainrot=): its brainrot
+		var name = new URLSearchParams( location.search ).get( 'brainrot' ) || firstChosen;
+		if ( name && name !== chosen ) {
+			if ( pickerInput ) {
+				pickerInput.value = name;
+			}
+			switchTo( name, false );
+		}
+	} );
 
 	// the same searchable picker as the calculator's cards, in place of the
 	// plain dropdown (which stays as the fallback if calc.js fails)
@@ -134,9 +194,10 @@
 			return;
 		}
 		var picker = make( catalog, 'pick', chosen, function ( name ) {
-			location.href = '?brainrot=' + encodeURIComponent( name ) + '#value';
+			switchTo( name, true );
 		} );
 		picker.input.id = 'pick';
+		pickerInput = picker.input;
 		picker.node.className += ' site-pick-search';
 		select.parentNode.replaceChild( picker.node, select );
 	}
@@ -151,7 +212,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=e779f360a5';
+		s.src = 'calc.js?v=cbd9856300';
 		s.onload = function () {
 			usePicker();
 			// the Fuze page builds from the same figures, with calc.js's picker
