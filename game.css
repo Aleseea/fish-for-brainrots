@@ -2783,3 +2783,36 @@ html.game.theme-fandom-light .ffz-how-key-row { background: #fff; }
 .ffz-info[aria-expanded="true"] { background: #2e9bf0; border-color: #2e9bf0; color: #fff; }
 .ffz-why { margin: 6px 0 2px; padding: 8px 10px; border-radius: 10px; background: rgba(46, 155, 240, 0.12); line-height: 1.4; }
 html.game.theme-fandom-light .ffz-info { border-color: #0074c8; color: #0074c8; }
+/* Try a fuse: empty slots, the remove button and Clear all (2026-11-07) */
+.ffz-slots-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.ffz-slot-x {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--ffb-line);
+	border-radius: 8px;
+	background: transparent;
+	color: inherit;
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1;
+	cursor: pointer;
+}
+.ffz-slot-empty {
+	border-style: dashed;
+}
+html.game .ffz-slot-empty {
+	border-style: dashed;
+}
+.ffz-pic-none {
+	border-style: dashed;
+	opacity: 0.6;
+}
+.ffz-slot-moved {
+	font-weight: 700;
+}

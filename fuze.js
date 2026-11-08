@@ -942,43 +942,109 @@ window.ffbFuzeStart = function () {
 	}
 
 	// ---- Try a fuse -------------------------------------------------------------
+	var ADMIN_R = 'Admin Secret', slotNote = '';
+	/**
+	 * Before b goes into slot i, empty the other slots that can't go in the
+	 * machine with it (user, 2026-10-23 rules): an Admin Secret never goes in
+	 * with an Eternal, and an Admin Fuse is exactly 2 Admin Secrets + 2
+	 * Celestials. The later slots are emptied first. Returns what was taken
+	 * out: [ { slot, name, rarity } ].
+	 */
+	function makeRoom( i, b ) {
+		var gone = [];
+		var others = [ 0, 1, 2, 3 ].filter( function ( j ) { return j !== i && byName[ state.slots[ j ].name ]; } );
+		function rar( j ) { return byName[ state.slots[ j ].name ].rarity; }
+		var hasA = b.rarity === ADMIN_R || others.some( function ( j ) { return rar( j ) === ADMIN_R; } );
+		var keep = { 'Admin Secret': 4, Celestial: 4, Eternal: 4 };
+		if ( b.rarity === ADMIN_R ) {
+			keep = { 'Admin Secret': 1, Celestial: 2, Eternal: 0 };
+		} else if ( b.rarity === 'Celestial' && hasA ) {
+			keep = { 'Admin Secret': 2, Celestial: 1, Eternal: 0 };
+		} else if ( b.rarity === 'Eternal' ) {
+			keep = { 'Admin Secret': 0, Celestial: 4, Eternal: 4 };
+		}
+		var seen = {};
+		others.forEach( function ( j ) {
+			var r = rar( j );
+			seen[ r ] = ( seen[ r ] || 0 ) + 1;
+			if ( seen[ r ] > ( keep[ r ] === undefined ? 4 : keep[ r ] ) ) {
+				gone.push( { slot: j, name: state.slots[ j ].name, rarity: r } );
+			}
+		} );
+		gone.forEach( function ( g ) { state.slots[ g.slot ] = { name: '', mut: 'Default', traits: [] }; } );
+		return gone;
+	}
 	function drawTry() {
 		vTry.textContent = '';
-		state.slots.forEach( function ( s ) { if ( !byName[ s.name ] ) { s.name = 'Lumacone Cannellonatore'; } } );
-		var ins = state.slots.map( function ( s ) { return byName[ s.name ]; } );
-		var outs = FuzeEngine.outcomes( pool, ins ), ps = FuzeEngine.odds( ins, outs );
+		// a slot can be empty ('') (user, 2026-11-07: with 4 brainrots always in,
+		// there was no way to get from an Eternal mix to an Admin Fuse)
+		state.slots.forEach( function ( s ) { if ( s.name && !byName[ s.name ] ) { s.name = ''; } } );
+		var filled = state.slots.filter( function ( s ) { return byName[ s.name ]; } );
+		var full = filled.length === 4;
+		var ins = full ? state.slots.map( function ( s ) { return byName[ s.name ]; } ) : [];
+		var outs = full ? FuzeEngine.outcomes( pool, ins ) : [], ps = full ? FuzeEngine.odds( ins, outs ) : [];
 
 		// the four slots
 		var sc = el( 'div', 'ffz-card' );
-		sc.appendChild( el( 'h3', 'ffz-h', 'Put in 4 brainrots' ) );
+		var head = el( 'div', 'ffz-slots-head' );
+		head.appendChild( el( 'h3', 'ffz-h', 'Put in 4 brainrots' ) );
+		if ( filled.length ) {
+			var clearAll = el( 'button', 'ffz-btn ffz-btn-small', 'Clear all' );
+			clearAll.type = 'button';
+			clearAll.addEventListener( 'click', function () {
+				state.slots = [ 0, 1, 2, 3 ].map( function () { return { name: '', mut: 'Default', traits: [] }; } );
+				state.want = { rot: '', mut: '', traits: [] };
+				slotNote = '';
+				afterInputs();
+			} );
+			head.appendChild( clearAll );
+		}
+		sc.appendChild( head );
+		sc.appendChild( el( 'p', 'ffz-note', 'Pick any Eternal, Celestial or Admin Secret. For an Admin Fuse, put in 2 Admin Secrets and 2 Celestials; anything that doesn\'t fit with your pick is taken out for you.' ) );
+		if ( slotNote ) {
+			sc.appendChild( el( 'p', 'ffz-note ffz-slot-moved', slotNote ) );
+			slotNote = '';
+		}
 		var grid = el( 'div', 'ffz-slots' );
 		state.slots.forEach( function ( s, i ) {
-			var slot = el( 'div', 'ffz-slot' );
+			var slot = el( 'div', 'ffz-slot' + ( byName[ s.name ] ? '' : ' ffz-slot-empty' ) );
 			var top = el( 'div', 'ffz-slot-top' );
-			top.appendChild( pic( byName[ s.name ] ) );
-			// only what makes a fuse the machine takes with the other three (user,
-			// 2026-10-23): 2 Admin Secrets need 2 Celestials, and so on
-			var others = state.slots.filter( function ( x, j ) { return j !== i; } ).map( function ( x ) { return byName[ x.name ]; } );
-			var nA = 0, nC = 0, nE = 0;
-			others.forEach( function ( b ) {
-				if ( b.rarity === 'Admin Secret' ) { nA++; } else if ( b.rarity === 'Celestial' ) { nC++; } else { nE++; }
-			} );
-			// an Admin Secret in another slot rules out Eternals, an Eternal rules
-			// out Admin Secrets, and an Admin Fuse holds 2 of each (user, 2026-10-23)
-			var ok = pool.filter( function ( b ) {
-				if ( !FuzeEngine.canInput( b ) ) { return false; }
-				if ( b.rarity === 'Admin Secret' ) { return !nE && nA < 2 && nC < 3; }
-				if ( b.rarity === 'Celestial' ) { return !nA || nC < 2; }
-				return !nA;
-			} );
-			var okSet = {};
-			ok.forEach( function ( b ) { okSet[ b.name ] = true; } );
-			var rs = rotPicker( 'ffz-slot' + i, s.name, function ( name ) { s.name = name; afterInputs(); },
-				function ( b ) { return okSet[ b.name ]; }, ok.map( function ( b ) { return b.i; } ).join( ',' ) );
+			if ( byName[ s.name ] ) {
+				top.appendChild( pic( byName[ s.name ] ) );
+			} else {
+				top.appendChild( el( 'span', 'ffz-pic ffz-pic-none', String( i + 1 ) ) );
+			}
+			// every brainrot the machine takes; a pick that doesn't fit with the
+			// others empties the ones in the way (see makeRoom)
+			var rs = rotPicker( 'ffz-slot' + i, s.name, function ( name ) {
+				var gone = makeRoom( i, byName[ name ] );
+				s.name = name;
+				if ( gone.length ) {
+					var eternal = byName[ name ].rarity === 'Eternal' || gone.some( function ( g ) { return g.rarity === 'Eternal'; } );
+					var names = gone.map( function ( g ) { return g.name + ' (slot ' + ( g.slot + 1 ) + ')'; } );
+					slotNote = 'Took out ' + ( names.length > 1 ? names.slice( 0, -1 ).join( ', ' ) + ' and ' + names[ names.length - 1 ] : names[ 0 ] ) +
+						': ' + ( eternal ? 'Admin Secrets don\'t go in with Eternals.' : 'an Admin Fuse is exactly 2 Admin Secrets + 2 Celestials.' );
+				}
+				afterInputs();
+			}, FuzeEngine.canInput, 'input' );
 			var rsIn = rs.querySelector ? rs.querySelector( 'input' ) || rs : rs;
 			rsIn.setAttribute( 'aria-label', 'Brainrot ' + ( i + 1 ) );
 			top.appendChild( rs );
+			if ( byName[ s.name ] ) {
+				var x = el( 'button', 'ffz-slot-x', '×' );
+				x.type = 'button';
+				x.setAttribute( 'aria-label', 'Take ' + s.name + ' out of slot ' + ( i + 1 ) );
+				x.addEventListener( 'click', function () {
+					state.slots[ i ] = { name: '', mut: 'Default', traits: [] };
+					afterInputs();
+				} );
+				top.appendChild( x );
+			}
 			slot.appendChild( top );
+			if ( !byName[ s.name ] ) {
+				grid.appendChild( slot );
+				return;
+			}
 			var ms = plainSelect( 'ffz-slot' + i + '-mut', MUTS, s.mut );
 			ms.setAttribute( 'aria-label', 'Mutation of brainrot ' + ( i + 1 ) );
 			ms.addEventListener( 'change', function () { s.mut = ms.value; afterInputs(); } );
@@ -1000,12 +1066,22 @@ window.ffbFuzeStart = function () {
 			grid.appendChild( slot );
 		} );
 		sc.appendChild( grid );
-		var rare = ins.some( function ( b ) { return b.rarity === 'Celestial'; } );
-		var admin = ins.some( function ( b ) { return b.rarity === 'Admin Secret'; } );
+		// the wait follows the ones picked so far
+		var rare = filled.some( function ( s ) { return byName[ s.name ].rarity === 'Celestial'; } );
+		var admin = filled.some( function ( s ) { return byName[ s.name ].rarity === 'Admin Secret'; } );
 		var vip = ( store( 'ffb-profile' ) || {} ).vip;
 		sc.appendChild( el( 'p', 'ffz-note', 'Wait: ' + ( admin ? '3 h (1 h 30 min with VIP)' : rare ? '2 h 30 min (1 h 15 min with VIP)' : '2 h (1 h with VIP)' ) +
 			( vip ? '. You have VIP.' : '.' ) + ' The cost in cash shows in the machine; it isn\'t worked out here yet.' ) );
 		vTry.appendChild( sc );
+		if ( !full ) {
+			var wait = el( 'div', 'ffz-card' );
+			wait.appendChild( el( 'h3', 'ffz-h', 'Possible outcomes' ) );
+			var left = 4 - filled.length;
+			wait.appendChild( el( 'p', 'ffz-note', 'Pick ' + left + ' more brainrot' + ( left === 1 ? '' : 's' ) + ' to see what can come out, and the chances.' ) );
+			vTry.appendChild( wait );
+			save();
+			return;
+		}
 
 		// what can come out
 		if ( state.want.rot && outs.every( function ( o ) { return o.name !== state.want.rot; } ) ) { state.want.rot = ''; }
@@ -1359,7 +1435,7 @@ window.ffbFuzeStart = function () {
 	function howIns() {
 		if ( howMix === 'try' ) {
 			var ins = state.slots.map( function ( s ) { return byName[ s.name ]; } );
-			return FuzeEngine.check( ins ) ? EXAMPLES.same : ins;
+			return ins.some( function ( b ) { return !b; } ) || FuzeEngine.check( ins ) ? EXAMPLES.same : ins;
 		}
 		return EXAMPLES[ howMix ];
 	}
@@ -1439,7 +1515,7 @@ window.ffbFuzeStart = function () {
 		} );
 		c4.appendChild( pair );
 		var facts = el( 'ul', 'ffz-how-facts' );
-		var muts = state.slots.map( function ( s ) { return s.mut; } );
+		var muts = state.slots.filter( function ( s ) { return byName[ s.name ]; } ).map( function ( s ) { return s.mut; } );
 		[
 			[ 'Levels and evolutions', 'change nothing. A level 1 and a level 200 of the same brainrot give the same results and chances.' ],
 			[ 'The mutation', 'is one of your 4 inputs\' mutations, 25% each (' + muts.join( ', ' ) + ' in your Try a fuse).' ],
@@ -1456,7 +1532,7 @@ window.ffbFuzeStart = function () {
 		// 5. traits
 		var c5 = el( 'div', 'ffz-card' );
 		c5.appendChild( el( 'h3', 'ffz-h', 'Traits passed on' ) );
-		var to = traitOdds( state.slots ), names = Object.keys( to ).sort( function ( a, b ) { return to[ b ] - to[ a ]; } );
+		var to = traitOdds( state.slots.filter( function ( s ) { return byName[ s.name ]; } ) ), names = Object.keys( to ).sort( function ( a, b ) { return to[ b ] - to[ a ]; } );
 		c5.appendChild( el( 'p', 'ffz-note', 'Each trait on your inputs has its own chance to come through (your Try a fuse 4). Traits on stronger brainrots come through more often; rarer traits, with a bigger multiplier, less often.' ) );
 		if ( names.length ) {
 			var bars = el( 'div', 'ffz-how-tbars' );
