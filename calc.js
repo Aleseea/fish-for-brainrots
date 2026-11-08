@@ -8604,8 +8604,9 @@
 	 * "Coming up": event times in the reader's own time zone
 	 *
 	 * The same rules as the phone site's bell (mobile-site/app.js): Admin
-	 * Abuse runs Saturday 9 PM and reruns Sunday 11 AM Eastern, 45 minutes
-	 * each; the Admin Pond runs twice a week for 48 hours (since
+	 * Abuse runs at 01:00 UTC Sunday (Saturday 8 PM EST / 9 PM EDT) and
+	 * reruns at 15:00 UTC Sunday (10 AM EST / 11 AM EDT), 45 minutes each;
+	 * the game keeps them fixed in UTC (user, 2026-11-07); the Admin Pond runs twice a week for 48 hours (since
 	 * 2026-10-06), from Tuesday 4 AM and Friday 4 PM Eastern. An exact start
 	 * time in the events data beats the schedule. Eastern time is converted
 	 * with the browser's own time-zone data, so daylight saving is handled.
@@ -8653,8 +8654,9 @@
 				return;
 			}
 			if ( e.type === 'abuse' && new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] ) ).getUTCDay() === 6 ) {
-				main = zoned( d[ 0 ], d[ 1 ], d[ 2 ], 21, 0, ET );
-				rerun = zoned( d[ 0 ], d[ 1 ], d[ 2 ] + 1, 11, 0, ET );
+				// fixed in UTC: 01:00 and 15:00 on the Sunday after the Saturday date
+				main = new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] + 1, 1, 0 ) );
+				rerun = new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] + 1, 15, 0 ) );
 				out.push( { name: e.name, when: main, ends: new Date( main.getTime() + 45 * 60000 ), note: 'main run' } );
 				out.push( { name: e.name, when: rerun, ends: new Date( rerun.getTime() + 45 * 60000 ), note: 'rerun' } );
 			} else {

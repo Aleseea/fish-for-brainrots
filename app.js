@@ -212,7 +212,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=cbd9856300';
+		s.src = 'calc.js?v=23736c7daf';
 		s.onload = function () {
 			usePicker();
 			// the Fuze page builds from the same figures, with calc.js's picker
@@ -358,8 +358,10 @@
 
 	// ---- "Coming up": event start times in the reader's own time zone ------
 	// The wiki lists the events; their start times follow two fixed schedules
-	// (Events page and hub): Admin Abuse runs Saturday 9 PM and reruns
-	// Sunday 11 AM, Eastern time; the Admin Pond runs twice a week for 48
+	// (Events page and hub): Admin Abuse runs at 01:00 UTC on Sunday (Saturday
+	// 8 PM EST / 9 PM EDT) and reruns at 15:00 UTC Sunday (10 AM EST / 11 AM
+	// EDT); the game keeps them fixed in UTC, so in Eastern time they move an
+	// hour with daylight saving (user, 2026-11-07). The Admin Pond runs twice a week for 48
 	// hours (since 2026-10-06; see below). Eastern time is converted with the browser's own
 	// time-zone data, so daylight saving is handled on both ends.
 	var ET = 'America/New_York';
@@ -431,7 +433,8 @@
 			}
 			if ( e.type === 'abuse' && new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] ) ).getUTCDay() === 6 ) {
 				// each run lasts 45 minutes (admins join 15 minutes before)
-				var main = zoned( d[ 0 ], d[ 1 ], d[ 2 ], 21, 0, ET ), rerun = zoned( d[ 0 ], d[ 1 ], d[ 2 ] + 1, 11, 0, ET );
+				// fixed in UTC: 01:00 and 15:00 on the Sunday after the Saturday date
+				var main = new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] + 1, 1, 0 ) ), rerun = new Date( Date.UTC( d[ 0 ], d[ 1 ] - 1, d[ 2 ] + 1, 15, 0 ) );
 				out.push( { name: e.name, when: main, ends: new Date( main.getTime() + 45 * 60000 ), note: 'main run', abuse: true, mutation: e.mutation } );
 				out.push( { name: e.name, when: rerun, ends: new Date( rerun.getTime() + 45 * 60000 ), note: 'rerun', abuse: true, mutation: e.mutation } );
 			} else {
