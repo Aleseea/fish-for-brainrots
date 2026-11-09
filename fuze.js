@@ -170,6 +170,21 @@ window.ffbFuzeStart = function () {
 		if ( text !== undefined ) { n.textContent = text; }
 		return n;
 	}
+	// check and X icons for the Use / Don't use buttons (user, 2026-11-09:
+	// icons fit on the same line as the brainrot's picture and name)
+	var MARK_SVG = {
+		use: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+		no: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+	};
+	function markIcon( kind ) {
+		var s = el( 'span', 'ffz-mark-ico ffz-mark-ico-' + kind );
+		s.innerHTML = MARK_SVG[ kind ];
+		return s;
+	}
+	// "A", "A or B", "A, B or C"
+	function orList( names ) {
+		return names.length < 2 ? names.join( '' ) : names.slice( 0, -1 ).join( ', ' ) + ' or ' + names[ names.length - 1 ];
+	}
 	function store( key, val ) {
 		try {
 			if ( val === undefined ) { return JSON.parse( localStorage.getItem( key ) || 'null' ); }
@@ -339,7 +354,8 @@ window.ffbFuzeStart = function () {
 		target: saved.target || 'Spin Ferno',
 		// cnt: exactly this many of a rarity in the mix ('' = any number)
 		f: saved.f || { kinds: 'any', top: false, cnt: {} },
-		// per brainrot: 'have', 'no' (don't have) or 'must' (must use)
+		// per brainrot: 'use' (every mix shown has it) or 'no' (don't use it)
+		// (user, 2026-11-09: was Have / Don't have / Must use)
 		marks: saved.marks || {},
 		// other results you'd also be happy with, per target (user, 2026-10-23)
 		also: saved.also || {},
@@ -357,8 +373,13 @@ window.ffbFuzeStart = function () {
 		// { key: slotsKey, pct: { trait: % } }: what the machine showed, typed in
 		traitPct: saved.traitPct && saved.traitPct.pct ? saved.traitPct : { key: '', pct: {} }
 	};
-	if ( state.f.must ) { state.marks[ state.f.must ] = 'must'; }
+	if ( state.f.must ) { state.marks[ state.f.must ] = 'use'; }
 	if ( state.f.skip ) { state.marks[ state.f.skip ] = 'no'; }
+	// old marks: Must use becomes Use; Have meant something else, so it goes
+	Object.keys( state.marks ).forEach( function ( n ) {
+		if ( state.marks[ n ] === 'must' ) { state.marks[ n ] = 'use'; }
+		if ( state.marks[ n ] !== 'use' && state.marks[ n ] !== 'no' ) { delete state.marks[ n ]; }
+	} );
 	delete state.f.must;
 	delete state.f.skip;
 	delete state.f.mine;
@@ -405,6 +426,12 @@ window.ffbFuzeStart = function () {
 		vRecipes.textContent = '';
 		var t = byName[ state.target ] || byName[ 'Spin Ferno' ];
 		state.target = t.name;
+		// an Admin Secret only comes out of an Admin Fuse, where any 2
+		// Celestials work, so marks on Celestials don't count here (user, 2026-11-09)
+		var adminT = t.rarity === 'Admin Secret';
+		function markOf( n ) {
+			return adminT && byName[ n ] && byName[ n ].rarity === 'Celestial' ? undefined : state.marks[ n ];
+		}
 
 		var pickCard = el( 'div', 'ffz-card' );
 		var lab = el( 'label', 'ffz-label', 'I want to get' );
@@ -497,6 +524,8 @@ window.ffbFuzeStart = function () {
 		} );
 		var offered = {};
 		rarOrder.forEach( function ( r ) {
+			// an Admin Fuse is always 2 + 2; the How box says so
+			if ( adminT ) { return; }
 			var opts = Object.keys( counts[ r ] || {} ).map( Number ).sort();
 			if ( !opts.length || ( opts.length === 1 && opts[ 0 ] === 0 ) ) { return; }
 			var box = el( 'div' );
@@ -533,7 +562,7 @@ window.ffbFuzeStart = function () {
 		vRecipes.appendChild( res );
 		// brainrots that go into at least one mix giving the target (and every
 		// "also" pick): the only ones worth marking (user, 2026-10-23)
-		var markRefresh; // set by markBox, which runs before this line
+		var markRefresh, sumRefresh; // set by markBox, which runs before this line
 		function ingredients() {
 			var ex = state.also[ t.name ] || [], got = {};
 			all0.forEach( function ( e ) {
@@ -623,10 +652,9 @@ window.ffbFuzeStart = function () {
 			res.textContent = '';
 			var all = byTarget[ t.name ] || [];
 			var m = {};
-			Object.keys( state.marks ).forEach( function ( n ) { m[ n ] = state.marks[ n ]; } );
-			Object.keys( req ).forEach( function ( n ) { m[ n ] = 'must'; } );
-			var haves = Object.keys( state.marks ).filter( function ( n ) { return state.marks[ n ] !== 'no' && !req[ n ]; } );
-			var musts = Object.keys( m ).filter( function ( n ) { return m[ n ] === 'must'; } );
+			Object.keys( state.marks ).forEach( function ( n ) { if ( markOf( n ) ) { m[ n ] = markOf( n ); } } );
+			Object.keys( req ).forEach( function ( n ) { m[ n ] = 'use'; } );
+			var uses = Object.keys( m ).filter( function ( n ) { return m[ n ] === 'use'; } );
 			var extras = ( state.also[ t.name ] || [] ).filter( function ( n ) { return coOut[ n ]; } ).slice( 0, 4 );
 			var list = all.filter( function ( e ) {
 				var c = e.combo;
@@ -639,10 +667,8 @@ window.ffbFuzeStart = function () {
 				}
 				for ( var k in c.kinds ) {
 					if ( m[ k ] === 'no' ) { return false; }
-					// once anything is marked Have, mixes use only what you have
-					if ( haves.length && !m[ k ] ) { return false; }
 				}
-				if ( !musts.every( function ( n ) { return c.kinds[ n ]; } ) ) { return false; }
+				if ( !uses.every( function ( n ) { return c.kinds[ n ]; } ) ) { return false; }
 				return extras.every( function ( n ) { return c.outs.some( function ( o ) { return o.name === n; } ); } );
 			} ).map( function ( e ) {
 				if ( !extras.length ) { return e; }
@@ -656,6 +682,7 @@ window.ffbFuzeStart = function () {
 				kinds: function ( a, b ) { return a.combo.nKinds - b.combo.nKinds || b.p - a.p; }
 			};
 			list.sort( sorts[ state.sort ] || sorts.chance );
+			if ( adminT ) { drawAdmin( list, all, m ); return; }
 
 			// mixes with the same possible results have almost the same odds, so
 			// they're shown as one group (user, 2026-10-22)
@@ -677,29 +704,16 @@ window.ffbFuzeStart = function () {
 			};
 			groups.sort( gsorts[ state.sort ] || gsorts.chance );
 
-			var bar = el( 'div', 'ffz-sortbar' );
-			var count = el( 'p', 'ffz-count ffz-note' );
-			count.textContent = ( list.length === all.length ?
+			if ( sumRefresh ) { sumRefresh( list.length, all.length ); }
+			res.appendChild( sortBar( ( list.length === all.length ?
 				all.length.toLocaleString() + ' mixes can give ' + t.name :
 				list.length.toLocaleString() + ' of ' + all.length.toLocaleString() + ' mixes match your filters' ) +
-				'. They come in ' + groups.length.toLocaleString() + ' groups with the same results.';
-			bar.appendChild( count );
-			var ss = el( 'select', 'ffz-select' );
-			ss.id = 'ffz-sort';
-			ss.setAttribute( 'aria-label', 'Sort recipes' );
-			[ [ 'chance', 'Best chance first' ], [ 'cheap', 'Weakest brainrots first' ], [ 'kinds', 'Fewest kinds first' ] ].forEach( function ( o ) {
-				var op = el( 'option', null, o[ 1 ] );
-				op.value = o[ 0 ];
-				ss.appendChild( op );
-			} );
-			ss.value = state.sort;
-			ss.addEventListener( 'change', function () { state.sort = ss.value; state.shown = 10; save(); drawResults(); } );
-			bar.appendChild( ss );
-			res.appendChild( bar );
+				'. They come in ' + groups.length.toLocaleString() + ' groups with the same results.',
+				[ [ 'chance', 'Best chance first' ], [ 'cheap', 'Weakest brainrots first' ], [ 'kinds', 'Fewest kinds first' ] ] ) );
 
 			var ul = el( 'div', 'ffz-list' );
 			if ( !list.length ) {
-				ul.appendChild( el( 'div', 'ffz-empty', all.length ? 'No mix matches these filters. Try turning one off, or mark more brainrots as Have.' :
+				ul.appendChild( el( 'div', 'ffz-empty', all.length ? 'No mix matches these filters. Try turning one off, or take a brainrot off Use.' :
 					'Nothing fuses into ' + t.name + ': it\'s the weakest ' + t.rarity + ', so no mix can give it.' ) );
 			}
 			// in a group, the cheapest way first (user, 2026-10-23): the mixes
@@ -721,11 +735,240 @@ window.ffbFuzeStart = function () {
 			}
 			res.appendChild( el( 'p', 'ffz-note', 'The order you put brainrots in doesn\'t matter, so each mix is listed once. Levels and mutations don\'t change these odds. Covers Eternal and Celestial brainrots and the Admin Fuse (2 Admin Secrets + 2 Celestials); mixes with Brainrot God, Secret or Immortal brainrots haven\'t been measured yet.' ) );
 		}
-		// the Have / Don't have / Must use list, with search
+		// the count line and the sort menu above the results
+		function sortBar( text, opts ) {
+			var bar = el( 'div', 'ffz-sortbar' );
+			bar.appendChild( el( 'p', 'ffz-count ffz-note', text ) );
+			var ss = el( 'select', 'ffz-select' );
+			ss.id = 'ffz-sort';
+			ss.setAttribute( 'aria-label', 'Sort recipes' );
+			opts.forEach( function ( o ) {
+				var op = el( 'option', null, o[ 1 ] );
+				op.value = o[ 0 ];
+				ss.appendChild( op );
+			} );
+			ss.value = opts.some( function ( o ) { return o[ 0 ] === state.sort; } ) ? state.sort : opts[ 0 ][ 0 ];
+			ss.addEventListener( 'change', function () { state.sort = ss.value; state.shown = 10; save(); drawResults(); } );
+			bar.appendChild( ss );
+			return bar;
+		}
+
+		// ---- Admin Secret targets: one card per strongest Admin (user, 2026-11-09)
+		// In an Admin Fuse only the strongest Admin decides the 5 results; the
+		// weaker Admin and the 2 Celestials move the odds by under half a point.
+		// Strongest Admins that earn the same (and so give the same results)
+		// share a card.
+		function adminCards( entries ) {
+			var cards = [], ci = {};
+			function addU( a, b ) { if ( a.indexOf( b ) === -1 ) { a.push( b ); } }
+			entries.forEach( function ( e ) {
+				var c = e.combo;
+				var adm = c.ins.filter( function ( x ) { return x.rarity === 'Admin Secret'; } );
+				var hi = Math.max( adm[ 0 ].base, adm[ 1 ].base );
+				var key = hi + '|' + c.outs.map( function ( o ) { return o.i; } ).join( ',' );
+				var g = ci[ key ];
+				if ( !g ) { g = ci[ key ] = { base: hi, tops: [], weaker: [], cels: [], mixes: [], hi: 0, total: Infinity, best: null }; cards.push( g ); }
+				adm.forEach( function ( x ) { if ( x.base === hi ) { addU( g.tops, x ); } } );
+				// the weaker one; when both earn the same, either can be the weaker
+				var lo = Math.min( adm[ 0 ].base, adm[ 1 ].base );
+				adm.forEach( function ( x ) { if ( x.base === lo ) { addU( g.weaker, x ); } } );
+				c.ins.forEach( function ( x ) { if ( x.rarity === 'Celestial' ) { addU( g.cels, x ); } } );
+				g.mixes.push( e );
+				if ( !g.best || e.p > g.best.p ) { g.best = e; }
+				g.hi = Math.max( g.hi, e.p );
+				g.total = Math.min( g.total, c.total );
+			} );
+			function cheapFirst( a, b ) { return a.base - b.base || ( a.name < b.name ? -1 : 1 ); }
+			cards.forEach( function ( g ) {
+				g.tops.sort( cheapFirst );
+				g.weaker.sort( cheapFirst );
+				g.cels.sort( cheapFirst );
+			} );
+			return cards;
+		}
+		function drawAdmin( list, all, m ) {
+			var how = el( 'div', 'ffz-how' );
+			how.appendChild( el( 'b', null, 'How an Admin Fuse works' ) );
+			var hp = el( 'p' );
+			hp.appendChild( document.createTextNode( '2 Admin Secrets + 2 Celestials. Only your ' ) );
+			hp.appendChild( el( 'b', null, 'strongest Admin' ) );
+			hp.appendChild( document.createTextNode( ' decides what can come out. The other three change the chances by less than half a point, so put in your cheapest ones.' ) );
+			how.appendChild( hp );
+			res.appendChild( how );
+
+			var cards = adminCards( list ), total = adminCards( all ).length;
+			var csorts = {
+				chance: function ( a, b ) { return b.hi - a.hi || a.total - b.total; },
+				cheap: function ( a, b ) { return a.total - b.total || b.hi - a.hi; }
+			};
+			cards.sort( csorts[ state.sort ] || csorts.chance );
+			if ( sumRefresh ) { sumRefresh( cards.length, total, 'way' ); }
+			res.appendChild( sortBar( cards.length === total ?
+				total + ( total === 1 ? ' way' : ' ways' ) + ' to get ' + t.name :
+				cards.length + ' of ' + total + ' ways match your marks',
+				[ [ 'chance', 'Best chance first' ], [ 'cheap', 'Weakest brainrots first' ] ] ) );
+
+			var ul = el( 'div', 'ffz-list' );
+			if ( !cards.length ) {
+				ul.appendChild( el( 'div', 'ffz-empty', all.length ? 'No way matches these marks. Take a brainrot off Use or Don\'t use.' :
+					'Nothing fuses into ' + t.name + ': no Admin Fuse can give it.' ) );
+			}
+			// only one list open at a time across all the cards, all closed to
+			// start (user, 2026-11-09)
+			var lists = [];
+			function openOnly( which ) {
+				lists.forEach( function ( l ) { l.set( l === which && !l.open ); } );
+			}
+			cards.slice( 0, state.shown ).forEach( function ( g ) { ul.appendChild( adminCard( g, m, lists, openOnly ) ); } );
+			res.appendChild( ul );
+			if ( cards.length > state.shown ) {
+				var more = el( 'button', 'ffz-btn ffz-more', 'Show 10 more' );
+				more.type = 'button';
+				more.addEventListener( 'click', function () { state.shown += 10; drawResults(); } );
+				res.appendChild( more );
+			}
+			res.appendChild( el( 'p', 'ffz-note', 'Try in the machine fills it with that Admin, your weakest Admin that works and your 2 cheapest Celestials from My Collection (the weakest in the game for any you don\'t have). The order you put brainrots in doesn\'t matter. Levels and mutations don\'t change these odds.' ) );
+		}
+		// a "+ any …" line that opens a list of brainrots with their pictures
+		function pickList( lead, extra, countText, note, rots, lists, openOnly ) {
+			var wrap = el( 'div', 'ffz-pl' );
+			var btn = el( 'button', 'ffz-pl-btn' );
+			btn.type = 'button';
+			btn.setAttribute( 'aria-expanded', 'false' );
+			btn.appendChild( el( 'span', 'ffz-pl-plus', '+' ) );
+			var tx = el( 'span', 'ffz-pl-text' );
+			tx.appendChild( el( 'b', null, lead ) );
+			if ( extra ) { tx.appendChild( el( 'span', 'ffz-pl-extra', ' ' + extra ) ); }
+			var cnt = el( 'span', 'ffz-pl-count' );
+			tx.appendChild( cnt );
+			btn.appendChild( tx );
+			var chev = el( 'span', 'ffz-pl-chev' );
+			chev.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+			btn.appendChild( chev );
+			wrap.appendChild( btn );
+			var body = el( 'div', 'ffz-pl-body' );
+			body.hidden = true;
+			body.appendChild( el( 'p', 'ffz-note', note ) );
+			rots.forEach( function ( b ) {
+				var r = el( 'div', 'ffz-pl-row' );
+				r.appendChild( pic( b ) );
+				r.appendChild( el( 'span', 'ffz-pl-name', b.name ) );
+				r.appendChild( el( 'span', 'ffz-money', money( b.base ) ) );
+				body.appendChild( r );
+			} );
+			wrap.appendChild( body );
+			var me = { open: false, set: function ( v ) {
+				me.open = v;
+				body.hidden = !v;
+				btn.setAttribute( 'aria-expanded', v ? 'true' : 'false' );
+				cnt.textContent = countText( v );
+			} };
+			me.set( false );
+			lists.push( me );
+			btn.addEventListener( 'click', function () { openOnly( me ); } );
+			return wrap;
+		}
+		function useTag() { return el( 'span', 'ffz-tag ffz-tag-use', 'Use' ); }
+		function adminCard( g, m, lists, openOnly ) {
+			var card = el( 'div', 'ffz-recipe ffz-acard' );
+			// a top marked Use is named first; the others "work the same"
+			var used = g.tops.filter( function ( b ) { return m[ b.name ] === 'use'; } );
+			var named = used.length ? used : g.tops;
+			var rest = g.tops.filter( function ( b ) { return named.indexOf( b ) === -1; } );
+			var head = el( 'div', 'ffz-acard-head' );
+			head.appendChild( pic( named[ 0 ] ) );
+			var ht = el( 'div', 'ffz-target-text' );
+			ht.appendChild( el( 'div', 'ffz-sub', 'Strongest Admin' ) );
+			var nm = el( 'div', 'ffz-acard-name', orList( named.map( function ( b ) { return b.name; } ) ) );
+			if ( used.length ) { nm.appendChild( document.createTextNode( ' ' ) ); nm.appendChild( useTag() ); }
+			ht.appendChild( nm );
+			ht.appendChild( el( 'div', 'ffz-sub ffz-money', money( g.base ) + ( named.length > 1 ? ' each' : '' ) +
+				( rest.length ? ' · ' + orList( rest.map( function ( b ) { return b.name; } ) ) + ( rest.length > 1 ? ' work' : ' works' ) + ' the same' : '' ) ) );
+			head.appendChild( ht );
+			var ch = el( 'div', 'ffz-chance' );
+			ch.appendChild( el( 'span', 'ffz-big', pct( g.hi ) ) );
+			if ( ( state.also[ t.name ] || [] ).length ) { ch.appendChild( el( 'span', 'ffz-sub', 'any you picked' ) ); }
+			ch.appendChild( el( 'span', 'ffz-sub', 'about 1 in ' + Math.max( 1, Math.round( 100 / g.hi ) ) ) );
+			head.appendChild( ch );
+			card.appendChild( head );
+			if ( named.length > 1 ) { card.appendChild( el( 'p', 'ffz-note', 'Same results with ' + ( named.length === 2 ? 'either one.' : 'any of them.' ) ) ); }
+
+			// what goes in with it
+			var box = el( 'div', 'ffz-acard-ins' );
+			if ( g.weaker.length === 1 ) {
+				var w = g.weaker[ 0 ], line = el( 'div', 'ffz-acard-line' );
+				line.appendChild( document.createTextNode( '+ ' ) );
+				if ( g.tops.indexOf( w ) !== -1 ) {
+					line.appendChild( document.createTextNode( 'a 2nd ' ) );
+					line.appendChild( el( 'b', null, w.name ) );
+				} else {
+					line.appendChild( el( 'b', null, w.name ) );
+					line.appendChild( document.createTextNode( ' as the weaker Admin' ) );
+				}
+				if ( m[ w.name ] === 'use' ) { line.appendChild( document.createTextNode( ' ' ) ); line.appendChild( useTag() ); }
+				box.appendChild( line );
+			} else {
+				var self2 = g.weaker.filter( function ( b ) { return g.tops.indexOf( b ) !== -1; } );
+				box.appendChild( pickList( 'any weaker Admin Secret',
+					self2.length ? '(or a 2nd ' + ( self2.length === 1 ? self2[ 0 ].name : 'one' ) + ')' : '',
+					function ( open ) { return ( open ? 'Hide the ' : 'See the ' ) + g.weaker.length + ' that work'; },
+					'Cheapest first. Any one of these works the same.', g.weaker, lists, openOnly ) );
+			}
+			box.appendChild( pickList( 'any 2 Celestials', '(2 of the same is fine)',
+				function ( open ) { return ( open ? 'Hide the ' : 'See all ' ) + g.cels.length + ' Celestials'; },
+				'Cheapest first. Any two of these work the same.', g.cels, lists, openOnly ) );
+			card.appendChild( box );
+
+			// the other results, from the best-chance mix
+			var c = g.best.combo, ti = -1;
+			c.outs.forEach( function ( o, k ) { if ( o.name === t.name ) { ti = k; } } );
+			var others = el( 'div', 'ffz-acard-others' );
+			others.appendChild( el( 'div', 'ffz-label', 'Could also give' ) );
+			var likelier = [];
+			c.outs.forEach( function ( o, k ) {
+				if ( k === ti ) { return; }
+				if ( c.ps[ k ] > c.ps[ ti ] ) { likelier.push( o.name ); }
+				var r = el( 'div', 'ffz-pl-row' + ( ( state.also[ t.name ] || [] ).indexOf( o.name ) !== -1 ? ' ffz-also-target' : '' ) );
+				r.appendChild( pic( o ) );
+				var nt = el( 'span', 'ffz-pl-name' );
+				nt.appendChild( el( 'span', null, o.name ) );
+				nt.appendChild( el( 'span', 'ffz-sub ffz-money', money( o.base ) ) );
+				r.appendChild( nt );
+				r.appendChild( el( 'b', 'ffz-mix-pct', pct( c.ps[ k ] ) ) );
+				others.appendChild( r );
+			} );
+			var words = [ '', 'One', 'Two', 'Three', 'Four' ];
+			if ( likelier.length === 1 ) {
+				others.appendChild( el( 'p', 'ffz-acard-warn', likelier[ 0 ] + ' is more likely than ' + t.name + ' here.' ) );
+			} else if ( likelier.length ) {
+				others.appendChild( el( 'p', 'ffz-acard-warn', ( words[ likelier.length ] || likelier.length ) + ' other results are more likely than ' + t.name + ' here.' ) );
+			}
+			card.appendChild( others );
+
+			var go = el( 'button', 'ffz-btn ffz-btn-go', 'Try in the machine' );
+			go.type = 'button';
+			go.addEventListener( 'click', function () {
+				// the mix you're missing the fewest brainrots for, then the cheapest
+				function missing( cb ) {
+					var n = 0;
+					for ( var k in cb.kinds ) { n += Math.max( 0, cb.kinds[ k ] - ( own[ k ] || 0 ) ); }
+					return n;
+				}
+				var pick = g.mixes.reduce( function ( a, e ) {
+					var d = missing( e.combo ) - missing( a.combo );
+					return d < 0 || ( d === 0 && e.combo.total < a.combo.total ) ? e : a;
+				} );
+				tryMix( { ins: inOrder( pick.combo, req ) }, t );
+			} );
+			card.appendChild( go );
+			return card;
+		}
+
+		// the Use / Don't use list, with search
 		function markBox( own ) {
 			var box = el( 'div', 'ffz-marks' );
 			var top = el( 'div', 'ffz-marks-head' );
-			var lab = el( 'label', 'ffz-label', 'Brainrots I have and don\'t have' );
+			var lab = el( 'label', 'ffz-label', 'Brainrots to use or leave out' );
 			lab.htmlFor = 'ffz-q';
 			top.appendChild( lab );
 			var sum = el( 'p', 'ffz-note ffz-marks-sum' );
@@ -738,17 +981,15 @@ window.ffbFuzeStart = function () {
 			q.autocomplete = 'off';
 			q.value = state.q;
 			box.appendChild( q );
+			var key = el( 'p', 'ffz-note ffz-mark-key' );
+			[ [ 'use', 'Use' ], [ 'no', 'Don\'t use' ] ].forEach( function ( o ) {
+				var k = el( 'span' );
+				k.appendChild( markIcon( o[ 0 ] ) );
+				k.appendChild( document.createTextNode( o[ 1 ] ) );
+				key.appendChild( k );
+			} );
+			box.appendChild( key );
 			var tools = el( 'div', 'ffz-chips' );
-			var mineN = Object.keys( own ).filter( function ( n ) { return byName[ n ]; } );
-			if ( mineN.length ) {
-				var imp = el( 'button', 'ffz-btn ffz-btn-small', 'Mark My Collection as Have (' + mineN.length + ')' );
-				imp.type = 'button';
-				imp.addEventListener( 'click', function () {
-					mineN.forEach( function ( n ) { if ( !state.marks[ n ] ) { state.marks[ n ] = 'have'; } } );
-					changed();
-				} );
-				tools.appendChild( imp );
-			}
 			var clr = el( 'button', 'ffz-btn ffz-btn-small', 'Clear marks' );
 			clr.type = 'button';
 			clr.addEventListener( 'click', function () { state.marks = {}; changed(); } );
@@ -782,7 +1023,7 @@ window.ffbFuzeStart = function () {
 				} );
 				// marked ones first, so they're easy to find again
 				if ( !open ) {
-					shown = pool.slice().reverse().filter( function ( b ) { return ( state.marks[ b.name ] && ingr[ b.name ] ) || req[ b.name ]; } );
+					shown = pool.slice().reverse().filter( function ( b ) { return ( markOf( b.name ) && ingr[ b.name ] ) || req[ b.name ]; } );
 				}
 				rows.hidden = !shown.length && !open;
 				rows.classList.toggle( 'ffz-marklist-open', open );
@@ -804,12 +1045,20 @@ window.ffbFuzeStart = function () {
 						rows.appendChild( r );
 						return;
 					}
+					if ( adminT && b.rarity === 'Celestial' ) {
+						r.appendChild( el( 'p', 'ffz-note ffz-mark-cel', 'Any 2 Celestials work in an Admin Fuse, so there\'s nothing to pick here.' ) );
+						rows.appendChild( r );
+						return;
+					}
 					var seg = el( 'div', 'ffz-seg' );
 					seg.setAttribute( 'role', 'group' );
 					seg.setAttribute( 'aria-label', b.name );
-					[ [ 'have', 'Have' ], [ 'no', 'Don\'t have' ], [ 'must', 'Must use' ] ].forEach( function ( o ) {
-						var btn = el( 'button', 'ffz-seg-btn ffz-seg-' + o[ 0 ], o[ 1 ] );
+					[ [ 'use', 'Use' ], [ 'no', 'Don\'t use' ] ].forEach( function ( o ) {
+						var btn = el( 'button', 'ffz-seg-btn ffz-seg-' + o[ 0 ] );
+						btn.appendChild( markIcon( o[ 0 ] ) );
 						btn.type = 'button';
+						btn.title = o[ 1 ];
+						btn.setAttribute( 'aria-label', o[ 1 ] + ' ' + b.name );
 						btn.setAttribute( 'aria-pressed', state.marks[ b.name ] === o[ 0 ] ? 'true' : 'false' );
 						btn.addEventListener( 'click', function () {
 							if ( state.marks[ b.name ] === o[ 0 ] ) { delete state.marks[ b.name ]; } else { state.marks[ b.name ] = o[ 0 ]; }
@@ -824,14 +1073,20 @@ window.ffbFuzeStart = function () {
 					rows.appendChild( r );
 				} );
 			}
-			function drawSum() {
-				var c = { have: 0, no: 0, must: 0 };
-				Object.keys( state.marks ).forEach( function ( n ) { c[ state.marks[ n ] ]++; } );
-				sum.textContent = c.have + c.must ?
-					'Mixes use only the ' + ( c.have + c.must ) + ' you have' + ( c.must ? ', including ' + c.must + ' you must use' : '' ) + ( c.no ? '; ' + c.no + ' left out' : '' ) + '.' :
-					c.no ? c.no + ' left out. Mark the ones you have to see only mixes you can make.' :
-					'Mark the ones you have to see only mixes you can make. Don\'t have leaves a brainrot out.';
+			// the count sits here, next to the buttons, so a tap visibly changes it
+			var lastN = null, lastAll = null, unit = 'mix';
+			// unit: 'mix', or 'way' for an Admin Secret's cards
+			function drawSum( n, of, u ) {
+				if ( n !== undefined ) { lastN = n; lastAll = of; unit = u || 'mix'; }
+				var use = [], no = 0, units = unit === 'mix' ? 'mixes' : unit + 's';
+				Object.keys( state.marks ).forEach( function ( k ) { if ( markOf( k ) === 'use' ) { use.push( k ); } else if ( markOf( k ) === 'no' ) { no++; } } );
+				var head = lastN === null ? '' : lastN === lastAll ? lastAll.toLocaleString() + ' ' + units + '. ' : lastN.toLocaleString() + ' of ' + lastAll.toLocaleString() + ' ' + units + '. ';
+				var names = use.length > 3 ? 'all ' + use.length + ' marked Use' : use.length === 1 ? use[ 0 ] : use.slice( 0, -1 ).join( ', ' ) + ' and ' + use[ use.length - 1 ];
+				sum.textContent = head + ( use.length + no ?
+					( use.length ? 'Every ' + unit + ' has ' + names : '' ) + ( use.length && no ? '; ' : '' ) + ( no ? no + ' left out' : '' ) + '.' :
+					'Use shows only ' + units + ' with that brainrot; Don\'t use leaves it out.' );
 			}
+			sumRefresh = drawSum;
 			// inPlace: a row's buttons already show the change, so the list keeps its place
 			function changed( inPlace ) {
 				state.shown = 10;
@@ -850,7 +1105,7 @@ window.ffbFuzeStart = function () {
 	}
 	function haveAll( c, own ) {
 		for ( var k in c.kinds ) {
-			if ( ( own[ k ] || 0 ) < c.kinds[ k ] && state.marks[ k ] !== 'have' && state.marks[ k ] !== 'must' ) { return false; }
+			if ( ( own[ k ] || 0 ) < c.kinds[ k ] ) { return false; }
 		}
 		return true;
 	}
@@ -861,10 +1116,10 @@ window.ffbFuzeStart = function () {
 		root.scrollIntoView( { block: 'start' } );
 	}
 	// a mix's brainrots in the order to show them (user, 2026-10-23): the
-	// required ones first (in every recipe, or marked Must use), then Admin
+	// required ones first (in every recipe, or marked Use), then Admin
 	// Secrets, then the rest, most expensive first
 	function inOrder( c, req ) {
-		function rank( b ) { return req[ b.name ] || state.marks[ b.name ] === 'must' ? 0 : b.rarity === 'Admin Secret' ? 1 : 2; }
+		function rank( b ) { return req[ b.name ] || state.marks[ b.name ] === 'use' ? 0 : b.rarity === 'Admin Secret' ? 1 : 2; }
 		return c.ins.slice().sort( function ( a, b ) {
 			return rank( a ) - rank( b ) || b.base - a.base || ( a.name < b.name ? -1 : a.name > b.name ? 1 : 0 );
 		} );

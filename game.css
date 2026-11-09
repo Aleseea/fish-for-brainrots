@@ -1928,7 +1928,7 @@ html.game.theme-fandom-light .ffz-slot {
 }
 .ffz-slot-traits {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 6px;
 }
 .ffz-slot-traits .ffz-select {
@@ -2062,7 +2062,7 @@ html.game.theme-fandom-light .ffz-goal {
 }
 .ffz-stats {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 8px;
 }
 .ffz-stat {
@@ -2172,6 +2172,7 @@ html.game.theme-fandom-light .ffz-stat {
 }
 .ffz-marks-sum {
 	margin-top: 2px;
+	min-height: 2.6em;
 }
 .ffz-search {
 	box-sizing: border-box;
@@ -2248,7 +2249,7 @@ html.game .ffz-seg-btn {
 	transform: translateY(1px);
 	box-shadow: none;
 }
-.ffz-seg-have[aria-pressed="true"] {
+.ffz-seg-use[aria-pressed="true"] {
 	background: var(--ffb-good);
 	border-color: var(--ffb-good);
 	color: #0b1a0b;
@@ -2258,20 +2259,52 @@ html.game .ffz-seg-btn {
 	border-color: var(--ffb-bad);
 	color: #1f0606;
 }
-.ffz-seg-must[aria-pressed="true"] {
-	background: var(--ffb-accent);
-	border-color: var(--ffb-accent);
-	color: #fff;
+/* Use / Don't use as check and X icons, on the brainrot's own line (2026-11-09) */
+.ffz-seg-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	min-height: 44px;
+	padding: 0;
 }
-@media (max-width: 600px) {
-	.ffz-markrow {
-		grid-template-columns: auto minmax(0, 1fr);
-	}
-	.ffz-seg {
-		grid-column: 1 / -1;
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
+.ffz-mark-ico {
+	display: inline-flex;
+	width: 20px;
+	height: 20px;
+}
+.ffz-mark-ico svg {
+	width: 100%;
+	height: 100%;
+}
+.ffz-mark-key {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	margin: 0;
+}
+.ffz-mark-key > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+.ffz-mark-key .ffz-mark-ico {
+	width: 14px;
+	height: 14px;
+}
+.ffz-mark-key .ffz-mark-ico-use {
+	color: var(--ffb-good);
+}
+.ffz-mark-key .ffz-mark-ico-no {
+	color: var(--ffb-bad);
+}
+.ffz-mark-cel {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: #d89a1c;
+}
+html.game:not(.theme-fandom-light) .ffz-mark-cel {
+	color: #f0b43c;
 }
 
 /* recipe groups: the mixes inside as short rows (2026-10-22) */
@@ -2815,4 +2848,169 @@ html.game .ffz-slot-empty {
 }
 .ffz-slot-moved {
 	font-weight: 700;
+}
+
+/* Admin Secret targets: one card per strongest Admin (2026-11-09) */
+.ffz-how {
+	padding: 12px;
+	border-radius: 12px;
+	border: 1px solid #2f4a63;
+	background: rgba(46, 155, 240, 0.12);
+	font-size: 14px;
+	line-height: 1.4;
+}
+.ffz-how p {
+	margin: 4px 0 0;
+}
+.ffz-acard {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 12px;
+}
+.ffz-acard-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+.ffz-acard-name {
+	font-weight: 800;
+	font-size: 16px;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+.ffz-acard .ffz-note {
+	margin: 0;
+}
+.ffz-acard-ins {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px 10px;
+	border-radius: 10px;
+	background: var(--ffb-panel);
+	border: 1px solid var(--ffb-line);
+}
+html.game .ffz-acard-ins {
+	background: var(--panel);
+}
+html.game.theme-fandom-light .ffz-acard-ins {
+	background: #f4f5f8;
+}
+.ffz-acard-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0 4px;
+	min-height: 44px;
+}
+.ffz-pl-btn {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-height: 44px;
+	padding: 4px 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.ffz-pl-plus {
+	width: 12px;
+	opacity: 0.7;
+}
+.ffz-pl-text {
+	flex: 1;
+	min-width: 0;
+}
+.ffz-pl-text b {
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+.ffz-pl-extra {
+	opacity: 0.7;
+}
+.ffz-pl-count {
+	display: block;
+	font-size: 13px;
+	color: var(--ffb-accent);
+}
+html.game:not(.theme-fandom-light) .ffz-pl-count {
+	color: #4fb3ff;
+}
+.ffz-pl-chev {
+	display: inline-flex;
+	width: 18px;
+	height: 18px;
+	opacity: 0.7;
+	transition: transform 0.15s;
+}
+.ffz-pl-chev svg {
+	width: 100%;
+	height: 100%;
+}
+.ffz-pl-btn[aria-expanded="true"] .ffz-pl-chev {
+	transform: rotate(180deg);
+}
+.ffz-pl-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 0 0 6px 20px;
+}
+.ffz-pl-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 0;
+	border-top: 1px solid var(--ffb-line);
+}
+.ffz-pl-row .ffz-pic {
+	width: 34px;
+	height: 34px;
+	border-width: 2px;
+	border-radius: 8px;
+}
+.ffz-pl-row .ffz-pic img {
+	border-radius: 6px;
+}
+.ffz-pl-name {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	overflow-wrap: anywhere;
+}
+.ffz-pl-row.ffz-also-target {
+	padding: 4px 6px;
+	border-radius: 8px;
+}
+.ffz-acard-others {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.ffz-acard-warn {
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: #b06a00;
+}
+html.game:not(.theme-fandom-light) .ffz-acard-warn {
+	color: #f0b43c;
+}
+.ffz-btn.ffz-btn-go,
+html.game .ffz-btn.ffz-btn-go,
+html.game.theme-fandom-light .ffz-btn.ffz-btn-go {
+	min-height: 44px;
+	border-color: var(--ffb-accent);
+	background: var(--ffb-accent);
+	color: #fff;
+	font-size: 15px;
+}
+.ffz-tag-use {
+	color: var(--ffb-good);
+	vertical-align: middle;
 }
