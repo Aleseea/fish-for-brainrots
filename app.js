@@ -784,9 +784,14 @@
 		// the pond's few traits: each twice, once drifting each way; every
 		// trait: 8 in the air at once, each taking the next one on each trip
 		var n = all.length ? FLOAT_PATHS.length : Math.min( FLOAT_PATHS.length, queue.length * 2 );
-		var next = 0;
+		var next = 0, len = queue.length;
 		function fill( f ) {
-			var q = queue[ next++ % queue.length ];
+			// the sides alternate left, right, …, so with an even number of
+			// traits the second round starts one along, or each trait would
+			// always drift the same way (user, 2026-11-10: Golden Dice always
+			// left, Ghost always right)
+			var k = next++;
+			var q = queue[ ( k + ( len % 2 === 0 && len <= n ? Math.floor( k / len ) : 0 ) ) % len ];
 			f.textContent = '';
 			f.className = 'site-float' + ( q.hot ? ' site-float-hot' : '' );
 			f.appendChild( traitMark( q.name, false ) );
