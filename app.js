@@ -980,7 +980,11 @@
 		f.textContent = '';
 		f.appendChild( el( 'div', 'site-pond-form-title', 'Which traits are over the pond now? Pick up to 3.' ) );
 		var chips = el( 'div', 'site-pond-chips' );
-		( catalog && Array.isArray( catalog.traits ) ? catalog.traits.slice() : [] ).sort( function ( a, b ) {
+		// Leaf and Snow left the Admin Pond's trait rotation (November 10th Patch)
+		var NOT_IN_POND = [ 'Leaf', 'Snow' ];
+		( catalog && Array.isArray( catalog.traits ) ? catalog.traits.filter( function ( t ) {
+			return NOT_IN_POND.indexOf( t[ 0 ] ) === -1 || pondPick.indexOf( t[ 0 ] ) !== -1;
+		} ) : [] ).sort( function ( a, b ) {
 			return b[ 1 ] - a[ 1 ];
 		} ).forEach( function ( t ) {
 			var on = pondPick.indexOf( t[ 0 ] ) !== -1;
