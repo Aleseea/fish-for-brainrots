@@ -2798,6 +2798,32 @@ html.game.theme-fandom-light .ffz-label { color: #3a3a42; }
 .ffz-how-track { height: 10px; border-radius: 5px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
 .ffz-how-fill { display: block; height: 100%; border-radius: 5px; background: #2e9bf0; }
 .ffz-how-tp { text-align: right; font-weight: 800; }
+/* trait boxes: one box per input, its trait icons inside; dashed = no traits (user, 2026-11-14) */
+.ffz-tboxes { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ffz-tbox { display: inline-flex; align-items: center; justify-content: center; gap: 1px; min-width: 28px; height: 28px; padding: 0 3px; border-radius: 7px; border: 1.5px solid rgba(127, 127, 127, 0.6); box-sizing: border-box; }
+.ffz-tbox-none { border-style: dashed; }
+.ffz-tico { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; }
+.ffz-tico-txt { font-size: 11px; font-weight: 700; }
+.ffz-twords { white-space: normal; }
+.ffz-twords .ffz-tico { width: 18px; height: 18px; margin: 0 2px 0 1px; position: relative; top: -1px; }
+.ffz-tex { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(127, 127, 127, 0.3); }
+.ffz-tex-h { margin: 0; font-size: 15px; font-weight: 800; }
+.ffz-tex-sub { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
+.ffz-tex-rows { display: flex; flex-direction: column; gap: 6px; }
+.ffz-tex-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ffz-tex-p { font-weight: 800; font-size: 15px; white-space: nowrap; }
+.ffz-tex .ffz-tboxes { gap: 3px; min-width: 0; }
+.ffz-tex .ffz-tbox { min-width: 24px; height: 26px; padding: 0 2px; gap: 0; }
+.ffz-tex .ffz-tico { width: 17px; height: 17px; }
+@media (max-width: 380px) { .ffz-tex .ffz-tico { width: 14px; height: 14px; } .ffz-tex .ffz-tbox { min-width: 21px; height: 23px; } }
+.ffz-tex .ffz-how-facts { margin-top: 4px; font-size: 13px; }
+.ffz-ttip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 2px solid #ffd23f; background: rgba(255, 210, 63, 0.1); }
+.ffz-ttip-ico { font-size: 20px; line-height: 1.2; }
+.ffz-ttip-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ffz-ttip-do { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.45; }
+.ffz-ttip-gain { margin: 0; font-size: 14px; }
+.ffz-ttip-why { align-self: flex-start; padding: 0; border: 0; background: none; color: #7cc8ff; font: inherit; font-size: 13px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+html.game.theme-fandom-light .ffz-ttip-why { color: #1769b8; }
 html.game.theme-fandom-light .ffz-how-axis { stroke: rgba(30, 30, 40, 0.3); }
 html.game.theme-fandom-light .ffz-how-lab { fill: #55555e; }
 html.game.theme-fandom-light .ffz-how-num { fill: #16161a; }

@@ -134,12 +134,11 @@ window.ffbFuzeStart = function () {
 	 * (holder's base)^0.84. A trait on several inputs adds up. Within a point
 	 * nearly always; a trait that gets very high can be a few points off.
 	 */
-	function traitOdds( slots ) {
-		var bases = slots.map( function ( s ) { return byName[ s.name ].base; } );
+	function traitOddsFrom( bases, lists ) {
 		var mean = bases.reduce( function ( a, b ) { return a + b; }, 0 ) / bases.length;
 		var total = 0, w = {}, sum = 0;
-		slots.forEach( function ( s, i ) {
-			var ts = s.traits.filter( function ( t ) { return t && TRAIT_MULT[ t ]; } );
+		lists.forEach( function ( list, i ) {
+			var ts = list.filter( function ( t ) { return t && TRAIT_MULT[ t ]; } );
 			if ( !ts.length ) { return; }
 			total += 44.5 * Math.pow( bases[ i ] / mean, 0.77 );
 			ts.forEach( function ( t ) {
@@ -151,6 +150,52 @@ window.ffbFuzeStart = function () {
 		var out = {};
 		Object.keys( w ).forEach( function ( t ) { out[ t ] = Math.min( 100, total * w[ t ] / sum ); } );
 		return out;
+	}
+	function traitOdds( slots ) {
+		return traitOddsFrom(
+			slots.map( function ( s ) { return byName[ s.name ].base; } ),
+			slots.map( function ( s ) { return s.traits; } )
+		);
+	}
+	// the strongest traits first (on a tie the older one), like the wiki's
+	// best-trait tabs, so a new best trait shows up in the examples by itself
+	var TRAITS_BEST = D.traits.slice().sort( function ( a, b ) {
+		return b[ 1 ] - a[ 1 ] || TRAITS.indexOf( a[ 0 ] ) - TRAITS.indexOf( b[ 0 ] );
+	} ).map( function ( t ) { return t[ 0 ]; } );
+	// a trait's icon alone (its name for screen readers and on hover)
+	function traitIco( t ) {
+		var i = iconImg( D.traitIcons[ t ] );
+		if ( !i ) { return el( 'span', 'ffz-tico-txt', t ); }
+		i.className = 'ffz-tico';
+		i.alt = t;
+		i.title = t;
+		return i;
+	}
+	// 4 inputs as boxes of trait icons; a dashed empty box has no traits
+	// (the same look as the wiki's Machines page, user 2026-11-14)
+	function traitBoxes( lists ) {
+		var row = el( 'span', 'ffz-tboxes' );
+		lists.forEach( function ( list ) {
+			var b = el( 'span', 'ffz-tbox' + ( list.length ? '' : ' ffz-tbox-none' ) );
+			b.setAttribute( 'role', 'img' );
+			b.setAttribute( 'aria-label', list.length ? list.join( ' + ' ) : 'no traits' );
+			list.forEach( function ( t ) { var i = traitIco( t ); i.setAttribute( 'aria-hidden', 'true' ); b.appendChild( i ); } );
+			row.appendChild( b );
+		} );
+		return row;
+	}
+	// icon + name, for sentences
+	function traitWords( list ) {
+		var f = el( 'span', 'ffz-twords' );
+		list.forEach( function ( t, k ) {
+			if ( k ) { f.appendChild( document.createTextNode( k === list.length - 1 ? ' and ' : ', ' ) ); }
+			var i = traitIco( t );
+			i.setAttribute( 'aria-hidden', 'true' );
+			i.alt = '';
+			f.appendChild( i );
+			f.appendChild( document.createTextNode( t ) );
+		} );
+		return f;
 	}
 	// typed-in % only count for the 4 inputs they were typed for
 	function slotsKey( slots ) {
@@ -1229,6 +1274,77 @@ window.ffbFuzeStart = function () {
 		gone.forEach( function ( g ) { state.slots[ g.slot ] = { name: '', mut: 'Default', traits: [] }; } );
 		return gone;
 	}
+	/**
+	 * The one change to the 4 that helps the wanted traits most, as a tip
+	 * (user, 2026-11-14). Each input with a trait adds about the same chance
+	 * however many traits it has, and that is shared by every trait on the
+	 * 4, so a brainrot with only the wanted traits does better. Tries, per
+	 * slot: keeping only its wanted traits, no traits, or one wanted trait.
+	 * The same brainrot each time, so its strength stays the same. Uses the
+	 * worked-out chances (not typed-in ones), and shows nothing unless the
+	 * chance goes up by at least a quarter and a point.
+	 */
+	function traitTip( slots, want ) {
+		if ( !want.length || want.length > 3 ) { return null; }
+		function goal( lists ) {
+			var o = traitOddsFrom( slots.map( function ( s ) { return byName[ s.name ].base; } ), lists );
+			return want.reduce( function ( a, t ) { return a * ( o[ t ] || 0 ) / 100; }, 1 );
+		}
+		var now = slots.map( function ( s ) { return s.traits.filter( Boolean ); } );
+		var from = goal( now ), best = null;
+		function same( a, b ) { return a.slice().sort().join( '+' ) === b.slice().sort().join( '+' ); }
+		now.forEach( function ( list, i ) {
+			var keep = list.filter( function ( t ) { return want.indexOf( t ) !== -1; } );
+			var tries = [];
+			if ( keep.length && keep.length < list.length ) { tries.push( [ 'only', keep ] ); }
+			if ( list.length && !keep.length ) { tries.push( [ 'none', [] ] ); }
+			if ( !keep.length ) { want.forEach( function ( t ) { tries.push( [ 'add', [ t ] ] ); } ); }
+			tries.forEach( function ( tr ) {
+				if ( same( tr[ 1 ], list ) ) { return; }
+				var lists = now.slice();
+				lists[ i ] = tr[ 1 ];
+				var to = goal( lists );
+				if ( !best || to > best.to ) { best = { slot: i, kind: tr[ 0 ], traits: tr[ 1 ], was: list, to: to }; }
+			} );
+		} );
+		if ( !best || best.to < from * 1.25 || best.to - from < 0.01 ) { return null; }
+		var box = el( 'div', 'ffz-ttip' );
+		box.appendChild( el( 'span', 'ffz-ttip-ico', '💡' ) );
+		var body = el( 'div', 'ffz-ttip-body' );
+		var p1 = el( 'p', 'ffz-ttip-do' );
+		var name = slots[ best.slot ].name, n = best.slot + 1;
+		p1.appendChild( document.createTextNode( 'Use a ' + name + ' with ' ) );
+		if ( best.kind === 'none' ) {
+			p1.appendChild( document.createTextNode( 'no traits' ) );
+		} else {
+			if ( best.kind !== 'none' ) { p1.appendChild( document.createTextNode( 'only ' ) ); }
+			p1.appendChild( traitWords( best.traits ) );
+		}
+		p1.appendChild( document.createTextNode( ' in slot ' + n ) );
+		if ( best.was.length ) {
+			p1.appendChild( document.createTextNode( ', instead of the one with ' ) );
+			p1.appendChild( traitWords( best.was ) );
+		}
+		p1.appendChild( document.createTextNode( '.' ) );
+		body.appendChild( p1 );
+		var what = want.length === 1 ? want[ 0 ] : ( want.length === 2 ? 'Both traits you want' : 'All three traits you want' );
+		var p2 = el( 'p', 'ffz-ttip-gain' );
+		p2.appendChild( document.createTextNode( what + ': about ' ) );
+		p2.appendChild( el( 'b', null, pct( from * 100 ) ) );
+		p2.appendChild( document.createTextNode( ' → ' ) );
+		p2.appendChild( el( 'b', null, pct( best.to * 100 ) ) );
+		body.appendChild( p2 );
+		var why = el( 'button', 'ffz-ttip-why', 'Why?' );
+		why.type = 'button';
+		why.addEventListener( 'click', function () {
+			showView( 'how' );
+			var c = document.getElementById( 'ffz-how-traits' );
+			if ( c ) { c.scrollIntoView( { block: 'start' } ); }
+		} );
+		body.appendChild( why );
+		box.appendChild( body );
+		return box;
+	}
 	function drawTry() {
 		vTry.textContent = '';
 		// a slot can be empty ('') (user, 2026-11-07: with 4 brainrots always in,
@@ -1444,6 +1560,8 @@ window.ffbFuzeStart = function () {
 				rows.appendChild( r );
 			} );
 			tcard.appendChild( rows );
+			var tip = traitTip( state.slots, state.want.traits );
+			if ( tip ) { tcard.appendChild( tip ); }
 		}
 		vTry.appendChild( tcard );
 
@@ -1694,6 +1812,59 @@ window.ffbFuzeStart = function () {
 		}
 		return EXAMPLES[ howMix ];
 	}
+	/**
+	 * Why one trait beats three (user, 2026-11-14; the wiki's Machines page
+	 * has the long version). Worked out here for 4 equally strong inputs, so
+	 * the numbers follow the data when traits change.
+	 */
+	function traitExamples() {
+		var a = TRAITS_BEST[ 0 ], b = TRAITS_BEST[ 1 ], c = TRAITS_BEST[ 2 ], weak = TRAITS_BEST[ TRAITS_BEST.length - 1 ];
+		var eq = [ 1, 1, 1, 1 ];
+		function one( lists ) { return traitOddsFrom( eq, lists )[ a ] || 0; }
+		function all3( lists ) { var o = traitOddsFrom( eq, lists ); return [ a, b, c ].reduce( function ( p, t ) { return p * ( o[ t ] || 0 ) / 100; }, 1 ) * 100; }
+		var wrap = el( 'div', 'ffz-tex' );
+		wrap.appendChild( el( 'h4', 'ffz-tex-h', 'One trait beats three' ) );
+		wrap.appendChild( el( 'p', 'ffz-note', 'Each input with a trait adds about the same chance, whether it carries 1 trait or 3. That chance is shared among every trait on your 4, and rarer traits get a smaller share. So a brainrot with only the trait you want does better than one with three good traits.' ) );
+		var key = el( 'p', 'ffz-note ffz-tex-key' );
+		key.appendChild( document.createTextNode( 'For 4 equally strong inputs. Each box is one input; a dashed box has no traits.' ) );
+		wrap.appendChild( key );
+		function table( title, label, rows ) {
+			wrap.appendChild( el( 'p', 'ffz-tex-sub', title ) );
+			var list = el( 'div', 'ffz-tex-rows' );
+			rows.forEach( function ( r ) {
+				var row = el( 'div', 'ffz-tex-row' );
+				row.appendChild( traitBoxes( r[ 0 ] ) );
+				var txt = r[ 1 ] < 1 ? 'under 1%' : 'about ' + Math.round( r[ 1 ] ) + '%';
+				var v = el( 'span', 'ffz-tex-p', r[ 1 ] < 1 ? '<1%' : '≈' + Math.round( r[ 1 ] ) + '%' );
+				v.setAttribute( 'aria-label', label + ' ' + txt );
+				row.appendChild( v );
+				list.appendChild( row );
+			} );
+			wrap.appendChild( list );
+		}
+		var E = [];
+		table( 'Want ' + a + ': chance of ' + a, a, [
+			[ [ [ a ], E, E, E ], one( [ [ a ], E, E, E ] ) ],
+			[ [ [ a, b, c ], E, E, E ], one( [ [ a, b, c ], E, E, E ] ) ],
+			[ [ [ a ], [ weak ], [ weak ], [ weak ] ], one( [ [ a ], [ weak ], [ weak ], [ weak ] ] ) ],
+			[ [ [ a ], [ a ], E, E ], one( [ [ a ], [ a ], E, E ] ) ]
+		] );
+		table( 'Want all three: chance of getting ' + a + ', ' + b + ' and ' + c, 'all three', [
+			[ [ [ a, b, c ], [ a, b, c ], [ a, b, c ], [ a, b, c ] ], all3( [ [ a, b, c ], [ a, b, c ], [ a, b, c ], [ a, b, c ] ] ) ],
+			[ [ [ a ], [ b ], [ c ], E ], all3( [ [ a ], [ b ], [ c ], E ] ) ],
+			[ [ [ a, b, c ], E, E, E ], all3( [ [ a, b, c ], E, E, E ] ) ]
+		] );
+		var tips = el( 'ul', 'ffz-how-facts' );
+		[
+			'For one trait, put it on brainrots that carry nothing else, and fill the other slots with brainrots that have no traits.',
+			'For all three, give every input a trait. One with no traits adds nothing.',
+			'Weak traits like ' + weak + ' take the biggest share, so leave them out.',
+			'Put the trait you want on your strongest brainrot: stronger inputs pass on their traits more often.'
+		].forEach( function ( t ) { tips.appendChild( el( 'li', null, t ) ); } );
+		wrap.appendChild( tips );
+		wrap.appendChild( el( 'p', 'ffz-note', 'All three is a rough chance, as if each trait rolls on its own. Try a fuse gives a tip for your own 4 once you tap the traits you want.' ) );
+		return wrap;
+	}
 	var vHow = el( 'div', 'ffz' );
 	root.appendChild( vHow );
 	function drawHow() {
@@ -1786,6 +1957,7 @@ window.ffbFuzeStart = function () {
 
 		// 5. traits
 		var c5 = el( 'div', 'ffz-card' );
+		c5.id = 'ffz-how-traits';
 		c5.appendChild( el( 'h3', 'ffz-h', 'Traits passed on' ) );
 		var to = traitOdds( state.slots.filter( function ( s ) { return byName[ s.name ]; } ) ), names = Object.keys( to ).sort( function ( a, b ) { return to[ b ] - to[ a ]; } );
 		c5.appendChild( el( 'p', 'ffz-note', 'Each trait on your inputs has its own chance to come through (your Try a fuse 4). Traits on stronger brainrots come through more often; rarer traits, with a bigger multiplier, less often.' ) );
@@ -1805,6 +1977,7 @@ window.ffbFuzeStart = function () {
 		} else {
 			c5.appendChild( el( 'p', 'ffz-note', 'Your Try a fuse 4 have no traits. Add some there to see their chances here.' ) );
 		}
+		c5.appendChild( traitExamples() );
 		// right under How the machine picks (user, 2026-10-26)
 		vHow.insertBefore( c5, c1.nextSibling );
 
