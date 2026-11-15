@@ -56,21 +56,21 @@ var CraftData = ( function () {
 	var MUT_PCT = [ 15, 25, 35 ], TRAIT_PCT = [ 4, 7, 10 ];
 	// "1 in N catches" for one mutation or trait item (Normal / Pure-Bright / Perfect).
 	// The game splits a tier's chance over its items: N = a fixed amount per tier x
-	// how many mutations (or traits) are in that tier. Every Resource Info number
-	// from 2026-10-24 fits it, and Tier S going from 6 to 9 mutations took a Normal
-	// Core from 1 in 10,633 to 1 in 15,949 (user, 2026-11-14). So adding to a
-	// tier list above updates these by itself.
+	// how many mutations (or traits) are in that tier, rounded up. Every Resource
+	// Info number fits it: Oct 24 (Tier S 6 mutations, 2 traits) and Nov 14 (9 and
+	// 4: Normal Core 1 in 15,949, Gem 1 in 7,089; user). Rounding to nearest
+	// can't fit them all. So adding to a tier list above updates these by itself.
 	var RATE_PER = {
-		S: [ 15949 / 9, 43860 / 9, 105264 / 9 ],
-		A: [ 5317 / 5, 14620 / 5, 35088 / 5 ],
-		B: [ 3545 / 5, 9747 / 5, 23392 / 5 ],
-		C: [ 1182 / 3, 3249 / 3, 7798 / 3 ],
-		D: [ 760 / 3, 2089 / 3, 5013 / 3 ]
+		S: [ 1772.06, 4873.29, 11695.95 ],
+		A: [ 1063.27, 2923.9, 7017.5 ],
+		B: [ 708.9, 1949.27, 4678.37 ],
+		C: [ 393.9, 1082.9, 2599.1 ],
+		D: [ 253.2, 696.2, 1670.8 ]
 	};
 	function rates( tiers ) {
 		var out = {};
 		Object.keys( RATE_PER ).forEach( function ( t ) {
-			out[ t ] = RATE_PER[ t ].map( function ( r ) { return Math.round( r * tiers[ t ].length ); } );
+			out[ t ] = RATE_PER[ t ].map( function ( r ) { return Math.ceil( r * tiers[ t ].length ); } );
 		} );
 		return out;
 	}
