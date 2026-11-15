@@ -45,15 +45,36 @@ var CraftData = ( function () {
 	];
 	// mutation and trait items: tier lists, and points Normal / Pure (Bright) / Perfect.
 	// The boards give only Normal and Perfect; the middle one is a guess (marked ~).
-	var MUT_TIERS = { S: [ 'Darkness', 'Primal', 'Storm', 'Heaven', 'Shadow', 'Ruby' ], A: [ 'Crystal', 'Ghost', 'Eclipse', 'Aurora', 'Hero' ],
-		B: [ 'Toxic', 'Fire & Ice', 'Cyber', 'Egypt', 'Galaxy' ], C: [ 'Party', 'Samurai', 'Rainbow', 'Void' ], D: [ 'Atlantis', 'Diamond', 'Gold' ] };
-	var TRAIT_TIERS = { S: [ 'Evil', 'Golden Dice' ], A: [ 'Skull', 'Purple Star', 'Bat' ], B: [ 'Tscha Tscha', 'Candy', 'Heart' ],
+	// Pirate, Halloween, Rich and Angel are Tier S, and Rainbow moved up from C with its x9 buff (user,
+	// 2026-11-14, in game; Shadow and Evil are still S)
+	var MUT_TIERS = { S: [ 'Rainbow', 'Pirate', 'Halloween', 'Darkness', 'Primal', 'Storm', 'Heaven', 'Shadow', 'Ruby' ], A: [ 'Crystal', 'Ghost', 'Eclipse', 'Aurora', 'Hero' ],
+		B: [ 'Toxic', 'Fire & Ice', 'Cyber', 'Egypt', 'Galaxy' ], C: [ 'Party', 'Samurai', 'Void' ], D: [ 'Atlantis', 'Diamond', 'Gold' ] };
+	var TRAIT_TIERS = { S: [ 'Rich', 'Angel', 'Evil', 'Golden Dice' ], A: [ 'Skull', 'Purple Star', 'Bat' ], B: [ 'Tscha Tscha', 'Candy', 'Heart' ],
 		C: [ 'Atomic', 'Ghost', 'Gold Digger' ], D: [ 'Leaf', 'Snow', 'Fire' ] };
 	var MUT_PTS = { S: [ 8, 12, 15 ], A: [ 6, 9, 12 ], B: [ 5, 8, 10 ], C: [ 4, 6, 7 ], D: [ 2, 3, 4 ] };
 	var TRAIT_PTS = { S: [ 3, 5, 6 ], A: [ 2, 4, 5 ], B: [ 2, 3, 4 ], C: [ 1, 2, 3 ], D: [ 1, 2, 2 ] };
 	var MUT_PCT = [ 15, 25, 35 ], TRAIT_PCT = [ 4, 7, 10 ];
-	var MUT_RATE = { S: [ 10633, 29240, 70176 ], A: [ 5317, 14620, 35088 ], B: [ 3545, 9747, 23392 ], C: [ 1576, 4332, 10397 ], D: [ 760, 2089, 5013 ] };
-	var TRAIT_RATE = { S: [ 3545, 9747, 23392 ], A: [ 3190, 8772, 21053 ], B: [ 2127, 5848, 14036 ], C: [ 1182, 3249, 7798 ], D: [ 760, 2089, 5013 ] };
+	// "1 in N catches" for one mutation or trait item (Normal / Pure-Bright / Perfect).
+	// The game splits a tier's chance over its items: N = a fixed amount per tier x
+	// how many mutations (or traits) are in that tier. Every Resource Info number
+	// from 2026-10-24 fits it, and Tier S going from 6 to 9 mutations took a Normal
+	// Core from 1 in 10,633 to 1 in 15,949 (user, 2026-11-14). So adding to a
+	// tier list above updates these by itself.
+	var RATE_PER = {
+		S: [ 15949 / 9, 43860 / 9, 105264 / 9 ],
+		A: [ 5317 / 5, 14620 / 5, 35088 / 5 ],
+		B: [ 3545 / 5, 9747 / 5, 23392 / 5 ],
+		C: [ 1182 / 3, 3249 / 3, 7798 / 3 ],
+		D: [ 760 / 3, 2089 / 3, 5013 / 3 ]
+	};
+	function rates( tiers ) {
+		var out = {};
+		Object.keys( RATE_PER ).forEach( function ( t ) {
+			out[ t ] = RATE_PER[ t ].map( function ( r ) { return Math.round( r * tiers[ t ].length ); } );
+		} );
+		return out;
+	}
+	var MUT_RATE = rates( MUT_TIERS ), TRAIT_RATE = rates( TRAIT_TIERS );
 	var LOOK_AT = [ 0, 4, 8, 13, 18, 24, 31, 39, 48, 58, 68, 79, 91, 104, 120 ];
 	var WAIT = [ '1 min', '2 min', '3 min', '5 min', '8 min', '10 min', '15 min', '20 min', '30 min', '40 min', '50 min', '1 hour', '75 min', '90 min', '2 hours' ];
 	var LOOKS = {
