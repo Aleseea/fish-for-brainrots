@@ -322,6 +322,36 @@ window.ffbFuzeStart = function () {
 		sel.value = value || '';
 		return sel;
 	}
+	// the #value page's mutation and trait pickers (icons, colour squares,
+	// search; user, 2026-11-14); plain lists if calc.js didn't load them
+	function mutPicker( id, value, label, onPick ) {
+		var make = window.ffbStandalone && window.ffbStandalone.mutationPicker;
+		if ( !make ) {
+			var sel = plainSelect( id, MUTS, value );
+			sel.setAttribute( 'aria-label', label );
+			sel.addEventListener( 'change', function () { onPick( sel.value ); } );
+			return sel;
+		}
+		var p = make( D, id, value, onPick );
+		p.input.id = id;
+		p.input.setAttribute( 'aria-label', label );
+		p.node.classList.add( 'ffz-picker' );
+		return p.node;
+	}
+	function traitPicker( id, traits, k, label, onPick ) {
+		var make = window.ffbStandalone && window.ffbStandalone.traitPicker;
+		if ( !make ) {
+			var sel = plainSelect( id, TRAITS, traits[ k ], 'No trait' );
+			sel.setAttribute( 'aria-label', label );
+			sel.addEventListener( 'change', function () { onPick( sel.value ); } );
+			return sel;
+		}
+		var p = make( D, id, traits, k, onPick );
+		p.input.id = id;
+		p.input.setAttribute( 'aria-label', label );
+		p.node.classList.add( 'ffz-picker' );
+		return p.node;
+	}
 	function plainSelect( id, list, value, noneLabel ) {
 		var sel = el( 'select', 'ffz-select' );
 		sel.id = id;
@@ -1416,21 +1446,18 @@ window.ffbFuzeStart = function () {
 				grid.appendChild( slot );
 				return;
 			}
-			var ms = plainSelect( 'ffz-slot' + i + '-mut', MUTS, s.mut );
-			ms.setAttribute( 'aria-label', 'Mutation of brainrot ' + ( i + 1 ) );
-			ms.addEventListener( 'change', function () { s.mut = ms.value; afterInputs(); } );
-			slot.appendChild( ms );
+			slot.appendChild( mutPicker( 'ffz-slot' + i + '-mut', s.mut, 'Mutation of brainrot ' + ( i + 1 ), function ( m ) {
+				s.mut = m;
+				afterInputs();
+			} ) );
 			var tr = el( 'div', 'ffz-slot-traits' );
 			for ( var k = 0; k < 3; k++ ) {
 				( function ( k ) {
-					var ts = plainSelect( 'ffz-slot' + i + '-t' + k, TRAITS, s.traits[ k ], 'No trait' );
-					ts.setAttribute( 'aria-label', 'Trait ' + ( k + 1 ) + ' of brainrot ' + ( i + 1 ) );
-					ts.addEventListener( 'change', function () {
-						s.traits[ k ] = ts.value;
+					tr.appendChild( traitPicker( 'ffz-slot' + i + '-t' + k, s.traits, k, 'Trait ' + ( k + 1 ) + ' of brainrot ' + ( i + 1 ), function ( t ) {
+						s.traits[ k ] = t;
 						s.traits = s.traits.filter( Boolean );
 						afterInputs();
-					} );
-					tr.appendChild( ts );
+					} ) );
 				}( k ) );
 			}
 			slot.appendChild( tr );

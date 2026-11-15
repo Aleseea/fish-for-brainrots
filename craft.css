@@ -206,3 +206,7 @@ html.theme-fandom-light .mk-craft-answer { background: #fff; }
 .mk-craft-mode.ffz-nav { margin-bottom: 0; }
 .mk-craft-goal { justify-content: space-between; }
 .mk-craft-only-you { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(46, 155, 240, 0.14); font-size: 13px; }
+/* the #value mutation/trait dropdowns in the Workshop (user, 2026-11-14) */
+.mk-craft-special-top .ffb-pick, .mk-craft-goal-row .ffb-pick { flex: 1; min-width: 0; position: relative; }
+.mk-craft-special-top .ffb-pick-input, .mk-craft-goal-row .ffb-pick-input { width: 100%; box-sizing: border-box; }
+.mk-craft-goal-row .ffb-pick-list { min-width: 220px; }

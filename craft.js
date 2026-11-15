@@ -565,20 +565,54 @@ var CraftEngine = ( function () {
 		b.addEventListener( 'click', onTap );
 		return b;
 	}
+	// the #value page's mutation/trait dropdown over the tier lists, with
+	// a heading per tier (user, 2026-11-14); null if calc.js hasn't loaded
+	// it, and the caller keeps its plain list
+	var pickData = null;
+	function tierPicker( id, which, current, none, onPick ) {
+		var make = window.ffbStandalone && window.ffbStandalone.groupPicker;
+		if ( !make ) { return null; }
+		if ( !pickData ) {
+			var dataEl = document.querySelector( '.ffb-trade-data' );
+			try { pickData = dataEl ? JSON.parse( dataEl.textContent ) : null; } catch ( e ) { pickData = null; }
+			if ( !pickData ) { return null; }
+		}
+		var tiers = which === 'mut' ? C.MUT_TIERS : C.TRAIT_TIERS;
+		var p = make( pickData, {
+			id: id,
+			kind: which,
+			groups: [ 'S', 'A', 'B', 'C', 'D' ].map( function ( t ) { return [ 'Tier ' + t, tiers[ t ] ]; } ),
+			current: current,
+			none: none,
+			onPick: onPick
+		} );
+		p.input.id = id;
+		return p;
+	}
 	function specialRow( kind, which, onPick ) {
 		var mut = which === 'mut';
 		var wrap = el( 'div', 'mk-craft-special' );
 		var top = el( 'div', 'mk-craft-special-top' );
 		top.appendChild( pic( 'resource - ' + ( mut ? ( kind === 'potion' ? 'Mutation Essence' : 'Mutation Core' ) : ( kind === 'potion' ? 'Trait Shard' : 'Trait Gem' ) ), 40 ) );
-		var sel = el( 'select', 'ffb-trade-input mk-craft-select' );
+		var chosen = ( mut ? C.MUT_TIERS : C.TRAIT_TIERS ).S[ 0 ];
+		var picker = tierPicker( 'mk-craft-' + kind + '-' + which, which, chosen, null, function ( v ) { chosen = v; } );
+		var sel;
+		if ( picker ) {
+			sel = picker.input;
+			picker.node.classList.add( 'mk-craft-select' );
+			top.appendChild( picker.node );
+		} else {
+			sel = el( 'select', 'ffb-trade-input mk-craft-select' );
+			TIERS.forEach( function ( t ) {
+				var g = el( 'optgroup' );
+				g.label = 'Tier ' + t;
+				( mut ? C.MUT_TIERS : C.TRAIT_TIERS )[ t ].forEach( function ( n ) { var o = el( 'option', null, n ); o.value = n; g.appendChild( o ); } );
+				sel.appendChild( g );
+			} );
+			sel.addEventListener( 'change', function () { chosen = sel.value; } );
+			top.appendChild( sel );
+		}
 		sel.setAttribute( 'aria-label', mut ? 'Mutation' : 'Trait' );
-		TIERS.forEach( function ( t ) {
-			var g = el( 'optgroup' );
-			g.label = 'Tier ' + t;
-			( mut ? C.MUT_TIERS : C.TRAIT_TIERS )[ t ].forEach( function ( n ) { var o = el( 'option', null, n ); o.value = n; g.appendChild( o ); } );
-			sel.appendChild( g );
-		} );
-		top.appendChild( sel );
 		wrap.appendChild( top );
 		var grades = el( 'div', 'mk-craft-grades' );
 		var names = mut ? [ 'Normal', 'Pure', 'Perfect' ] : [ 'Normal', 'Bright', 'Perfect' ];
@@ -588,7 +622,7 @@ var CraftEngine = ( function () {
 			var b = el( 'button', 'ffz-btn ffz-btn-small', g + ' +' + pcts[ i ] + '%' );
 			b.type = 'button';
 			b.disabled = !!full;
-			b.addEventListener( 'click', function () { onPick( { kind: which, of: sel.value, grade: i } ); closeSheet(); } );
+			b.addEventListener( 'click', function () { onPick( { kind: which, of: chosen, grade: i } ); closeSheet(); } );
 			grades.appendChild( b );
 		} );
 		wrap.appendChild( grades );
@@ -912,24 +946,32 @@ var CraftEngine = ( function () {
 		[ 0, 1 ].forEach( function ( i ) {
 			var cur = list[ i ] || ( list[ i ] = {} );
 			var row = el( 'div', 'mk-craft-goal-row' );
-			var names = el( 'select', 'ffb-trade-input' );
-			names.setAttribute( 'aria-label', ( mut ? 'Mutation ' : 'Trait ' ) + ( i + 1 ) );
-			var none = el( 'option', null, mut ? 'Mutation: none' : 'Trait: none' ); none.value = ''; names.appendChild( none );
-			[ 'S', 'A', 'B', 'C', 'D' ].forEach( function ( t ) {
-				var og = el( 'optgroup' ); og.label = 'Tier ' + t;
-				( mut ? C.MUT_TIERS : C.TRAIT_TIERS )[ t ].forEach( function ( n ) { var o = el( 'option', null, n ); o.value = n; og.appendChild( o ); } );
-				names.appendChild( og );
-			} );
-			names.value = cur.of || '';
 			var pct = el( 'select', 'ffb-trade-input mk-craft-goal-pct' );
+			function pickName( v ) { cur.of = v || null; cur.pct = cur.of ? +pct.value : null; save(); drawFind( kind ); }
+			var picker = tierPicker( 'mk-craft-goal-' + kind + '-' + which + i, which, cur.of || '', mut ? 'Mutation: none' : 'Trait: none', pickName );
+			var names, namesNode;
+			if ( picker ) {
+				names = picker.input;
+				namesNode = picker.node;
+			} else {
+				names = namesNode = el( 'select', 'ffb-trade-input' );
+				var none = el( 'option', null, mut ? 'Mutation: none' : 'Trait: none' ); none.value = ''; names.appendChild( none );
+				[ 'S', 'A', 'B', 'C', 'D' ].forEach( function ( t ) {
+					var og = el( 'optgroup' ); og.label = 'Tier ' + t;
+					( mut ? C.MUT_TIERS : C.TRAIT_TIERS )[ t ].forEach( function ( n ) { var o = el( 'option', null, n ); o.value = n; og.appendChild( o ); } );
+					names.appendChild( og );
+				} );
+				names.value = cur.of || '';
+				names.addEventListener( 'change', function () { pickName( names.value ); } );
+			}
+			names.setAttribute( 'aria-label', ( mut ? 'Mutation ' : 'Trait ' ) + ( i + 1 ) );
 			pct.setAttribute( 'aria-label', 'Chance' );
 			( mut ? MUT_GOAL_PCTS : TRAIT_GOAL_PCTS ).forEach( function ( p ) { var o = el( 'option', null, mut ? '+' + p + '%' : p + '%' ); o.value = p; pct.appendChild( o ); } );
 			pct.value = cur.pct || ( mut ? 15 : 4 );
 			pct.disabled = !cur.of;
-			names.addEventListener( 'change', function () { cur.of = names.value || null; cur.pct = cur.of ? +pct.value : null; save(); drawFind( kind ); } );
 			pct.addEventListener( 'change', function () { cur.pct = +pct.value; save(); drawFind( kind ); } );
 			names.classList.toggle( 'mk-craft-goal-set', !!cur.of );
-			row.appendChild( names );
+			row.appendChild( namesNode );
 			row.appendChild( pct );
 			box.appendChild( row );
 		} );

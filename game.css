@@ -1935,6 +1935,10 @@ html.game.theme-fandom-light .ffz-slot {
 	font-size: 12px;
 	font-weight: 600;
 }
+/* the #value pickers in a half-width box: the open list is wider than
+   the box, and opens leftward from the right-hand column (user, 2026-11-14) */
+.ffz-slot-traits .ffb-pick-list { min-width: 210px; }
+.ffz-slot-traits > :nth-child(2n) .ffb-pick-list { left: auto; right: 0; }
 .ffz-outs {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));

@@ -9106,6 +9106,146 @@
 		window.ffbStandalone.namePicker = function ( data, id, current, onPick ) {
 			return buildNamePicker( buildCatalog( data ), id, current, onPick );
 		};
+		// the value page's mutation and trait pickers, for the Fuze page's
+		// slots (user, 2026-11-14: the same dropdowns as #value). The catalog
+		// is built once per payload, since a redraw makes 16 of these.
+		var stdCat = { data: null, cat: null };
+		var stdCatalog = function ( data ) {
+			if ( stdCat.data !== data ) {
+				stdCat = { data: data, cat: buildCatalog( data ) };
+			}
+			return stdCat.cat;
+		};
+		window.ffbStandalone.mutationPicker = function ( data, id, current, onPick ) {
+			var cat = stdCatalog( data );
+			return buildSearchPicker( {
+				id: id,
+				current: current,
+				inputClass: 'ffb-trade-input ffb-trade-select-mut',
+				placeholder: 'Type a mutation',
+				noun: 'mutation',
+				search: function ( q ) {
+					return searchMutations( cat, q );
+				},
+				lead: function ( v ) {
+					return cat.mutationIcon[ v ] || cat.mutationColor[ v ] ?
+						{ icon: cat.mutationIcon[ v ] || null, color: cat.mutationColor[ v ] || null } : null;
+				},
+				exact: function ( text ) {
+					return exactName( cat.mutations, text );
+				},
+				onPick: onPick
+			} );
+		};
+		// a mutation or trait picker over a given list in groups (the
+		// Workshop's tiers), with the #value look: icon or colour square,
+		// multiplier, search, a heading per group. cfg: { id, kind: 'mut' or
+		// 'trait', groups: [ [ heading, [ names ] ] ], current, none (label of
+		// a '' choice, or none), onPick }
+		window.ffbStandalone.groupPicker = function ( data, cfg ) {
+			var cat = stdCatalog( data );
+			var mut = cfg.kind === 'mut';
+			var all = [];
+			cfg.groups.forEach( function ( g ) {
+				g[ 1 ].forEach( function ( n ) {
+					all.push( { name: n, group: g[ 0 ] } );
+				} );
+			} );
+			var labelOf = function ( v ) {
+				return v === '' || v === null || v === undefined ? ( cfg.none || '' ) : mut ? v : traitPickLabel( cat, v );
+			};
+			var iconOf = function ( v ) {
+				return mut ? cat.mutationIcon[ v ] || null : cat.traitIcon[ v ] || null;
+			};
+			return buildSearchPicker( {
+				id: cfg.id,
+				current: cfg.current || '',
+				inputClass: 'ffb-trade-input ' + ( mut ? 'ffb-trade-select-mut' : 'ffb-trade-select-trait' ),
+				placeholder: cfg.none || ( mut ? 'Type a mutation' : 'Type a trait' ),
+				noun: mut ? 'mutation' : 'trait',
+				label: labelOf,
+				lead: function ( v ) {
+					if ( !v ) {
+						return null;
+					}
+					var c = mut ? cat.mutationColor[ v ] || null : null;
+					return iconOf( v ) || c ? { icon: iconOf( v ), color: c } : null;
+				},
+				search: function ( q ) {
+					var t = squash( q || '' );
+					var out = [];
+					if ( cfg.none && ( t === '' || squash( cfg.none ).indexOf( t ) !== -1 ) ) {
+						out.push( { value: '', name: cfg.none } );
+					}
+					all.forEach( function ( o ) {
+						if ( t !== '' && squash( o.name ).indexOf( t ) === -1 ) {
+							return;
+						}
+						var mult = mut ? cat.mutations[ o.name ] : cat.traits[ o.name ];
+						out.push( {
+							value: o.name,
+							name: labelOf( o.name ),
+							icon: iconOf( o.name ),
+							color: mut ? cat.mutationColor[ o.name ] || null : null,
+							right: mult ? plus( mult ) : '',
+							group: o.group
+						} );
+					} );
+					return out;
+				},
+				exact: function ( text ) {
+					var t = String( text || '' ).replace( /\s+/g, ' ' ).trim().toLowerCase();
+					if ( cfg.none && ( t === '' || t === cfg.none.toLowerCase() ) ) {
+						return '';
+					}
+					var i;
+					for ( i = 0; i < all.length; i++ ) {
+						if ( all[ i ].name.toLowerCase() === t ) {
+							return all[ i ].name;
+						}
+					}
+					return null;
+				},
+				onPick: cfg.onPick
+			} );
+		};
+		// traits: the brainrot's traits as shown (slot = which one); a trait
+		// already in another slot isn't offered, like on #value
+		window.ffbStandalone.traitPicker = function ( data, id, traits, slot, onPick ) {
+			var cat = stdCatalog( data );
+			var slots = { traits: traits.slice() };
+			return buildSearchPicker( {
+				id: id,
+				current: traits[ slot ] || '',
+				inputClass: 'ffb-trade-input ffb-trade-select-trait',
+				placeholder: 'No trait',
+				noun: 'trait',
+				label: function ( v ) {
+					return traitPickLabel( cat, v );
+				},
+				lead: function ( v ) {
+					return v && cat.traitIcon[ v ] ? { icon: cat.traitIcon[ v ] } : null;
+				},
+				search: function ( q ) {
+					return searchTraits( cat, slots, slot, q );
+				},
+				exact: function ( text ) {
+					var t = String( text || '' ).trim();
+					if ( t === '' || squash( t ) === 'notrait' ) {
+						return '';
+					}
+					var name = exactName( cat.traits, t );
+					return name && searchTraits( cat, slots, slot, name ).some( function ( m ) {
+						return m.value === name;
+					} ) ? name : null;
+				},
+				onPick: function ( t ) {
+					if ( setTrait( cat, slots, slot, t ) ) {
+						onPick( t );
+					}
+				}
+			} );
+		};
 		// a new brainrot's value calculator in place of the last one, keeping
 		// its picks (carry: the last one's container.ffbValueRow())
 		window.ffbStandalone.mountValue = function ( container, carry ) {
