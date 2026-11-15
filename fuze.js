@@ -132,7 +132,8 @@ window.ffbFuzeStart = function () {
 	 * (its base / the 4 inputs' average base)^0.77 to a total, and that is
 	 * shared over every trait on the inputs, weighted (multiplier)^-1.1 x
 	 * (holder's base)^0.84. A trait on several inputs adds up. Within a point
-	 * nearly always; a trait that gets very high can be a few points off.
+	 * nearly always, and never above 90% (the machine's cap, user 2026-11-14);
+	 * a trait close to 90% can be a few points off.
 	 */
 	function traitOddsFrom( bases, lists ) {
 		var mean = bases.reduce( function ( a, b ) { return a + b; }, 0 ) / bases.length;
@@ -148,7 +149,9 @@ window.ffbFuzeStart = function () {
 			} );
 		} );
 		var out = {};
-		Object.keys( w ).forEach( function ( t ) { out[ t ] = Math.min( 100, total * w[ t ] / sum ); } );
+		// the machine never shows a trait above 90% (user's 4 Heart-only inputs: 90%;
+		// highest of the 81 screens 89.92%, where this worked out 105%)
+		Object.keys( w ).forEach( function ( t ) { out[ t ] = Math.min( 90, total * w[ t ] / sum ); } );
 		return out;
 	}
 	function traitOdds( slots ) {
@@ -1547,7 +1550,7 @@ window.ffbFuzeStart = function () {
 		if ( !torder.length ) {
 			tcard.appendChild( el( 'p', 'ffz-note', 'None of the 4 has a trait, so the result won\'t have one.' ) );
 		} else {
-			tcard.appendChild( el( 'p', 'ffz-note', 'Tap the traits you want. The chances are worked out from 81 machine screens and are nearly always within a point of the machine; a trait that gets very high can be a few points off. If the machine shows something different, type its % in.' ) );
+			tcard.appendChild( el( 'p', 'ffz-note', 'Tap the traits you want. The chances are worked out from 81 machine screens and are nearly always within a point of the machine, and no trait goes above 90%; one close to 90% can be a few points off. If the machine shows something different, type its % in.' ) );
 			var rows = el( 'div', 'ffz-traitrows' );
 			torder.forEach( function ( t ) {
 				var r = el( 'div', 'ffz-traitrow' );
