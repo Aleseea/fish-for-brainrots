@@ -418,32 +418,68 @@
 	}
 
 	/**
-	 * The Admin Base (data.adminBase on the wiki): no fixed schedule yet, so
-	 * each opening the players report: { start, minutes (how long it stayed
-	 * open, or null) }, and `usual`, its typical length (20 minutes on
-	 * Nov 15). Before an opening: a countdown. After it starts with no known
-	 * length: "started X min ago", and once past the usual length "may have
-	 * ended" (user, 2026-11-17); it goes after an hour.
+	 * The Admin Base (data.adminBase on the wiki). Since Nov 17, 2026 a weekly
+	 * schedule, fixed in UTC: within each window it opens every `every`
+	 * minutes for `runs`; a window starts on UTC weekday `day` (0 = Sunday) at
+	 * `start` and has `count` openings. Plus one-off `openings` players
+	 * report: { start, minutes (how long it stayed open, or null) }. Shows the
+	 * one that's on and the next one. For a one-off of unknown length: "started
+	 * X min ago", then "may have ended" past `runs` (user, 2026-11-17); it goes
+	 * after an hour.
 	 */
 	var adminBase = null;
 	var BASE_SHOW = 60; // minutes after the start an opening of unknown length still shows
 	function baseTimes( base, now ) {
-		if ( !base || !Array.isArray( base.openings ) ) {
+		if ( !base ) {
 			return [];
 		}
-		var usual = base.usual > 0 ? base.usual : 20;
-		var out = [];
-		base.openings.forEach( function ( o ) {
-			var st = new Date( o && o.start );
-			if ( !o || typeof o.start !== 'string' || isNaN( st ) ) {
+		var runs = base.runs > 0 ? base.runs : 30;
+		var all = [];
+		var since = isoParts( base.since );
+		var from = since ? Date.UTC( since[ 0 ], since[ 1 ] - 1, since[ 2 ] ) : 0;
+		if ( base.every > 0 && Array.isArray( base.windows ) ) {
+			// Sunday 00:00 UTC of this week; last week's windows may still run into this one
+			var today = new Date( Date.UTC( now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() ) );
+			var week = today.getTime() - today.getUTCDay() * 86400000;
+			base.windows.forEach( function ( w ) {
+				var m = /^(\d{2}):(\d{2})$/.exec( w && w.start || '' );
+				if ( !m || !( w.day >= 0 && w.day <= 6 ) || !( w.count > 0 ) ) {
+					return;
+				}
+				for ( var wk = -1; wk <= 1; wk++ ) {
+					var first = week + ( wk * 7 + w.day ) * 86400000 + ( +m[ 1 ] * 60 + +m[ 2 ] ) * 60000;
+					for ( var k = 0; k < w.count; k++ ) {
+						var st = first + k * base.every * 60000;
+						if ( st >= from ) {
+							all.push( { start: st, minutes: runs } );
+						}
+					}
+				}
+			} );
+		}
+		( Array.isArray( base.openings ) ? base.openings : [] ).forEach( function ( o ) {
+			var st = Date.parse( o && o.start );
+			if ( !isNaN( st ) ) {
+				all.push( { start: st, minutes: o.minutes > 0 ? o.minutes : null } );
+			}
+		} );
+		all.sort( function ( a, b ) {
+			return a.start - b.start;
+		} );
+		var out = [], next = false;
+		all.forEach( function ( o ) {
+			var st = new Date( o.start ), known = !!o.minutes;
+			var ends = new Date( o.start + ( known ? o.minutes : runs ) * 60000 );
+			if ( known ? ends <= now : o.start + BASE_SHOW * 60000 <= now.getTime() ) {
 				return;
 			}
-			var known = o.minutes > 0;
-			var ends = new Date( st.getTime() + ( known ? o.minutes : usual ) * 60000 );
-			if ( known ? ends <= now : st.getTime() + BASE_SHOW * 60000 <= now.getTime() ) {
-				return;
+			if ( st > now ) {
+				if ( next ) {
+					return; // only the next one that hasn't started
+				}
+				next = true;
 			}
-			out.push( { name: 'Admin Base', when: st, ends: ends, note: '', base: true, exact: known, usual: usual } );
+			out.push( { name: 'Admin Base', when: st, ends: ends, note: '', base: true, exact: known, usual: runs } );
 		} );
 		return out;
 	}
