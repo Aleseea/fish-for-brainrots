@@ -305,6 +305,12 @@
 				miniRotation = JSON.parse( miniEl.textContent );
 			} catch ( err ) {}
 		}
+		var baseEl = holder.querySelector( '.ffb-base-data' );
+		if ( baseEl ) {
+			try {
+				adminBase = JSON.parse( baseEl.textContent );
+			} catch ( err ) {}
+		}
 		if ( eventsEl ) {
 			try {
 				showUpcoming( JSON.parse( eventsEl.textContent ) );
@@ -411,6 +417,46 @@
 		return out;
 	}
 
+	/**
+	 * The Admin Base (data.adminBase on the wiki): no fixed schedule yet, so
+	 * each opening the players report: { start, minutes (how long it stayed
+	 * open, or null) }, and `usual`, its typical length (20 minutes on
+	 * Nov 15). Before an opening: a countdown. After it starts with no known
+	 * length: "started X min ago", and once past the usual length "may have
+	 * ended" (user, 2026-11-17); it goes after an hour.
+	 */
+	var adminBase = null;
+	var BASE_SHOW = 60; // minutes after the start an opening of unknown length still shows
+	function baseTimes( base, now ) {
+		if ( !base || !Array.isArray( base.openings ) ) {
+			return [];
+		}
+		var usual = base.usual > 0 ? base.usual : 20;
+		var out = [];
+		base.openings.forEach( function ( o ) {
+			var st = new Date( o && o.start );
+			if ( !o || typeof o.start !== 'string' || isNaN( st ) ) {
+				return;
+			}
+			var known = o.minutes > 0;
+			var ends = new Date( st.getTime() + ( known ? o.minutes : usual ) * 60000 );
+			if ( known ? ends <= now : st.getTime() + BASE_SHOW * 60000 <= now.getTime() ) {
+				return;
+			}
+			out.push( { name: 'Admin Base', when: st, ends: ends, note: '', base: true, exact: known, usual: usual } );
+		} );
+		return out;
+	}
+	/** What the Admin Base's line says once it has started. */
+	function baseText( x, now ) {
+		var mins = Math.max( 0, Math.floor( ( now - x.when ) / 60000 ) );
+		var ago = mins < 1 ? 'just started' : 'started ' + mins + 'm ago';
+		if ( x.exact ) {
+			return ago + ' · ends ' + countdown( x.ends, now );
+		}
+		return ago + ( now < x.ends ? ' · usually open about ' + x.usual + ' min' : ' · may have ended' );
+	}
+
 	/** The start times to show, soonest first: { name, when (Date), note }. */
 	function upcomingTimes( events, now ) {
 		var out = [];
@@ -464,6 +510,7 @@
 				}
 			}
 		} );
+		out = out.concat( baseTimes( adminBase, now ) );
 		// the mini events don't run during an Admin Abuse (user, 2026-10-23)
 		var runs = out.filter( function ( x ) {
 			return x.abuse && x.when && x.ends;
@@ -474,13 +521,18 @@
 			} );
 		} ) );
 		return out.filter( function ( x ) {
+			if ( x.base ) {
+				return true; // baseTimes already dropped the ones that are over
+			}
 			if ( x.ends ) {
 				return x.ends.getTime() > now.getTime();
 			}
 			// no known end: a run that started less than an hour ago still shows
 			return x.when ? x.when.getTime() > now.getTime() - 3600000 : x.day.getTime() > now.getTime() - 86400000;
 		} ).map( function ( x ) {
-			x.live = !!( x.when && x.ends && x.when <= now );
+			// an Admin Base past its usual length isn't "live", only maybe on
+			x.live = !!( x.when && x.ends && x.when <= now && ( !x.base || x.exact || now < x.ends ) );
+			x.started = !!( x.base && x.when <= now );
 			return x;
 		} ).sort( function ( a, b ) {
 			// what's on now first (ending soonest first), then what's next
@@ -563,8 +615,10 @@
 		items.forEach( function ( x ) {
 			var li = el( 'li', 'site-upcoming-row' + ( x.live ? ' site-upcoming-live' : '' ) );
 			li.appendChild( el( 'span', 'site-upcoming-name', ( x.live ? '🔴 Live now: ' : '' ) + x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-			li.appendChild( el( 'span', 'site-upcoming-when', x.live ? 'until ' + whenText( { when: x.ends } ) : whenText( x ) ) );
-			if ( x.live ) {
+			li.appendChild( el( 'span', 'site-upcoming-when', x.base && x.started ? 'opened ' + clock( x.when ) : x.live ? 'until ' + whenText( { when: x.ends } ) : whenText( x ) ) );
+			if ( x.base && x.started ) {
+				li.appendChild( el( 'span', 'site-upcoming-count', baseText( x, now ) ) );
+			} else if ( x.live ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', 'ends ' + countdown( x.ends, now ) ) );
 			} else if ( x.when ) {
 				li.appendChild( el( 'span', 'site-upcoming-count', countdown( x.when, now ) ) );
@@ -586,7 +640,7 @@
 			txt.appendChild( document.createTextNode( ' ' ) );
 		}
 		txt.appendChild( el( 'strong', null, x.name + ( x.note ? ' (' + x.note + ')' : '' ) ) );
-		txt.appendChild( document.createTextNode( ' ' + ( x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
+		txt.appendChild( document.createTextNode( ' ' + ( x.base && x.started ? baseText( x, now ) : x.live ? 'ends ' + countdown( x.ends, now ) : x.when ? countdown( x.when, now ) : whenText( x ) ) ) );
 		banner.appendChild( txt );
 		if ( items.length > 1 ) {
 			banner.appendChild( el( 'span', 'site-banner-n', ( bannerAt % items.length + 1 ) + ' / ' + items.length ) );
