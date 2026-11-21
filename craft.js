@@ -46,8 +46,9 @@ var CraftData = ( function () {
 	// mutation and trait items: tier lists, and points Normal / Pure (Bright) / Perfect.
 	// The boards give only Normal and Perfect; the middle one is a guess (marked ~).
 	// Pirate, Halloween, Rich and Angel are Tier S, and Rainbow moved up from C with its x9 buff (user,
-	// 2026-11-14, in game; Shadow and Evil are still S)
-	var MUT_TIERS = { S: [ 'Rainbow', 'Pirate', 'Halloween', 'Darkness', 'Primal', 'Storm', 'Heaven', 'Shadow', 'Ruby' ], A: [ 'Crystal', 'Ghost', 'Eclipse', 'Aurora', 'Hero' ],
+	// 2026-11-14, in game; Shadow and Evil are still S). Candy (x9.25, 2026-11-21) assumed Tier S
+	// with its own Essence and Core, as Pirate was (user: assume the same as the last one).
+	var MUT_TIERS = { S: [ 'Candy', 'Rainbow', 'Pirate', 'Halloween', 'Darkness', 'Primal', 'Storm', 'Heaven', 'Shadow', 'Ruby' ], A: [ 'Crystal', 'Ghost', 'Eclipse', 'Aurora', 'Hero' ],
 		B: [ 'Toxic', 'Fire & Ice', 'Cyber', 'Egypt', 'Galaxy' ], C: [ 'Party', 'Samurai', 'Void' ], D: [ 'Atlantis', 'Diamond', 'Gold' ] };
 	var TRAIT_TIERS = { S: [ 'Rich', 'Angel', 'Evil', 'Golden Dice' ], A: [ 'Skull', 'Purple Star', 'Bat' ], B: [ 'Tscha Tscha', 'Candy', 'Heart' ],
 		C: [ 'Atomic', 'Ghost', 'Gold Digger' ], D: [ 'Leaf', 'Snow', 'Fire' ] };
