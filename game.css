@@ -3044,3 +3044,388 @@ html.game.theme-fandom-light .ffz-btn.ffz-btn-go {
 	color: var(--ffb-good);
 	vertical-align: middle;
 }
+
+/* Value calculator: Value sits on the same row as Income, at its right
+   (user, 2026-11-21, review-copy comment); everything else keeps a row of
+   its own */
+html.game .ffb-v2 .ffb-calc-result {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	column-gap: 16px;
+	align-items: end;
+}
+
+html.game .ffb-v2 .ffb-calc-result > * {
+	grid-column: 1 / -1;
+}
+
+html.game .ffb-v2 .ffb-calc-result > .ffb-v2-income {
+	grid-column: 1;
+	min-width: 0;
+}
+
+html.game .ffb-v2 .ffb-calc-result > .ffb-v2-income + .ffb-calc-figure {
+	grid-column: 2;
+	text-align: right;
+}
+
+/* the brainrot's picture in front of Income (user, 2026-11-21): picture |
+   Income | Value on the first row */
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) {
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	/* picture, Income and Value line up along their tops (user, 2026-11-21) */
+	align-items: start;
+}
+
+html.game .ffb-v2 .ffb-calc-result > .ffb-v2-pic {
+	grid-column: 1;
+	grid-row: 1;
+	align-self: start;
+}
+
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-income {
+	grid-column: 2;
+	grid-row: 1;
+}
+
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-income + .ffb-calc-figure {
+	grid-column: 3;
+	grid-row: 1;
+}
+
+html.game .ffb-v2-pic-img {
+	display: block;
+	width: 64px;
+	height: 64px;
+	object-fit: contain;
+	filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+}
+
+/* the Brainrot picker inside the grey box, above Mutation (user, 2026-11-21) */
+.site-pick-field {
+	margin-bottom: 12px;
+}
+.site-pick-field .site-pick-search,
+.site-pick-field .site-pick {
+	max-width: none;
+}
+
+/* Cost to reach: Evolution (icon only), Level and the cost on one row
+   (user, 2026-11-21) */
+.ffb-v2 .ffb-v2-target-fields {
+	grid-template-columns: 84px 76px minmax(0, 1fr);
+	align-items: start;
+}
+.ffb-v2 .ffb-v2-target-res {
+	min-width: 0;
+}
+.ffb-v2 .ffb-v2-target-res .ffb-v2-target-out {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 44px;
+}
+.ffb-v2 .ffb-v2-target-res .ffb-calc-figure-value {
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+.ffb-v2 .ffb-v2-target-res .ffb-base-small {
+	font-size: 11.5px;
+	line-height: 1.3;
+}
+/* with an icon in the box, the icon is all that shows */
+.ffb-v2-evo-iconly .ffb-pick:has(.ffb-pick-lead img) .ffb-pick-input {
+	color: transparent;
+	text-shadow: none;
+}
+/* no icon (Unevolved, or it didn't load): the short name shows instead */
+.ffb-v2-evo-iconly .ffb-pick:not(:has(.ffb-pick-lead img)) .ffb-pick-input {
+	padding-left: 10px !important;
+}
+.ffb-v2-evo-iconly .ffb-pick-input {
+	padding-left: 10px;
+	padding-right: 26px;
+	text-overflow: clip;
+}
+.ffb-v2-evo-iconly .ffb-pick-list {
+	min-width: 190px;
+}
+.ffb-v2-evo-iconly .ffb-pick-lead img {
+	width: 26px !important;
+	height: 26px !important;
+	margin-right: 0 !important;
+}
+
+/* Cost to reach's "already there / past it" note, the full width under the
+   row (user, 2026-11-23) */
+.ffb-v2 .ffb-v2-target-note {
+	margin: 0 0 6px;
+}
+
+/* Level always has room for three digits: in a narrow box (a phone, or the
+   side column on large screens) Mutation takes its own row, with Evolution
+   and Level under it (user, 2026-11-23) */
+.ffb-v2-dd.ffb-trade-card {
+	container-type: inline-size;
+}
+.ffb-v2-dd .ffb-trade-fields {
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(76px, 0.6fr);
+}
+.ffb-v2-dd .ffb-trade-field-mut {
+	grid-column: auto;
+}
+@container (max-width: 420px) {
+	.ffb-v2-dd .ffb-trade-fields {
+		grid-template-columns: minmax(0, 1fr) minmax(76px, 0.7fr);
+	}
+	.ffb-v2-dd .ffb-trade-field-mut {
+		grid-column: 1 / -1;
+	}
+}
+
+/* Value back on the row under Income, beside the picture, so the top row
+   isn't squeezed (user, 2026-11-23) */
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) {
+	grid-template-columns: auto minmax(0, 1fr);
+}
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-pic {
+	grid-row: 1;
+}
+/* Value starts at the left edge, in line with Fully upgraded under it
+   (user, 2026-11-23) */
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-income + .ffb-calc-figure {
+	grid-column: 1 / -1;
+	grid-row: 2;
+	text-align: left;
+	margin-top: 2px;
+}
+
+/* checkboxes drawn in the page's own colours, so they follow light and
+   dark instead of the browser's (user, 2026-11-23) */
+html.game input[type="checkbox"] {
+	appearance: none;
+	-webkit-appearance: none;
+	flex: none;
+	width: 20px;
+	height: 20px;
+	margin: 0 6px 0 0;
+	border: 2px solid var(--g-edge);
+	border-radius: 6px;
+	background: #111113;
+	display: inline-grid;
+	place-content: center;
+	cursor: pointer;
+	vertical-align: middle;
+}
+html.game.theme-fandom-light input[type="checkbox"] {
+	background: #ffffff;
+}
+html.game input[type="checkbox"]::before {
+	content: '';
+	width: 10px;
+	height: 6px;
+	border: solid #fff;
+	border-width: 0 0 2.5px 2.5px;
+	transform: translateY(-1px) rotate(-45deg);
+	opacity: 0;
+}
+html.game input[type="checkbox"]:checked {
+	background: var(--ffb-accent, #0094f8);
+	border-color: var(--ffb-accent, #0094f8);
+}
+html.game input[type="checkbox"]:checked::before {
+	opacity: 1;
+}
+html.game input[type="checkbox"]:focus-visible {
+	outline: 2px solid var(--ffb-accent, #0094f8);
+	outline-offset: 2px;
+}
+
+/* the value calculator stacks (choices on top, the answer under them) by its
+   own width, not the screen's: with the sidebar open, a 900-1060px screen
+   left the choices only ~200-340px wide (user, 2026-11-23) */
+.ffb-calc.ffb-v2 {
+	container-type: inline-size;
+}
+@container (max-width: 719px) {
+	.ffb-v2-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ffb-v2 .ffb-calc-controls .ffb-calc-row {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 4px;
+	}
+}
+
+/* larger screens: a gap between the sidebar and the page's box, and the
+   same on the right (user, 2026-11-23) */
+@media (min-width: 900px) {
+	html.game main {
+		max-width: min(960px, calc(100% - 32px));
+	}
+}
+
+/* the answer box folds to picture + Income (user, 2026-11-23) */
+.ffb-v2 .ffb-calc-result {
+	position: relative;
+}
+.ffb-v2 .ffb-calc-result > .ffb-v2-income {
+	padding-right: 64px;
+}
+.ffb-v2 .ffb-v2-fold {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-height: 32px;
+	padding: 0 10px;
+	border-radius: 999px;
+	border: 2px solid var(--g-edge, rgba(128, 128, 128, 0.4));
+	background: var(--g-card, transparent);
+	color: inherit;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 800;
+	cursor: pointer;
+}
+.ffb-v2 .ffb-v2-fold::after {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border: solid currentColor;
+	border-width: 0 2px 2px 0;
+	transform: translateY(1px) rotate(225deg);
+}
+.ffb-v2 .ffb-calc-result.ffb-v2-folded .ffb-v2-fold::after {
+	transform: translateY(-2px) rotate(45deg);
+}
+.ffb-v2 .ffb-v2-fold:focus-visible {
+	outline: 2px solid var(--ffb-accent, #0094f8);
+	outline-offset: 2px;
+}
+.ffb-v2 .ffb-calc-result.ffb-v2-folded > :not(.ffb-v2-pic):not(.ffb-v2-income):not(.ffb-v2-fold) {
+	display: none !important;
+}
+
+/* dark: the lines between the answer's sections were nearly invisible on
+   the dark box, so they're lighter here (user, 2026-11-23) */
+html.game:not(.theme-fandom-light) .ffb-v2 .ffb-calc-result {
+	--ffb-line: rgba(255, 255, 255, 0.26);
+}
+
+/* section headings in the answer: a bit larger and centred (user,
+   2026-11-23) */
+.ffb-v2 .ffb-v2-target > .ffb-calc-figure-label,
+.ffb-v2 .ffb-v2-cash > .ffb-calc-figure-label {
+	display: block;
+	text-align: center;
+	font-size: 14px;
+	margin-bottom: 4px;
+}
+/* "What can my cash do?" has a tooltip: a dotted underline says so */
+.ffb-v2 .ffb-v2-cash > .ffb-calc-figure-label[title],
+.ffb-v2 .ffb-v2-target > .ffb-calc-figure-label[title] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+
+/* with the picture: More / Less sits at the end of the first row, centred
+   on the picture (user, 2026-11-23) */
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) {
+	grid-template-columns: auto minmax(0, 1fr) auto;
+}
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-fold {
+	position: static;
+	grid-column: 3;
+	grid-row: 1;
+	align-self: center;
+}
+html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) > .ffb-v2-income {
+	padding-right: 0;
+}
+/* narrow boxes: the button shrinks to its arrow, so Income keeps its room */
+@container (max-width: 480px) {
+	html.game .ffb-v2 .ffb-calc-result:has(> .ffb-v2-pic) {
+		column-gap: 10px;
+	}
+	html.game .ffb-v2 .ffb-calc-result > .ffb-v2-fold {
+		font-size: 0;
+		gap: 0;
+		width: 34px;
+		min-height: 34px;
+		padding: 0;
+		justify-content: center;
+	}
+}
+
+/* More / Less: what appears fades in as the box opens, and fades out as it
+   closes; the arrow turns (user, 2026-11-23) */
+@keyframes ffb-fold-in {
+	from { opacity: 0; transform: translateY(-6px); }
+	to { opacity: 1; transform: none; }
+}
+@keyframes ffb-fold-out {
+	from { opacity: 1; }
+	to { opacity: 0; }
+}
+.ffb-v2 .ffb-calc-result.ffb-v2-unfolding > :not(.ffb-v2-pic):not(.ffb-v2-income):not(.ffb-v2-fold) {
+	animation: ffb-fold-in 320ms ease-out both;
+}
+.ffb-v2 .ffb-calc-result.ffb-v2-folding > :not(.ffb-v2-pic):not(.ffb-v2-income):not(.ffb-v2-fold) {
+	animation: ffb-fold-out 200ms ease-in both;
+}
+.ffb-v2 .ffb-v2-fold::after {
+	transition: transform 260ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+	.ffb-v2 .ffb-v2-fold::after {
+		transition: none;
+	}
+}
+
+/* the working line's icons: small, on the text's line (user, 2026-11-23) */
+.ffb-calc-working .ffb-calc-term {
+	white-space: nowrap;
+}
+.ffb-calc-working .ffb-calc-term .ffb-icon {
+	width: 16px !important;
+	height: 16px !important;
+	margin-right: 4px !important;
+	vertical-align: -3px !important;
+}
+.ffb-calc-working .ffb-calc-term .ffb-swatch {
+	margin-right: 4px;
+}
+
+/* "In My Collection" under the Brainrot picker, inside the grey box
+   (user, 2026-11-23) */
+.ffb-v2-dd > .ffb-v2-strip {
+	margin: -4px 0 12px;
+	padding: 8px 10px;
+}
+
+/* no line between Fully upgraded / At level 1 and the upgrade costs
+   (user, 2026-11-23) */
+.ffb-v2 .ffb-calc-result .ffb-v2-ceil + .ffb-v2-cost {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+/* labels with a hover explanation get a dotted underline */
+.ffb-v2 .ffb-v2-ceil > .ffb-calc-figure-label[title] {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+
+/* Unevolved, Lv 1 / Fully upgraded when the brainrot is already there:
+   greyed out, not hidden (user, 2026-11-23) */
+html.game .ffb-v2-quick .ffb-calc-reset:disabled {
+	opacity: 0.4;
+	cursor: default;
+	box-shadow: none;
+	transform: none;
+}

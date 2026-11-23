@@ -168,6 +168,7 @@
 			}
 			// built before it goes in, so the page never shows it empty
 			mount( fresh, carry );
+			placePicker( fresh );
 			old.parentNode.replaceChild( fresh, old );
 			moreLink( name );
 		} ).catch( function () {
@@ -200,6 +201,41 @@
 		pickerInput = picker.input;
 		picker.node.className += ' site-pick-search';
 		select.parentNode.replaceChild( picker.node, select );
+		placePicker();
+	}
+
+	// the Brainrot picker sits at the top of the calculator's grey box, above
+	// Mutation (user, 2026-11-21); it moves into each new box on a switch
+	var pickTries = 0;
+	function placePicker( into ) {
+		var input = document.getElementById( 'pick' );
+		var node = input && ( input.closest( '.site-pick-search' ) || input );
+		var label = document.querySelector( '.site-pick-label[for="pick"]' );
+		var card = ( into || document.getElementById( 'slot-value' ) ).querySelector( '.ffb-v2-dd' );
+		if ( !node || !label ) {
+			return;
+		}
+		if ( !card ) {
+			if ( !into && ( pickTries += 1 ) < 40 ) {
+				setTimeout( placePicker, 100 );
+			}
+			return;
+		}
+		var box = card.querySelector( ':scope > .site-pick-field' );
+		if ( !box ) {
+			box = document.createElement( 'div' );
+			box.className = 'site-pick-field';
+			card.insertBefore( box, card.firstChild );
+		}
+		box.appendChild( label );
+		box.appendChild( node );
+		// "In My Collection" (your saved copies of this brainrot) goes straight
+		// under the picker, so it reads as part of the choice; it hides itself
+		// when you have none (user, 2026-11-23)
+		var strip = ( into || document.getElementById( 'slot-value' ) ).querySelector( '.ffb-v2-strip' );
+		if ( strip && strip.previousSibling !== box ) {
+			card.insertBefore( strip, box.nextSibling );
+		}
 	}
 
 	function move( holder, selector, slotId ) {
@@ -212,7 +248,7 @@
 
 	function loadScript() {
 		var s = document.createElement( 'script' );
-		s.src = 'calc.js?v=968d23827c';
+		s.src = 'calc.js?v=8584dc7554';
 		s.onload = function () {
 			usePicker();
 			// the Fuze page builds from the same figures, with calc.js's picker

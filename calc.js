@@ -896,17 +896,19 @@
 			lvlLine.appendChild( lvlOut );
 			lvlBody.appendChild( lvlLine );
 		}
+		// just the two ends: the Lv buttons and Reset went (user, 2026-11-23)
 		var quick = el( 'div', 'ffb-v2-quick' );
-		[ 1, 100, 150, 175, data.maxLevel ].forEach( function ( q ) {
-			var b = el( 'button', 'ffb-calc-reset', 'Lv ' + q );
-			b.type = 'button';
-			b.addEventListener( 'click', function () {
-				state.level = q;
-				syncControls();
-				refresh();
-			} );
-			quick.appendChild( b );
+		// back to the start, keeping the mutation and traits (Reset clears
+		// those too; user, 2026-11-23)
+		var startBtn = el( 'button', 'ffb-calc-reset ffb-v2-start', 'Unevolved, Lv 1' );
+		startBtn.type = 'button';
+		startBtn.addEventListener( 'click', function () {
+			state.level = 1;
+			state.evolution = 0;
+			syncControls();
+			refresh();
 		} );
+		quick.appendChild( startBtn );
 		var maxBtn = el( 'button', 'ffb-calc-reset ffb-v2-max', 'Fully upgraded' );
 		maxBtn.type = 'button';
 		maxBtn.addEventListener( 'click', function () {
@@ -916,15 +918,6 @@
 			refresh();
 		} );
 		quick.appendChild( maxBtn );
-		var reset = el( 'button', 'ffb-calc-reset', 'Reset' );
-		reset.type = 'button';
-		reset.addEventListener( 'click', function () {
-			state = fresh();
-			loaded = null;
-			syncControls();
-			refresh();
-		} );
-		quick.appendChild( reset );
 		lvlBody.appendChild( quick );
 
 		// ---- the answer --------------------------------------------------------
@@ -937,6 +930,17 @@
 		var working = el( 'div', 'ffb-calc-working' );
 		result.appendChild( incomeOut );
 		result.appendChild( valueOut );
+		// the phone site shows the brainrot's picture under Value (user,
+		// 2026-11-21); the wiki's pages have it in the infobox already
+		if ( typeof window !== 'undefined' && window.ffbStandalone && safeIconUrl( data.image ) ) {
+			var picOut = el( 'div', 'ffb-calc-figure ffb-v2-pic' );
+			var pic = el( 'img', 'ffb-v2-pic-img' );
+			pic.alt = data.name;
+			pic.setAttribute( 'referrerpolicy', 'no-referrer' );
+			pic.src = safeIconUrl( data.image ).replace( '/scale-to-width-down/40?', '/scale-to-width-down/160?' );
+			picOut.appendChild( pic );
+			result.appendChild( picOut );
+		}
 		result.appendChild( ceilOut );
 		result.appendChild( costOut );
 		result.appendChild( fullCostOut );
@@ -954,9 +958,18 @@
 				{ e: Math.floor( t.e ), l: Math.floor( t.l ) } : { e: 1, l: data.maxLevel };
 		}() );
 		var targetBox = el( 'div', 'ffb-calc-figure ffb-v2-target' );
-		targetBox.appendChild( el( 'span', 'ffb-calc-figure-label', 'Cost to reach' ) );
+		// a short how-to as the heading's hover tooltip (user, 2026-11-23)
+		var targetHead = el( 'span', 'ffb-calc-figure-label', 'Cost to reach' );
+		targetHead.title = 'Pick an evolution and level to see what it costs to get this brainrot there from where it is now (same mutation and traits). Evolving is free but starts the level again at 1.';
+		targetBox.appendChild( targetHead );
 		var targetFields = el( 'div', 'ffb-v2-target-fields' );
-		var targetEvo = buildListPicker( uid + 'te', evolutionOptions( cat ), String( target.e ),
+		// a small box that shows just the evolution's icon, so Evolution, Level
+		// and the cost fit on one row (user, 2026-11-21); the open list keeps
+		// the full names, and the box's text stays for screen readers
+		var targetEvoOpts = evolutionOptions( cat ).map( function ( o, i ) {
+			return i === 0 ? { value: o.value, label: 'None', icon: o.icon } : o;
+		} );
+		var targetEvo = buildListPicker( uid + 'te', targetEvoOpts, String( target.e ),
 			'ffb-trade-input ffb-trade-select-evo', function ( v ) {
 				target.e = parseInt( v, 10 );
 				keepTarget();
@@ -978,11 +991,18 @@
 		targetLvl.addEventListener( 'change', function () {
 			targetLvl.value = String( target.l );
 		} );
-		targetFields.appendChild( pickerField( uid + 'te', 'Evolution', targetEvo, 'ffb-trade-field-evo' ).node );
+		targetFields.appendChild( pickerField( uid + 'te', 'Evolution', targetEvo, 'ffb-trade-field-evo ffb-v2-evo-iconly' ).node );
 		targetFields.appendChild( field( uid + 'tl', 'Level', targetLvl, 'ffb-trade-field-level' ).node );
-		targetBox.appendChild( targetFields );
+		var targetRes = el( 'div', 'ffb-trade-field ffb-v2-target-res' );
+		targetRes.appendChild( el( 'span', 'ffb-trade-label', 'Cost' ) );
 		var targetOut = el( 'div', 'ffb-v2-target-out' );
-		targetBox.appendChild( targetOut );
+		targetRes.appendChild( targetOut );
+		targetFields.appendChild( targetRes );
+		targetBox.appendChild( targetFields );
+		// "already there / past it" notes run the whole width, under the row
+		// (user, 2026-11-23)
+		var targetNote = el( 'div', 'ffb-v2-target-note' );
+		targetBox.appendChild( targetNote );
 		result.appendChild( targetBox );
 
 		function keepTarget() {
@@ -1002,41 +1022,43 @@
 		}
 
 		function renderTarget() {
+			// already at Evo 7, level 200: nothing left to reach, so the
+			// section goes (user, 2026-11-23)
+			targetBox.hidden = state.evolution >= data.maxEvolution && state.level >= data.maxLevel;
+			if ( targetBox.hidden ) {
+				clear( targetOut );
+				clear( targetNote );
+				return;
+			}
 			var tc = data.base === null || data.base === undefined ? null :
 				targetCost( data, data.base * totalFor( 0 ), state.evolution, state.level, target.e, target.l, evoOf );
-			var steps;
 			clear( targetOut );
+			clear( targetNote );
+			targetNote.hidden = true;
 			if ( !tc || tc.there || tc.behind ) {
 				targetOut.appendChild( el( 'strong', 'ffb-calc-figure-value ffb-v2-cost-done',
 					!tc ? 'Not known yet' : tc.there ? 'Already there' : 'Already past it' ) );
 				if ( tc ) {
-					targetOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', tc.there ?
+					targetNote.hidden = false;
+					targetNote.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', tc.there ?
 						'The calculator is set to ' + where( target.e, target.l ) + ' already.' :
 						'This ' + data.name + ' is at ' + where( state.evolution, state.level ) + ', beyond ' +
 							where( target.e, target.l ) + '. Pick a later evolution or a higher level.' ) );
 				}
 				return;
 			}
+			// just the cost: no step-by-step note under it (user, 2026-11-21)
 			targetOut.appendChild( fullTip( el( 'strong', 'ffb-calc-figure-value', money( tc.cost ) ), tc.cost, false, true ) );
-			if ( !tc.evolves ) {
-				steps = 'levels ' + state.level + ' → ' + target.l + ', no evolving.';
-			} else {
-				steps = ( tc.finish ? 'levels ' + state.level + ' → ' + data.maxLevel + ', ' : '' ) +
-					'evolve ' + ( tc.evolves === 1 ? 'once' : tc.evolves + ' times' ) + ' (free), ' +
-					( tc.between.length ? 'a full climb at ' + joinNames( tc.between.map( function ( e ) {
-						return 'Evo ' + e;
-					} ) ) + ', ' : '' ) +
-					'then level 1 → ' + target.l + ' at Evo ' + target.e + '.';
-			}
-			targetOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block',
-				'From ' + where( state.evolution, state.level ) + ': ' + steps ) );
 		}
 		// ---- What can my cash do? How far a sum takes this brainrot (user,
 		// 2026-10-20); the sum is remembered like the target
 		var CASH_KEY = 'ffb-value-cash';
 		var cashEvolve = false;
 		var cashBox = el( 'div', 'ffb-calc-figure ffb-v2-cash' );
-		cashBox.appendChild( el( 'span', 'ffb-calc-figure-label', 'What can my cash do?' ) );
+		// the how-to shows as the heading's hover tooltip (user, 2026-11-23)
+		var cashHead = el( 'span', 'ffb-calc-figure-label', 'What can my cash do?' );
+		cashHead.title = 'Type how much you have (or want to spend on this brainrot) to see how far it takes it.';
+		cashBox.appendChild( cashHead );
 		var cashIn = el( 'input', 'ffb-trade-input' );
 		cashIn.type = 'text';
 		cashIn.placeholder = 'e.g. 2.5';
@@ -1067,14 +1089,18 @@
 
 		function renderCash() {
 			clear( cashOut );
+			// fully evolved: nothing left to evolve into, so the section goes
+			// (user, 2026-11-23)
+			cashBox.hidden = state.evolution >= data.maxEvolution;
+			if ( cashBox.hidden ) {
+				return;
+			}
 			var cash = parseMoney( moneyText( cashIn ) );
 			if ( data.base === null || data.base === undefined ) {
 				cashOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block', 'Not known yet: this brainrot’s income hasn’t been measured.' ) );
 				return;
 			}
 			if ( cash === null || !( cash > 0 ) ) {
-				cashOut.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-base-block',
-					'Type how much you have (or want to spend on this brainrot) to see how far it takes it.' ) );
 				return;
 			}
 			var strength = data.base * totalFor( 0 );
@@ -1112,6 +1138,64 @@
 
 		result.appendChild( working );
 		result.appendChild( suffixLegend() );
+		// the answer folds to its first line (picture and Income): open on
+		// large screens, folded on phones; the choice is remembered on this
+		// device (user, 2026-11-23)
+		var FOLD_KEY = 'ffb-value-folded';
+		var foldBtn = el( 'button', 'ffb-v2-fold' );
+		foldBtn.type = 'button';
+		function setFolded( f ) {
+			result.classList.toggle( 'ffb-v2-folded', f );
+			foldBtn.setAttribute( 'aria-expanded', f ? 'false' : 'true' );
+			foldBtn.textContent = f ? 'More' : 'Less';
+			foldBtn.title = f ? 'Show sell price, costs and more' : 'Show just Income';
+		}
+		var foldSaved = readStorage( storage, FOLD_KEY );
+		setFolded( foldSaved !== null ? foldSaved === '1' :
+			!!( typeof window !== 'undefined' && window.matchMedia && window.matchMedia( '(max-width: 760px)' ).matches ) );
+		// opening and closing slide the box's height, and what appears fades
+		// in (user, 2026-11-23); no motion for readers who ask for none
+		var foldAnim = null;
+		function animateFold( f ) {
+			var still = !result.animate || ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+			if ( foldAnim ) {
+				foldAnim.cancel();
+				foldAnim = null;
+			}
+			if ( still ) {
+				setFolded( f );
+				return;
+			}
+			var from = result.getBoundingClientRect().height;
+			setFolded( f );
+			var to = result.getBoundingClientRect().height;
+			if ( !f ) {
+				result.classList.add( 'ffb-v2-unfolding' );
+			} else {
+				// keep the rest showing while the box closes over it
+				result.classList.remove( 'ffb-v2-folded' );
+				result.classList.add( 'ffb-v2-folding' );
+			}
+			result.style.overflow = 'hidden';
+			foldAnim = result.animate( [ { height: from + 'px' }, { height: to + 'px' } ],
+				{ duration: f ? 260 : 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' } );
+			function done() {
+				result.style.overflow = '';
+				result.classList.remove( 'ffb-v2-unfolding', 'ffb-v2-folding' );
+				result.classList.toggle( 'ffb-v2-folded', f );
+				foldAnim = null;
+			}
+			foldAnim.onfinish = done;
+			foldAnim.oncancel = done;
+		}
+		foldBtn.addEventListener( 'click', function () {
+			var f = foldBtn.getAttribute( 'aria-expanded' ) === 'true';
+			animateFold( f );
+			if ( storage ) {
+				writeStorage( storage, FOLD_KEY, f ? '1' : '0' );
+			}
+		} );
+		result.appendChild( foldBtn );
 		side.appendChild( result );
 		var saveBox = el( 'div', 'ffb-v2-save' );
 		var toastBox = el( 'div', 'ffb-v2-toast' );
@@ -1122,7 +1206,7 @@
 		function figure( box, label, n, text ) {
 			clear( box );
 			box.appendChild( el( 'span', 'ffb-calc-figure-label', label ) );
-			box.appendChild( fullTip( el( 'strong', 'ffb-calc-figure-value', text ), n, /\/sec$/.test( text ), true ) );
+			box.appendChild( fullTip( el( 'strong', 'ffb-calc-figure-value', text ), n, /\/s(ec)?$/.test( text ), true ) );
 		}
 
 		/** A cash figure with a line under it; done replaces the figure once there's nothing left to pay. */
@@ -1179,7 +1263,8 @@
 				return;
 			}
 			strip.appendChild( el( 'span', 'ffb-v2-strip-title', 'In My Collection' ) );
-			strip.appendChild( el( 'span', 'ffb-base-small', 'You have ' + mine.length + ' ' + data.name + ':' ) );
+			// no "You have N …:" line: the "In My Collection" title and the
+			// buttons say it (user, 2026-11-23)
 			mine.forEach( function ( x ) {
 				var on = loaded && loaded.at === x.at;
 				var b = el( 'button', 'ffb-v2-mine' + ( on ? ' ffb-v2-mine-on' : '' ) );
@@ -1189,7 +1274,11 @@
 				if ( mk ) {
 					b.appendChild( mk );
 				}
-				b.appendChild( el( 'span', null, describe( x.r ) ) );
+				// with the mutation's icon showing, the text leaves its name out
+				// (user, 2026-11-21); the full description stays as the tooltip
+				var hasIcon = !isDefault( x.r.mutation ) && !!cat.mutationIcon[ x.r.mutation ];
+				b.title = describe( x.r );
+				b.appendChild( el( 'span', null, hasIcon ? 'L' + x.r.level + ( x.r.evolution ? ', Evo ' + x.r.evolution : '' ) : describe( x.r ) ) );
 				var rate = income( data.base, rowTotal( cat, x.r, x.r.evolution ), x.r.level, data );
 				b.appendChild( fullTip( el( 'span', 'ffb-v2-mine-fig', money( rate ) + '/s' ), rate, true ) );
 				if ( on ) {
@@ -1200,7 +1289,8 @@
 				} );
 				strip.appendChild( b );
 			} );
-			strip.appendChild( el( 'span', 'ffb-base-muted ffb-base-small ffb-v2-strip-hint', loaded ? 'loaded into the calculator' : 'click one to load it' ) );
+			// no hint after the buttons: the "· loaded" tag says which one is in
+			// (user, 2026-11-23)
 		}
 
 		function save( mode ) {
@@ -1293,13 +1383,19 @@
 				b.addEventListener( 'click', function () {
 					save( 'add' );
 				} );
+				// the note shows as the button's hover tooltip, not under it
+				// (user, 2026-11-23)
+				b.title = 'Adds a ' + data.name + ' with these settings.';
 				saveBox.appendChild( b );
-				saveBox.appendChild( el( 'div', 'ffb-base-muted ffb-base-small', 'Adds a ' + data.name + ' with these settings.' ) );
 			}
 			useInTrade();
 		}
 
 		function refresh() {
+			// already at that end: the button is greyed out rather than hidden
+			// (user, 2026-11-23)
+			startBtn.disabled = state.level <= 1 && state.evolution === 0;
+			maxBtn.disabled = state.level >= data.maxLevel && state.evolution >= data.evolutions.length;
 			var terms = [];
 			var evoFactor = state.evolution > 0 ? data.evolutions[ state.evolution - 1 ] : 1;
 			var mut = data.mutations[ state.mutation ];
@@ -1315,24 +1411,38 @@
 			var rate = income( data.base, total, state.level, data );
 			var ceil = income( data.base, totalFor( data.evolutions.length ), data.maxLevel, data );
 
-			figure( incomeOut, 'Income', rate, money( rate ) + '/sec' );
-			figure( valueOut, 'Value', saleValue( rate, data.valueMult ), money( saleValue( rate, data.valueMult ) ) );
-			figure( ceilOut, 'Fully upgraded (level ' + data.maxLevel + ', Evo ' + data.evolutions.length + ')', ceil, money( ceil ) + '/sec' );
+			figure( incomeOut, 'Income', rate, money( rate ) + '/s' );
+			// what it sells for, named plainly (user, 2026-11-23)
+			figure( valueOut, 'Sell price', saleValue( rate, data.valueMult ), money( saleValue( rate, data.valueMult ) ) );
+			// where it starts: level 1, unevolved, same mutation and traits;
+			// already there, it shows fully upgraded instead (user, 2026-11-21)
+			if ( state.evolution > 0 || state.level > 1 ) {
+				var start = income( data.base, totalFor( 0 ), 1, data );
+				figure( ceilOut, 'Earns at Lv 1, unevolved', start, money( start ) + '/s' );
+				ceilOut.firstChild.title = 'What it earns each second while placed in your base, at level 1 and unevolved (same mutation and traits).';
+			} else {
+				// "earns" + the /s on the figure says per second; the tooltip says
+				// it has to be placed (user, 2026-11-23)
+				figure( ceilOut, 'Earns when maxed (Lv ' + data.maxLevel + ', Evo ' + data.evolutions.length + ')', ceil, money( ceil ) + '/s' );
+				ceilOut.firstChild.title = 'What it earns each second while placed in your base, at level ' + data.maxLevel + ' and Evo ' + data.evolutions.length + '.';
+			}
 
 			// what the climb still costs: the next step (to level 200, or at
 			// level 200 the next evolution), and all the way to Evo 7
 			var cc = data.base === null || data.base === undefined ? null :
 				climbCost( data, data.base * totalFor( 0 ), state.evolution, state.level, evoOf );
-			var estimate = 'An estimate: some upgrade prices are fitted to a few readings, not read level by level.';
 			var evolving = cc && cc.next.evolution > state.evolution;
 			var done = cc && state.level >= data.maxLevel && !cc.climbsLeft;
 			var after = cc ? data.maxEvolution - cc.next.evolution : 0;
 			costFigure( costOut, evolving || done ?
-				'Upgrade cost to Evo ' + ( done ? state.evolution : cc.next.evolution ) + ', level ' + data.maxLevel :
-				'Upgrade cost to level ' + data.maxLevel + ' (' + ( state.evolution ? 'Evo ' + state.evolution : 'unevolved' ) + ')',
-				cc && cc.next.cost, cc ? ( done ? 'Already fully upgraded' : null ) : 'Not known yet',
-				cc && !done ? ( evolving ? 'Evolve (free), then level 1 → ' + data.maxLevel + ' at Evo ' + cc.next.evolution + '. ' :
-					'From level ' + state.level + '. ' ) + estimate : '' );
+				// the next step and all the way: "Cost to level 200", "Cost to max"
+				// (user, 2026-11-23)
+				'Cost to Evo ' + ( done ? state.evolution : cc.next.evolution ) + ', level ' + data.maxLevel :
+				'Cost to level ' + data.maxLevel,
+				// no note under it: the label says it all (user, 2026-11-21)
+				cc && cc.next.cost, cc ? ( done ? 'Already fully upgraded' : null ) : 'Not known yet', '' );
+			// fully upgraded: no upgrade cost to show (user, 2026-11-23)
+			costOut.hidden = !!done;
 			renderTarget();
 			renderCash();
 			// once the next step already ends at Evo 7, level 200, the same figure twice says nothing
@@ -1340,23 +1450,64 @@
 			if ( fullCostOut.hidden ) {
 				clear( fullCostOut );
 			} else {
-				costFigure( fullCostOut, 'Upgrade cost to Evo ' + data.maxEvolution + ', level ' + data.maxLevel,
-					cc && cc.toFull, cc ? null : 'Not known yet',
-					cc ? 'The step above, then ' + after + ' more climb' + ( after === 1 ? '' : 's' ) +
-						' from level 1 to ' + data.maxLevel + ': evolving is free but resets the level.' : '' );
+				costFigure( fullCostOut, 'Cost to max (Lv ' + data.maxLevel + ', Evo ' + data.maxEvolution + ')',
+					// no note under it: the label says it all (user, 2026-11-21)
+					cc && cc.toFull, cc ? null : 'Not known yet', '' );
 			}
 
 			// e.g. "(Ruby 7.00  +  Evil 5.00)  ×  Evolution 7 5.01  =  ×60.12   × 1.3^174 × 1.03^25"
-			var sumText = terms.length ? terms.join( '  +  ' ) : 'nothing applied';
-			if ( state.evolution > 0 ) {
-				sumText = ( terms.length > 1 ? '(' + sumText + ')' : sumText ) +
-					'  ×  Evolution ' + state.evolution + ' ' + evoFactor.toFixed( 2 );
-			}
+			// no mutation and no traits: the base multiplier, 1 (user, 2026-11-23).
+			// The mutation, traits and evolution show their game icons in front
+			// of their names (user, 2026-11-23)
 			var from = data.highGrowthFrom || data.maxLevel + 1;
 			var growthText = state.level < from ?
 				data.growth + '^' + ( state.level - 1 ) :
 				data.growth + '^' + ( from - 2 ) + ' × ' + data.highGrowth + '^' + ( state.level - from + 1 );
-			working.textContent = sumText + '  =  ×' + total.toFixed( 2 ) + '   × ' + growthText;
+			clear( working );
+			var wTerm = function ( mk, text ) {
+				var t = el( 'span', 'ffb-calc-term' );
+				if ( mk ) {
+					t.appendChild( mk );
+				}
+				t.appendChild( document.createTextNode( text ) );
+				working.appendChild( t );
+			};
+			var wText = function ( text ) {
+				working.appendChild( document.createTextNode( text ) );
+			};
+			var wTerms = [];
+			if ( mut && !isDefault( mut.n ) ) {
+				wTerms.push( [ mark( cat.mutationColor[ mut.n ] || null, cat.mutationIcon[ mut.n ] || null ), mut.n + ' ' + mut.m.toFixed( 2 ) ] );
+			}
+			state.traits.slice().sort( function ( a, b ) {
+				return a - b;
+			} ).forEach( function ( i ) {
+				var tr = data.traits[ i ];
+				var ic = cat.traitIcon && cat.traitIcon[ tr.n ];
+				wTerms.push( [ ic ? mark( null, ic ) : null, ( ic ? tr.n : emojiName( tr.e, tr.n ) ) + ' ' + tr.m.toFixed( 2 ) ] );
+			} );
+			var bracket = state.evolution > 0 && wTerms.length > 1;
+			if ( bracket ) {
+				wText( '(' );
+			}
+			if ( !wTerms.length ) {
+				wTerm( null, 'No mutation or traits 1.00' );
+			}
+			wTerms.forEach( function ( x, k ) {
+				if ( k ) {
+					wText( '  +  ' );
+				}
+				wTerm( x[ 0 ], x[ 1 ] );
+			} );
+			if ( bracket ) {
+				wText( ')' );
+			}
+			if ( state.evolution > 0 ) {
+				wText( '  ×  ' );
+				var evIc = cat.evolutionIcon && cat.evolutionIcon[ state.evolution ];
+				wTerm( evIc ? mark( null, evIc ) : null, 'Evolution ' + state.evolution + ' ' + evoFactor.toFixed( 2 ) );
+			}
+			wText( '  =  ×' + total.toFixed( 2 ) + '   × ' + growthText );
 
 			if ( !dd ) {
 				lvlOut.textContent = String( state.level );
@@ -4280,7 +4431,7 @@
 	 * square. When the icon can't load (offline, say) the square takes its
 	 * place.
 	 */
-	function mark( color, icon ) {
+	function mark( color, icon, ring ) {
 		var img;
 		if ( !icon ) {
 			return color ? swatch( color ) : null;
@@ -4291,6 +4442,15 @@
 		img.setAttribute( 'width', '18' );
 		img.setAttribute( 'height', '18' );
 		img.setAttribute( 'style', 'width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 6px; flex-shrink: 0;' );
+		// a brainrot's picture gets an outline in its rarity's colour, in
+		// place of writing the rarity out (user, 2026-11-21)
+		if ( ring && color ) {
+			img.setAttribute( 'width', '24' );
+			img.setAttribute( 'height', '24' );
+			img.setAttribute( 'style', 'width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 8px; flex-shrink: 0;' +
+				' box-sizing: border-box; padding: 1px; border-radius: 6px; box-shadow: 0 0 0 2px ' + color + '; background: rgba(0, 0, 0, 0.22);' );
+			img.className = 'ffb-icon ffb-icon-ring';
+		}
 		function fallBack() {
 			if ( img.parentNode ) {
 				if ( color ) {
@@ -4385,21 +4545,24 @@
 		var lead = null;
 		function showLead() {
 			var want = cfg.lead ? cfg.lead( chosen ) : null;
-			var mk = want ? mark( want.color || null, want.icon || null ) : null;
+			var mk = want ? mark( want.color || null, want.icon || null, want.ring ) : null;
 			if ( lead && lead.parentNode ) {
 				lead.parentNode.removeChild( lead );
 			}
 			lead = null;
 			if ( mk ) {
 				lead = el( 'span', 'ffb-pick-lead' );
-				lead.setAttribute( 'style', 'position: absolute; left: 8px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; pointer-events: none;' );
+				// a picture needs more room than a colour square, so its ring
+				// keeps clear of the box's edge and of the text (user, 2026-11-21)
+				var pic = !!want.icon;
+				lead.setAttribute( 'style', 'position: absolute; left: ' + ( pic ? 12 : 8 ) + 'px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; pointer-events: none;' );
 				lead.appendChild( mk );
 				if ( wrap.style ) {
 					wrap.style.position = 'relative';
 				}
 				wrap.insertBefore( lead, wrap.firstChild );
 				if ( input.style ) {
-					input.style.paddingLeft = '32px';
+					input.style.paddingLeft = pic ? '50px' : '32px';
 				}
 			} else if ( input.style ) {
 				input.style.paddingLeft = '';
@@ -4446,7 +4609,7 @@
 				li.id = listId + '-' + k;
 				li.setAttribute( 'role', 'option' );
 				var nameCell = el( 'span', 'ffb-pick-name' );
-				var mk = mark( m.color, m.icon );
+				var mk = mark( m.color, m.icon, m.ring );
 				if ( mk ) {
 					nameCell.appendChild( mk );
 				}
@@ -4558,13 +4721,13 @@
 			noun: 'brainrot',
 			search: function ( q ) {
 				return searchBrainrots( cat, q ).map( function ( m ) {
-					return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity, color: m.color,
+					return { value: m.value, meta: m.look ? 'looks like: ' + m.look : null, ring: true, color: m.color,
 						icon: cat.brainrotIcon[ m.value ] || null, right: m.base || 'no base yet' };
 				} );
 			},
 			// the chosen brainrot's picture inside the box, like the other pickers
 			lead: function ( v ) {
-				return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ] } : null;
+				return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ], color: cat.brainrots[ v ] && cat.rarityColor[ cat.brainrots[ v ].rarity ] || null, ring: true } : null;
 			},
 			exact: function ( text ) {
 				return exactBrainrot( cat, text );
@@ -5791,7 +5954,7 @@
 					}
 					var all = searchBrainrots( cat, q );
 					return out.concat( all.map( function ( m ) {
-						return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity,
+						return { value: m.value, meta: m.look ? 'looks like: ' + m.look : null, ring: true,
 							color: m.color, icon: cat.brainrotIcon[ m.value ] || null, right: m.base || 'no base yet',
 							group: out.length ? 'All brainrots · ' + all.length : null, groupHint: 'then set mutation, traits, level' };
 					} ) );
@@ -5800,7 +5963,7 @@
 					return String( v || '' ).indexOf( 'saved:' ) === 0 ? '' : v;
 				},
 				lead: function ( v ) {
-					return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ] } : null;
+					return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ], color: cat.brainrots[ v ] && cat.rarityColor[ cat.brainrots[ v ].rarity ] || null, ring: true } : null;
 				},
 				exact: function ( text ) {
 					return exactBrainrot( cat, text );
@@ -6813,12 +6976,12 @@
 				noun: 'brainrot',
 				search: function ( q ) {
 					return searchBrainrots( cat, q ).map( function ( m ) {
-						return { value: m.value, meta: m.look ? m.rarity + ' · looks like: ' + m.look : m.rarity,
+						return { value: m.value, meta: m.look ? 'looks like: ' + m.look : null, ring: true,
 							color: m.color, icon: cat.brainrotIcon[ m.value ] || null, right: m.base || 'no base yet' };
 					} );
 				},
 				lead: function ( v ) {
-					return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ] } : null;
+					return v && cat.brainrotIcon[ v ] ? { icon: cat.brainrotIcon[ v ], color: cat.brainrots[ v ] && cat.rarityColor[ cat.brainrots[ v ].rarity ] || null, ring: true } : null;
 				},
 				exact: function ( text ) {
 					return exactBrainrot( cat, text );
